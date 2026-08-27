@@ -1,4 +1,4 @@
-# ⏳ Hardcore Time Stop (Minecraft 1.20.1)
+# Hardcore Time Stop (Minecraft 1.20.1)
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1-brightgreen.svg)
 ![Loader](https://img.shields.io/badge/Loader-NeoForge%20%7C%20Forge%2047.1%2B-blue.svg)
@@ -11,7 +11,7 @@ Unlike standard mods that rely on superficial tick events or cheap potion effect
 
 ---
 
-## 🌟 Features & Temporal Modes
+## Features & Temporal Modes
 
 The mod features **4 Temporal Modes**, switchable on the fly:
 
@@ -24,7 +24,7 @@ The mod features **4 Temporal Modes**, switchable on the fly:
 
 ---
 
-## 🎮 Controls & Mode Selection
+## Controls & Mode Selection
 
 - **`Shift + Right-Click` (Held Watch)**:
   - **Cycles mode**: `TIME STOP` ➔ `SLOW MOTION` ➔ `MATRIX` ➔ `FAST FORWARD` ➔ `TIME STOP`.
@@ -37,9 +37,9 @@ The mod features **4 Temporal Modes**, switchable on the fly:
 
 ---
 
-## 🕰️ The Watches: Survival vs. Creative
+## The Watches: Survival vs. Creative
 
-| Feature | 🟡 Chronos Pocket Watch (Survival) | 🟣 Infinite Chronos Watch (Creative / Admin) |
+| Feature | Chronos Pocket Watch (Survival) | Infinite Chronos Watch (Creative / Admin) |
 | :--- | :--- | :--- |
 | **Item ID** | `timestop:chronos_watch` | `timestop:creative_watch` |
 | **Texture** | Handcrafted circular gold pocket watch with top chain loop and white dial | Handcrafted cosmic obsidian/amethyst pocket watch with cyan temporal rift core |
@@ -47,7 +47,7 @@ The mod features **4 Temporal Modes**, switchable on the fly:
 | **Duration** | **10 seconds** per activation (HUD progress bar) | **Infinite** (Runs until manually toggled off) |
 | **Cooldown** | **15 seconds** (Begins **ONLY when time stop ends**) | **Zero cooldown** (Instantaneous unlimited toggling) |
 
-### 🛠️ Crafting Recipe (Chronos Pocket Watch)
+### Crafting Recipe (Chronos Pocket Watch)
 
 Crafted on a standard 3x3 Crafting Table:
 
@@ -63,7 +63,7 @@ Crafted on a standard 3x3 Crafting Table:
 
 ---
 
-## ⚡ Technical Highlights
+## Technical Highlights
 
 - **Anti-Jitter Geometry**: Clamps `partialTicks = 1.0F` and synchronizes old coordinates (`setOldPosAndRot()`) in `EntityRenderDispatcher` and `LevelRenderer`, eliminating mob jitter and sky vibrating.
 - **Rock-Solid Celestial Lock**: Injects into `ClientLevel#tickTime` and `LevelRenderer#renderSky`, preventing daylight sync packet desyncs.
@@ -73,7 +73,7 @@ Crafted on a standard 3x3 Crafting Table:
 
 ---
 
-## 📦 Building From Source
+## Building From Source
 
 ### Prerequisites:
 - Java Development Kit (JDK) 17 or 21
@@ -89,6 +89,6 @@ The compiled jar will be generated in `build/libs/timestop-1.20.1-1.0.0.jar`.
 
 ---
 
-## 📄 License
+## License
 
 This project is open source and available under the [MIT License](LICENSE).
