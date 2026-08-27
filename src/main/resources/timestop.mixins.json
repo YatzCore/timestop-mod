@@ -1,0 +1,27 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.timestop.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "timestop.refmap.json",
+  "mixins": [
+    "ServerLevelMixin",
+    "LevelMixin",
+    "LivingEntityMixin",
+    "ProjectileMixin",
+    "LiquidBlockMixin",
+    "MinecraftServerMixin",
+    "PlayerMixin"
+  ],
+  "client": [
+    "ClientLevelMixin",
+    "EntityRenderDispatcherMixin",
+    "LevelRendererMixin",
+    "ParticleEngineMixin",
+    "TimerMixin",
+    "TextureAtlasMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,59 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.78'
+}
+
+version = '1.0.0'
+group = 'com.timestop'
+
+base {
+    archivesName = 'timestop-1.20.1'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+legacyForge {
+    version = '1.20.1-47.3.0'
+    validateAccessTransformers = true
+
+    mods {
+        timestop {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, 'timestop.refmap.json'
+    config 'timestop.mixins.json'
+}
+
+dependencies {
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes([
+            'Specification-Title': 'timestop',
+            'Specification-Vendor': 'timestop',
+            'Specification-Version': '1',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'timestop',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            'MixinConfigs': 'timestop.mixins.json'
+        ])
+    }
+}
+
+tasks.register('deployToMods', Copy) {
+    dependsOn 'reobfJar'
+    from tasks.named('reobfJar').flatMap { it.archiveFile }
+    into file('../mods')
+}
+

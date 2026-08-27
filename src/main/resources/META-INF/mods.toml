@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="timestop"
+version="1.0.0"
+displayName="Hardcore Time Stop"
+authors="YatzCore"
+description='''
+A true engine-level Mixin Time Stop mod. Freezes all entities, block entities, weather, day/night cycles, fluids, and projectiles in mid-air, while preserving player mobility, kinetic damage accumulation, and solid liquid walking.
+'''
+
+[[mixins]]
+config="timestop.mixins.json"
+
+[[dependencies.timestop]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.timestop]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.20.2)"
+    ordering="NONE"
+    side="BOTH"
