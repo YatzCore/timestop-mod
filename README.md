@@ -1,4 +1,4 @@
-# Hardcore Time Stop (Minecraft 1.20.1)
+# Ultimate Time Stop (Minecraft 1.20.1)
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1-brightgreen.svg)
 ![Loader](https://img.shields.io/badge/Loader-NeoForge%20%7C%20Forge%2047.1%2B-blue.svg)
@@ -7,7 +7,7 @@
 
 A true **engine-level Mixin time manipulation mod** for Minecraft 1.20.1.
 
-Unlike standard mods that rely on superficial tick events or cheap potion effects (which cause entity jitter, rubberbanding, and particle clutter), **Hardcore Time Stop** directly modulates Minecraft's internal execution loops (`ServerLevel`, `ClientLevel`, `MinecraftServer`, `Timer`, `TextureAtlas`, and `EntityRenderDispatcher`).
+Unlike standard mods that rely on superficial tick events or cheap potion effects (which cause entity jitter, rubberbanding, and particle clutter), **Ultimate Time Stop** directly modulates Minecraft's internal execution loops (`ServerLevel`, `ClientLevel`, `MinecraftServer`, `Timer`, `TextureAtlas`, and `EntityRenderDispatcher`).
 
 ---
 

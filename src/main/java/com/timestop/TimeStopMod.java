@@ -40,7 +40,7 @@ public class TimeStopMod {
             ClientSetup.init(modEventBus);
         }
 
-        LOGGER.info("[TimeStop] Hardcore Mixin Time Stop Mod initialized!");
+        LOGGER.info("[TimeStop] Ultimate Time Stop Mod initialized!");
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

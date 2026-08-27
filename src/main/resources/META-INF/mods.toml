@@ -5,7 +5,7 @@ license="MIT"
 [[mods]]
 modId="timestop"
 version="1.0.0"
-displayName="Hardcore Time Stop"
+displayName="Ultimate Time Stop"
 authors="YatzCore"
 description='''
 A true engine-level Mixin Time Stop mod. Freezes all entities, block entities, weather, day/night cycles, fluids, and projectiles in mid-air, while preserving player mobility, kinetic damage accumulation, and solid liquid walking.
