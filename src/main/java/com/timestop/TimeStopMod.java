@@ -2,6 +2,7 @@ package com.timestop;
 
 import com.mojang.logging.LogUtils;
 import com.timestop.client.ClientSetup;
+import com.timestop.combat.TemporalInteractionEvents;
 import com.timestop.command.TimeStopCommand;
 import com.timestop.core.TimeStopManager;
 import com.timestop.item.ModItems;
@@ -35,6 +36,13 @@ public class TimeStopMod {
         modEventBus.addListener(this::addCreative);
 
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(new TemporalInteractionEvents());
+        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.RuneManager());
+        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.VolatileStasisHandler());
+        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.TachyonRuneHandler());
+        MinecraftForge.EVENT_BUS.register(com.timestop.combat.DeadEyeManager.class);
+        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.VoltaicRicochetHandler());
+        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.OrbitalProjectileManager());
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientSetup.init(modEventBus);

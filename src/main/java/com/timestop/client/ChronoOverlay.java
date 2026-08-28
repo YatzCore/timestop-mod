@@ -2,9 +2,11 @@ package com.timestop.client;
 
 import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeMode;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 public class ChronoOverlay {
@@ -23,16 +25,24 @@ public class ChronoOverlay {
         int x = screenWidth / 2;
         int y = 20;
 
-        String statusText;
+        Component statusComponent;
         if (totalDuration <= 0) {
-            statusText = mode.getFormattedName() + " §7[ §e∞ ACTIVE §7]";
+            statusComponent = mode.getFormattedComponent()
+                    .copy()
+                    .append(Component.literal(" [ ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                    .append(Component.literal("ACTIVE").withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
+                    .append(Component.literal(" ]").withStyle(net.minecraft.ChatFormatting.GRAY));
         } else {
             float seconds = remainingTicks / 20.0F;
-            statusText = String.format("%s §7[ §e%.1fs §7]", mode.getFormattedName(), seconds);
+            statusComponent = mode.getFormattedComponent()
+                    .copy()
+                    .append(Component.literal(" [ ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                    .append(Component.literal(String.format("%.1fs", seconds)).withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
+                    .append(Component.literal(" ]").withStyle(net.minecraft.ChatFormatting.GRAY));
         }
 
-        int textWidth = font.width(statusText);
-        guiGraphics.drawString(font, statusText, x - textWidth / 2, y, 0xFFFFFF, true);
+        int textWidth = font.width(statusComponent);
+        guiGraphics.drawString(font, statusComponent, x - textWidth / 2, y, 0xFFFFFF, true);
 
         // Render progress bar if finite duration
         if (totalDuration > 0) {
@@ -54,6 +64,9 @@ public class ChronoOverlay {
                     break;
                 case MATRIX:
                     color = 0xFF2EC4B6;
+                    break;
+                case SUPERHOT:
+                    color = 0xFFFF2A2A;
                     break;
                 case FAST_FORWARD:
                     color = 0xFFFF0054;

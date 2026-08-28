@@ -1,31 +1,50 @@
 package com.timestop.core;
 
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+
 public enum TimeMode {
-    TIME_STOP("Time Stop", "§6§lTIME STOP", "§eFreezes all time, entities, and projectiles completely."),
-    SLOW_MOTION("Slow Motion", "§9§lSLOW MOTION", "§bSlows the entire world to 25% speed."),
-    MATRIX("Matrix", "§a§lMATRIX", "§2World slows to 20% speed while you move at hyper-speed."),
-    FAST_FORWARD("Fast Forward", "§c§lFAST FORWARD", "§4Accelerates time, smelting, and crop growth by 5x.");
+    TIME_STOP("Time Stop", ChatFormatting.GOLD, "Freezes all time, entities, and projectiles completely.", ChatFormatting.YELLOW),
+    SLOW_MOTION("Slow Motion", ChatFormatting.BLUE, "Slows the entire world to 25% speed.", ChatFormatting.AQUA),
+    MATRIX("Matrix", ChatFormatting.GREEN, "World slows to 20% speed while you move at hyper-speed.", ChatFormatting.DARK_GREEN),
+    SUPERHOT("SUPERHOT", ChatFormatting.RED, "Time moves only when you move.", ChatFormatting.DARK_RED),
+    DECELERATION_FIELD("Deceleration Field", ChatFormatting.AQUA, "Normal world speed. Projectiles in 4m radius slow by 80%.", ChatFormatting.DARK_AQUA),
+    FAST_FORWARD("Fast Forward", ChatFormatting.LIGHT_PURPLE, "Accelerates time, smelting, and crop growth by 5x.", ChatFormatting.DARK_PURPLE);
 
     private final String displayName;
-    private final String formattedName;
+    private final ChatFormatting titleColor;
     private final String description;
+    private final ChatFormatting descColor;
 
-    TimeMode(String displayName, String formattedName, String description) {
+    TimeMode(String displayName, ChatFormatting titleColor, String description, ChatFormatting descColor) {
         this.displayName = displayName;
-        this.formattedName = formattedName;
+        this.titleColor = titleColor;
         this.description = description;
+        this.descColor = descColor;
     }
 
     public String getDisplayName() {
         return displayName;
     }
 
+    public ChatFormatting getTitleColor() {
+        return titleColor;
+    }
+
+    public Component getFormattedComponent() {
+        return Component.literal(displayName.toUpperCase()).withStyle(titleColor, ChatFormatting.BOLD);
+    }
+
+    public Component getDescriptionComponent() {
+        return Component.literal(description).withStyle(descColor);
+    }
+
     public String getFormattedName() {
-        return formattedName;
+        return titleColor.toString() + ChatFormatting.BOLD + displayName.toUpperCase();
     }
 
     public String getDescription() {
-        return description;
+        return descColor.toString() + description;
     }
 
     public TimeMode next() {

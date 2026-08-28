@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " S ",
+    "EBA",
+    " I "
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:shield"
+    },
+    "E": {
+      "item": "minecraft:echo_shard"
+    },
+    "B": {
+      "item": "timestop:blank_rune"
+    },
+    "A": {
+      "item": "minecraft:arrow"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "result": {
+    "item": "timestop:rune_orbital",
+    "count": 1
+  }
+}

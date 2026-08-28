@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " S ",
+    "WBA",
+    " M "
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:spyglass"
+    },
+    "W": {
+      "item": "minecraft:bow"
+    },
+    "B": {
+      "item": "timestop:blank_rune"
+    },
+    "A": {
+      "item": "minecraft:spectral_arrow"
+    },
+    "M": {
+      "item": "minecraft:amethyst_shard"
+    }
+  },
+  "result": {
+    "item": "timestop:rune_deadeye",
+    "count": 1
+  }
+}

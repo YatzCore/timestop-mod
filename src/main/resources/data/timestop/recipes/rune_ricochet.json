@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " L ",
+    "CBA",
+    " M "
+  ],
+  "key": {
+    "L": {
+      "item": "minecraft:lightning_rod"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "B": {
+      "item": "timestop:blank_rune"
+    },
+    "A": {
+      "item": "minecraft:spectral_arrow"
+    },
+    "M": {
+      "item": "minecraft:amethyst_shard"
+    }
+  },
+  "result": {
+    "item": "timestop:rune_ricochet",
+    "count": 1
+  }
+}

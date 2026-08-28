@@ -16,14 +16,26 @@ public abstract class LivingEntityMixin {
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
     private void onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
-        // Damage accumulation and hit suspension is EXCLUSIVELY for TIME_STOP mode!
+
+        // 1. Zero Damage Immunity Lockout (Projectiles ONLY):
+        // Clear I-frames strictly for projectile impacts so rapid arrows
+        // (volleys, stasis discharges, Dead Eye, ricochets) never bounce off or deal zero damage.
+        // Melee attacks maintain normal vanilla attack cooldowns and I-frames for balance.
+        if (source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
+            entity.invulnerableTime = 0;
+            entity.hurtTime = 0;
+            entity.hurtDuration = 0;
+        }
+
+        // 2. Damage accumulation and hit suspension is EXCLUSIVELY for TIME_STOP mode!
         // In SLOW_MOTION, MATRIX, and FAST_FORWARD, hits register immediately.
         if (!entity.level().isClientSide 
                 && TimeStopManager.isTimeStopped(entity.level()) 
                 && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP 
                 && !TimeStopManager.isEntityExempt(entity)) {
             TemporalDamageBuffer.recordHit(entity, amount, source);
-            cir.setReturnValue(false);
+            // Return TRUE so projectile callers (like AbstractArrow) know the hit succeeded and DO NOT bounce the arrow!
+            cir.setReturnValue(true);
         }
     }
 }

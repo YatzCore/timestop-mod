@@ -23,12 +23,20 @@ public abstract class PlayerMixin extends LivingEntity {
     @Inject(method = "aiStep", at = @At("TAIL"))
     private void onMatrixPlayerAiStep(CallbackInfo ci) {
         Player player = (Player) (Object) this;
-        if (isMatrixExempt(player)) {
+        if (isAcceleratedExempt(player)) {
             // 1. Weapon Hit Cooldown (Attack recharge):
             // Normal 20 TPS increments attackStrengthTicker by 1 every 50ms.
-            // At 5 TPS (200ms per tick), we advance it by +3 more (total 4 per tick = 20/sec)
+            // At slow TPS (200-250ms per tick), we advance it by +3 more (total 4 per tick = 20/sec)
             // so weapon attack cooldown recharges at full normal speed!
             this.attackStrengthTicker += 3;
+        }
+
+        if (com.timestop.combat.TachyonRuneHandler.isTachyonActive(player)) {
+            // Tachyon flurry: double attack strength recharge speed!
+            this.attackStrengthTicker += 2;
+        }
+
+        if (isAcceleratedExempt(player)) {
 
             // 2. Item Cooldowns (Ender pearls, shields, chorus fruit):
             ItemCooldowns cooldowns = player.getCooldowns();
@@ -58,15 +66,15 @@ public abstract class PlayerMixin extends LivingEntity {
         }
     }
 
-    private static boolean isMatrixExempt(Player player) {
+    private static boolean isAcceleratedExempt(Player player) {
         if (player.level().isClientSide) {
-            return ClientTimeStopManager.isTimeStopped() 
-                    && ClientTimeStopManager.getCurrentMode() == TimeMode.MATRIX 
-                    && ClientTimeStopManager.isEntityExempt(player);
+            if (!ClientTimeStopManager.isTimeStopped() || !ClientTimeStopManager.isEntityExempt(player)) return false;
+            TimeMode mode = ClientTimeStopManager.getCurrentMode();
+            return mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT;
         } else {
-            return TimeStopManager.isTimeStopped(player.level()) 
-                    && TimeStopManager.getCurrentMode() == TimeMode.MATRIX 
-                    && TimeStopManager.isEntityExempt(player);
+            if (!TimeStopManager.isTimeStopped(player.level()) || !TimeStopManager.isEntityExempt(player)) return false;
+            TimeMode mode = TimeStopManager.getCurrentMode();
+            return mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT;
         }
     }
 }

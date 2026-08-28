@@ -4,11 +4,11 @@ license="MIT"
 
 [[mods]]
 modId="timestop"
-version="1.0.0"
+version="1.1.0"
 displayName="Ultimate Time Stop"
 authors="YatzCore"
 description='''
-A true engine-level Mixin Time Stop mod. Freezes all entities, block entities, weather, day/night cycles, fluids, and projectiles in mid-air, while preserving player mobility, kinetic damage accumulation, and solid liquid walking.
+A true engine-level Mixin Time Stop mod. Freezes all entities, block entities, weather, day/night cycles, fluids, and projectiles in mid-air. Features 6 temporal modes (Time Stop, Slow-Mo, Matrix, Superhot, Deceleration Field, Fast Forward), tiered watches, and socketable temporal runes!
 '''
 
 [[mixins]]

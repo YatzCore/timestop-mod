@@ -2,9 +2,7 @@ package com.timestop.network;
 
 import com.timestop.core.TimeMode;
 import com.timestop.core.TimeStopManager;
-import com.timestop.item.ChronosWatchItem;
-import com.timestop.item.CreativeWatchItem;
-import com.timestop.item.ModItems;
+import com.timestop.item.AbstractWatchItem;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -35,41 +33,57 @@ public class ToggleTimeStopPacket {
                     return;
                 }
 
-                // If time is NOT active, V key starts the currently selected mode on the watch
-                ItemStack creativeWatch = findItem(player, ModItems.CREATIVE_WATCH.get().getDefaultInstance());
-                ItemStack survivalWatch = findItem(player, ModItems.CHRONOS_WATCH.get().getDefaultInstance());
+                // If time is NOT active, V key starts the mode from the best equipped watch
+                ItemStack watchStack = findBestWatch(player);
 
-                if (player.isCreative() || !creativeWatch.isEmpty()) {
-                    TimeMode mode = !creativeWatch.isEmpty() ? CreativeWatchItem.getMode(creativeWatch) : TimeMode.TIME_STOP;
-                    TimeStopManager.startTimeStop(serverLevel, player, 0, mode); // Unlimited
-                } else if (!survivalWatch.isEmpty()) {
-                    if (player.getCooldowns().isOnCooldown(ModItems.CHRONOS_WATCH.get())) {
-                        player.displayClientMessage(Component.literal("§cYour Chronos Watch is recharging!"), true);
+                if (player.isCreative() && watchStack.isEmpty()) {
+                    TimeStopManager.startTimeStop(serverLevel, player, 0, TimeMode.TIME_STOP);
+                    return;
+                }
+
+                if (!watchStack.isEmpty() && watchStack.getItem() instanceof AbstractWatchItem watchItem) {
+                    if (player.getCooldowns().isOnCooldown(watchItem)) {
+                        player.displayClientMessage(Component.literal("Your " + watchItem.getTier().getDisplayName() + " is recharging!").withStyle(net.minecraft.ChatFormatting.RED), true);
                         return;
                     }
-                    TimeMode mode = ChronosWatchItem.getMode(survivalWatch);
-                    TimeStopManager.startTimeStop(serverLevel, player, ChronosWatchItem.DEFAULT_SURVIVAL_TICKS, mode);
+
+                    TimeMode mode = AbstractWatchItem.getMode(watchStack);
+                    if (!watchItem.getTier().isModeUnlocked(mode)) {
+                        mode = watchItem.getTier().getUnlockedModes().iterator().next();
+                        AbstractWatchItem.setMode(watchStack, mode);
+                    }
+
+                    int duration = (player.isCreative() || watchItem.getTier().getDurationTicks() == 0) ? 0 : watchItem.getTier().getDurationTicks();
+                    TimeStopManager.startTimeStop(serverLevel, player, duration, mode);
                 } else {
-                    player.displayClientMessage(Component.literal("§cYou need a Chronos Pocket Watch to control time!"), true);
+                    player.displayClientMessage(Component.literal("You need a Chronos Watch to control time!").withStyle(net.minecraft.ChatFormatting.RED), true);
                 }
             }
         });
         return true;
     }
 
-    private static ItemStack findItem(ServerPlayer player, ItemStack target) {
-        if (ItemStack.isSameItem(player.getMainHandItem(), target)) {
+    private static ItemStack findBestWatch(ServerPlayer player) {
+        // Priority 1: Main Hand
+        if (player.getMainHandItem().getItem() instanceof AbstractWatchItem) {
             return player.getMainHandItem();
         }
-        if (ItemStack.isSameItem(player.getOffhandItem(), target)) {
+        // Priority 2: Off-Hand
+        if (player.getOffhandItem().getItem() instanceof AbstractWatchItem) {
             return player.getOffhandItem();
         }
+        // Priority 3: Search Inventory for highest tier watch
+        ItemStack best = ItemStack.EMPTY;
+        int bestTier = -1;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (ItemStack.isSameItem(stack, target)) {
-                return stack;
+            if (stack.getItem() instanceof AbstractWatchItem watch) {
+                if (watch.getTier().getTierLevel() > bestTier) {
+                    best = stack;
+                    bestTier = watch.getTier().getTierLevel();
+                }
             }
         }
-        return ItemStack.EMPTY;
+        return best;
     }
 }

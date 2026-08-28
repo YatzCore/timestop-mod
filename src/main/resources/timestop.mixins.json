@@ -11,7 +11,12 @@
     "ProjectileMixin",
     "LiquidBlockMixin",
     "MinecraftServerMixin",
-    "PlayerMixin"
+    "PlayerMixin",
+    "EntityMixin",
+    "SpecialProjectileMixin",
+    "AbstractArrowMixin",
+    "AbstractArrowAccessor",
+    "ProjectileDecelerationMixin"
   ],
   "client": [
     "ClientLevelMixin",

@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "DAD",
+    "GNG",
+    "DAD"
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:cobbled_deepslate"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "G": {
+      "item": "minecraft:gold_nugget"
+    },
+    "N": {
+      "item": "minecraft:smooth_stone"
+    }
+  },
+  "result": {
+    "item": "timestop:blank_rune",
+    "count": 2
+  }
+}

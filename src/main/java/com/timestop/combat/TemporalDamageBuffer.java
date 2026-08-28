@@ -1,12 +1,17 @@
 package com.timestop.combat;
 
+import com.timestop.core.TimeStopManager;
+import com.timestop.item.rune.RuneType;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -20,6 +25,7 @@ public class TemporalDamageBuffer {
         public Vec3 totalKnockback = Vec3.ZERO;
         public DamageSource lastDamageSource = null;
         public int hitCount = 0;
+        public boolean isSuperchargedKinetic = false;
 
         public void addHit(float amount, Vec3 knockback, DamageSource source) {
             this.totalDamage += amount;
@@ -31,6 +37,7 @@ public class TemporalDamageBuffer {
 
     private static final Map<UUID, DamageRecord> records = new ConcurrentHashMap<>();
     private static final Map<UUID, LivingEntity> victimEntities = new ConcurrentHashMap<>();
+    private static final Set<UUID> leechedMobsThisSession = ConcurrentHashMap.newKeySet();
     private static WeakReference<ServerLevel> lastKnownLevel = new WeakReference<>(null);
 
     public static void recordHit(LivingEntity victim, float amount, DamageSource source) {
@@ -52,6 +59,29 @@ public class TemporalDamageBuffer {
         }
 
         DamageRecord record = records.get(victim.getUUID());
+
+        // Check Rune enhancements
+        if (attacker instanceof Player player) {
+            RuneType rune = RuneManager.getSocketedRuneType(player);
+            if (rune == RuneType.KINETIC) {
+                amount *= 1.5F; // +50% punch damage
+                knockback = knockback.scale(2.5D); // 2.5x launch force!
+                record.isSuperchargedKinetic = true;
+            } else if (rune == RuneType.VAMPIRISM) {
+                // Siphons duration with per-mob diminishing returns and double-duration cap
+                if (leechedMobsThisSession.add(victim.getUUID())) {
+                    boolean isLethal = (victim.getHealth() - (record.totalDamage + amount)) <= 0;
+                    int bonusTicks = isLethal ? 30 : 10; // +1.5s on lethal, +0.5s on initial hit
+                    if (TimeStopManager.extendTimeStop(bonusTicks)) {
+                        player.displayClientMessage(Component.literal("+" + (bonusTicks / 20.0F) + "s Chrono-Leech!").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD), true);
+                        if (victim.level() instanceof ServerLevel sl) {
+                            sl.sendParticles(ParticleTypes.DAMAGE_INDICATOR, victim.getX(), victim.getY() + 1.0, victim.getZ(), 6, 0.2, 0.2, 0.2, 0.1);
+                        }
+                    }
+                }
+            }
+        }
+
         record.addHit(amount, knockback, source);
 
         // Immediate visual & auditory feedback during frozen time
@@ -60,11 +90,24 @@ public class TemporalDamageBuffer {
         victim.invulnerableTime = 0; // Allow subsequent hits during time stop!
 
         if (victim.level() instanceof ServerLevel serverLevel) {
+            Vec3 look = attacker != null ? attacker.getLookAngle().normalize() : new Vec3(0, 0, 1);
+            double hitX = victim.getX() - look.x * 0.3;
+            double hitY = victim.getY() + victim.getEyeHeight() * 0.7;
+            double hitZ = victim.getZ() - look.z * 0.3;
+
             serverLevel.sendParticles(ParticleTypes.CRIT,
-                    victim.getX(), victim.getY() + victim.getBbHeight() * 0.5, victim.getZ(),
-                    15, 0.2, 0.3, 0.2, 0.1);
+                    hitX, hitY, hitZ,
+                    record.isSuperchargedKinetic ? 12 : 6,
+                    look.x * 0.25, look.y * 0.25 + 0.1, look.z * 0.25, 0.12);
+
+            serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                    hitX, hitY, hitZ,
+                    record.isSuperchargedKinetic ? 10 : 4,
+                    look.x * 0.3, look.y * 0.3, look.z * 0.3, 0.15);
+
+            float pitch = Math.min(1.8F, 1.0F + (record.hitCount * 0.1F));
             serverLevel.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
-                    SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS, 1.2F, 0.7F);
+                    SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 1.0F, pitch);
         }
     }
 
@@ -96,24 +139,43 @@ public class TemporalDamageBuffer {
                 // Apply accumulated knockback vector
                 Vec3 finalKb = record.totalKnockback;
                 // Cap knockback to avoid launching entities into unloaded chunks
-                double maxSpeed = 4.0;
+                double maxSpeed = record.isSuperchargedKinetic ? 8.0 : 4.0;
                 if (finalKb.length() > maxSpeed) {
                     finalKb = finalKb.normalize().scale(maxSpeed);
                 }
                 victim.setDeltaMovement(victim.getDeltaMovement().add(finalKb));
                 victim.hurtMarked = true;
 
-                // Visual release shockwave
-                level.sendParticles(ParticleTypes.EXPLOSION,
-                        victim.getX(), victim.getY() + victim.getBbHeight() * 0.5, victim.getZ(),
+                // Focused kinetic impact discharge
+                double centerY = victim.getY() + victim.getBbHeight() * 0.5;
+                level.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                        victim.getX(), centerY, victim.getZ(),
                         1, 0, 0, 0, 0);
+                level.sendParticles(ParticleTypes.CRIT,
+                        victim.getX(), centerY, victim.getZ(),
+                        Math.min(35, 12 + record.hitCount * 5), 0.25, 0.35, 0.25, 0.18);
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                        victim.getX(), centerY, victim.getZ(),
+                        10, 0.2, 0.2, 0.2, 0.12);
+
+                if (record.isSuperchargedKinetic) {
+                    level.sendParticles(ParticleTypes.SONIC_BOOM,
+                            victim.getX(), centerY, victim.getZ(),
+                            1, 0, 0, 0, 0);
+                    level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+                            SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.8F);
+                }
+
                 level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
-                        SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 1.0F, 1.5F);
+                        SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 1.2F, 1.2F);
+                level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+                        SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.6F, 1.6F);
             }
         }
 
         records.clear();
         victimEntities.clear();
+        leechedMobsThisSession.clear();
     }
 
     @Nullable
