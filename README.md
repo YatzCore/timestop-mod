@@ -1,5 +1,7 @@
 # Ultimate Time Stop
 
+![Ultimate Time Stop](banner.png)
+
 A Minecraft mod for 1.20.1 that allows you to freeze, slow down, and manipulate time using pocket watches and temporal runes.
 
 ## Features
