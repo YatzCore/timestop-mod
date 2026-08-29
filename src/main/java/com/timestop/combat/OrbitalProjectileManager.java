@@ -34,7 +34,10 @@ import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import com.timestop.TimeStopMod;
+import net.minecraftforge.fml.common.Mod;
 
+@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class OrbitalProjectileManager {
 
     public static final int MAX_ORBIT_COUNT = 16;
@@ -59,7 +62,7 @@ public class OrbitalProjectileManager {
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onProjectileImpact(ProjectileImpactEvent event) {
+    public static void onProjectileImpact(ProjectileImpactEvent event) {
         Projectile projectile = event.getProjectile();
         if (!(projectile.level() instanceof ServerLevel level)) return;
 
@@ -91,7 +94,7 @@ public class OrbitalProjectileManager {
     }
 
     @SubscribeEvent
-    public void onServerTick(TickEvent.ServerTickEvent event) {
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
 
         // 1. Proximity detection: catch incoming projectiles within CATCH_RADIUS

@@ -29,12 +29,16 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.timestop.TimeStopMod;
+import net.minecraftforge.fml.common.Mod;
+
 /**
  * Handles automated tactical defenses provided by socketed Temporal Runes:
  * - DEFLECTION (Auto-Parry)
  * - SNATCHING (Auto-Collector)
  * - PHASING (Auto-Ender Dodge with absolute projectile intangibility)
  */
+@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class RuneManager {
 
     private static final Map<UUID, Long> PHASE_COOLDOWNS = new ConcurrentHashMap<>();
@@ -45,7 +49,7 @@ public class RuneManager {
      * Guarantees that volleys of arrows can never pierce the player's evasion.
      */
     @SubscribeEvent
-    public void onLivingAttack(LivingAttackEvent event) {
+    public static void onLivingAttack(LivingAttackEvent event) {
         if (event.getEntity() instanceof Player player) {
             if (event.getSource().is(DamageTypeTags.IS_PROJECTILE)) {
                 RuneType rune = getSocketedRuneType(player);

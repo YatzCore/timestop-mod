@@ -22,10 +22,14 @@ import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import com.timestop.TimeStopMod;
+import net.minecraftforge.fml.common.Mod;
+
+@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class TemporalInteractionEvents {
 
     @SubscribeEvent
-    public void onAttackEntity(AttackEntityEvent event) {
+    public static void onAttackEntity(AttackEntityEvent event) {
         Player player = event.getEntity();
         Entity target = event.getTarget();
 
@@ -73,7 +77,7 @@ public class TemporalInteractionEvents {
     }
 
     @SubscribeEvent
-    public void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
         Player player = event.getEntity();
         Entity target = event.getTarget();
 

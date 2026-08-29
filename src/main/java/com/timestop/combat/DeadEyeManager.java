@@ -36,6 +36,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.timestop.TimeStopMod;
+import net.minecraftforge.fml.common.Mod;
+
+@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class DeadEyeManager {
 
     public static final int MAX_TAGS = 6;

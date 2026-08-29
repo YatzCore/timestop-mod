@@ -2,14 +2,12 @@ package com.timestop;
 
 import com.mojang.logging.LogUtils;
 import com.timestop.client.ClientSetup;
-import com.timestop.combat.TemporalInteractionEvents;
 import com.timestop.command.TimeStopCommand;
 import com.timestop.core.TimeStopManager;
 import com.timestop.item.ModItems;
 import com.timestop.network.ModMessages;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -35,15 +33,6 @@ public class TimeStopMod {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
 
-        MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(new TemporalInteractionEvents());
-        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.RuneManager());
-        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.VolatileStasisHandler());
-        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.TachyonRuneHandler());
-        MinecraftForge.EVENT_BUS.register(com.timestop.combat.DeadEyeManager.class);
-        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.VoltaicRicochetHandler());
-        MinecraftForge.EVENT_BUS.register(new com.timestop.combat.OrbitalProjectileManager());
-
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientSetup.init(modEventBus);
         }
@@ -57,7 +46,10 @@ public class TimeStopMod {
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            event.accept(ModItems.COPPER_WATCH);
             event.accept(ModItems.CHRONOS_WATCH);
+            event.accept(ModItems.DIAMOND_WATCH);
+            event.accept(ModItems.NETHERITE_WATCH);
             event.accept(ModItems.CREATIVE_WATCH);
         }
         if (event.getTabKey() == CreativeModeTabs.OP_BLOCKS) {
@@ -65,15 +57,18 @@ public class TimeStopMod {
         }
     }
 
-    @SubscribeEvent
-    public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            TimeStopManager.serverTick();
+    @Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+    public static class ForgeEvents {
+        @SubscribeEvent
+        public static void onServerTick(TickEvent.ServerTickEvent event) {
+            if (event.phase == TickEvent.Phase.END) {
+                TimeStopManager.serverTick();
+            }
         }
-    }
 
-    @SubscribeEvent
-    public void onRegisterCommands(RegisterCommandsEvent event) {
-        TimeStopCommand.register(event.getDispatcher());
+        @SubscribeEvent
+        public static void onRegisterCommands(RegisterCommandsEvent event) {
+            TimeStopCommand.register(event.getDispatcher());
+        }
     }
 }

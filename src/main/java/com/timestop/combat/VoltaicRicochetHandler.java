@@ -31,6 +31,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.timestop.TimeStopMod;
+import net.minecraftforge.fml.common.Mod;
+
+@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class VoltaicRicochetHandler {
 
     public static final int MAX_CHAIN_COUNT = 6;
@@ -39,7 +43,7 @@ public class VoltaicRicochetHandler {
     private static final List<WeakReference<AbstractArrow>> activeRicochetArrows = new CopyOnWriteArrayList<>();
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onProjectileImpact(ProjectileImpactEvent event) {
+    public static void onProjectileImpact(ProjectileImpactEvent event) {
         if (!(event.getProjectile() instanceof AbstractArrow arrow)) return;
         if (!(arrow.level() instanceof ServerLevel level)) return;
 
@@ -185,7 +189,7 @@ public class VoltaicRicochetHandler {
     }
 
     @SubscribeEvent
-    public void onServerTick(TickEvent.ServerTickEvent event) {
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || activeRicochetArrows.isEmpty()) return;
 
         Iterator<WeakReference<AbstractArrow>> it = activeRicochetArrows.iterator();

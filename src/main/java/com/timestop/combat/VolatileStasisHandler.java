@@ -9,10 +9,14 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
+import com.timestop.TimeStopMod;
+import net.minecraftforge.fml.common.Mod;
+
+@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class VolatileStasisHandler {
 
     @SubscribeEvent
-    public void onProjectileImpact(ProjectileImpactEvent event) {
+    public static void onProjectileImpact(ProjectileImpactEvent event) {
         Projectile projectile = event.getProjectile();
         if (projectile == null || projectile.level().isClientSide) return;
 
