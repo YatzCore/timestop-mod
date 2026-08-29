@@ -26,13 +26,17 @@ import java.util.Optional;
 
 public class ClientInteractionHandler {
 
+    private static boolean canSingleFireWithItem(net.minecraft.world.item.ItemStack stack) {
+        return stack.isEmpty() || stack.getItem() instanceof com.timestop.item.AbstractWatchItem;
+    }
+
     @SubscribeEvent
     public void onInteractionKey(InputEvent.InteractionKeyMappingTriggered event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        // 0. EMPTY-HAND LEFT-CLICK: Fire 1 orbiting projectile at crosshair!
-        if (event.isAttack() && mc.player.getMainHandItem().isEmpty() && CapturedProjectilesOverlay.getOrbitCount() > 0) {
+        // 0. LEFT-CLICK (Empty hand or Watch): Fire 1 orbiting projectile at crosshair!
+        if (event.isAttack() && canSingleFireWithItem(mc.player.getMainHandItem()) && CapturedProjectilesOverlay.getOrbitCount() > 0) {
             if (trySingleFire(mc.player)) {
                 event.setCanceled(true);
                 event.setSwingHand(true);
@@ -49,6 +53,7 @@ public class ClientInteractionHandler {
                 event.setSwingHand(true);
                 mc.player.swing(InteractionHand.MAIN_HAND);
                 ModMessages.sendToServer(new com.timestop.network.TranspositionSwapPacket(mc.player.isCrouching()));
+                TranspositionRenderer.triggerSwapFlash();
                 return;
             }
         }
@@ -192,7 +197,7 @@ public class ClientInteractionHandler {
     @SubscribeEvent
     public void onLeftClickEmpty(net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickEmpty event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || !mc.player.getMainHandItem().isEmpty()) return;
+        if (mc.player == null || !canSingleFireWithItem(mc.player.getMainHandItem())) return;
         if (CapturedProjectilesOverlay.getOrbitCount() > 0) {
             if (trySingleFire(mc.player)) {
                 mc.player.swing(InteractionHand.MAIN_HAND);

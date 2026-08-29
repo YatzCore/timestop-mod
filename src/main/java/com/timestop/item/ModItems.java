@@ -16,23 +16,23 @@ public class ModItems {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, TimeStopMod.MOD_ID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, TimeStopMod.MOD_ID);
 
-    // Tier 1: Copper Chronometer
+    // Tier 1: Copper Watch
     public static final RegistryObject<Item> COPPER_WATCH = ITEMS.register("copper_watch",
             () -> new CopperWatchItem(new Item.Properties().stacksTo(1).durability(100)));
 
-    // Tier 2: Gilded Chronos Watch
+    // Tier 2: Golden Watch
     public static final RegistryObject<Item> CHRONOS_WATCH = ITEMS.register("chronos_watch",
             () -> new ChronosWatchItem(new Item.Properties().stacksTo(1).durability(250)));
 
-    // Tier 3: Diamond Chronos Watch
+    // Tier 3: Diamond Watch
     public static final RegistryObject<Item> DIAMOND_WATCH = ITEMS.register("diamond_watch",
             () -> new DiamondWatchItem(new Item.Properties().stacksTo(1).durability(500)));
 
-    // Tier 4: Netherite Chronos Sovereign (Fire Resistant!)
+    // Tier 4: Netherite Watch (Fire Resistant!)
     public static final RegistryObject<Item> NETHERITE_WATCH = ITEMS.register("netherite_watch",
             () -> new NetheriteWatchItem(new Item.Properties().stacksTo(1).fireResistant().durability(1000)));
 
-    // Tier 5: Infinite Chronos Watch (Creative)
+    // Tier 5: Creative Watch (Creative)
     public static final RegistryObject<Item> CREATIVE_WATCH = ITEMS.register("creative_watch",
             () -> new CreativeWatchItem(new Item.Properties().stacksTo(1).fireResistant()));
 

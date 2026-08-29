@@ -63,6 +63,10 @@ public class SlapProjectilePacket {
 
             Entity entity = level.getEntity(this.entityId);
             if (entity instanceof Projectile projectile && com.timestop.combat.ProjectileCombatHelper.isActiveInFlight(projectile)) {
+                if (player.distanceToSqr(projectile) > 64.0) {
+                    return; // Reject slap if beyond interaction reach
+                }
+
                 if (mode == TimeMode.TIME_STOP) {
                     TimeStopManager.punchSuspendedProjectile(projectile, player);
                     player.swing(InteractionHand.MAIN_HAND, true);

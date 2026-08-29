@@ -197,6 +197,9 @@ public class VoltaicRicochetHandler {
             WeakReference<AbstractArrow> ref = it.next();
             AbstractArrow arrow = ref.get();
             if (arrow == null || !arrow.isAlive() || arrow.onGround()) {
+                if (arrow != null) {
+                    arrow.setNoGravity(false);
+                }
                 activeRicochetArrows.remove(ref);
                 continue;
             }
@@ -208,16 +211,23 @@ public class VoltaicRicochetHandler {
 
                 // In-flight homing guidance toward next target
                 int targetId = arrow.getPersistentData().getInt("RicochetTargetId");
+                boolean guided = false;
                 if (targetId != 0) {
                     Entity target = level.getEntity(targetId);
                     if (target instanceof LivingEntity living && living.isAlive()) {
                         Vec3 targetCoord = living.position().add(0, living.getBbHeight() * 0.6, 0);
                         Vec3 toTarget = targetCoord.subtract(arrow.position()).normalize();
                         Vec3 currentVel = arrow.getDeltaMovement();
-                        Vec3 guided = currentVel.normalize().scale(0.78).add(toTarget.scale(0.22)).normalize().scale(3.6);
-                        arrow.setDeltaMovement(guided);
+                        Vec3 guidedVel = currentVel.normalize().scale(0.78).add(toTarget.scale(0.22)).normalize().scale(3.6);
+                        arrow.setDeltaMovement(guidedVel);
                         arrow.hasImpulse = true;
+                        guided = true;
                     }
+                }
+                if (!guided) {
+                    arrow.setNoGravity(false);
+                    arrow.getPersistentData().remove("RicochetTargetId");
+                    activeRicochetArrows.remove(ref);
                 }
             }
         }

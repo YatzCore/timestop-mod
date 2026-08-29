@@ -19,7 +19,16 @@ public abstract class LiquidBlockMixin {
 
     @Inject(method = "getCollisionShape", at = @At("HEAD"), cancellable = true)
     private void onGetCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (TimeStopManager.isGlobalTimeStopped() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        boolean active;
+        TimeMode mode;
+        if (level instanceof net.minecraft.world.level.Level l && l.isClientSide) {
+            active = com.timestop.core.ClientTimeStopManager.isTimeStopped();
+            mode = com.timestop.core.ClientTimeStopManager.getCurrentMode();
+        } else {
+            active = TimeStopManager.isGlobalTimeStopped();
+            mode = TimeStopManager.getCurrentMode();
+        }
+        if (active && mode == TimeMode.TIME_STOP) {
             cir.setReturnValue(Shapes.block());
         }
     }

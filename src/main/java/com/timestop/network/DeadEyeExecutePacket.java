@@ -18,7 +18,7 @@ public class DeadEyeExecutePacket {
     }
 
     public DeadEyeExecutePacket(FriendlyByteBuf buf) {
-        int count = buf.readVarInt();
+        int count = Math.min(DeadEyeManager.MAX_TAGS, Math.max(0, buf.readVarInt()));
         this.tags = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             this.tags.add(new DeadEyeTag(buf));
@@ -26,9 +26,10 @@ public class DeadEyeExecutePacket {
     }
 
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeVarInt(this.tags.size());
-        for (DeadEyeTag tag : this.tags) {
-            tag.toBytes(buf);
+        int toWrite = Math.min(this.tags.size(), DeadEyeManager.MAX_TAGS);
+        buf.writeVarInt(toWrite);
+        for (int i = 0; i < toWrite; i++) {
+            this.tags.get(i).toBytes(buf);
         }
     }
 
@@ -36,8 +37,10 @@ public class DeadEyeExecutePacket {
         NetworkEvent.Context context = supplier.get();
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
-            if (player != null) {
-                DeadEyeManager.executeVolley(player, this.tags);
+            if (player != null && DeadEyeManager.hasDeadEyeRune(player)) {
+                if (DeadEyeManager.isRangedWeapon(player.getMainHandItem()) || DeadEyeManager.isRangedWeapon(player.getOffhandItem())) {
+                    DeadEyeManager.executeVolley(player, this.tags);
+                }
             }
         });
         return true;

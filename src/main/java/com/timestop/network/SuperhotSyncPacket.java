@@ -28,9 +28,11 @@ public class SuperhotSyncPacket {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null && TimeStopManager.isGlobalTimeStopped() && TimeStopManager.getCurrentMode() == TimeMode.SUPERHOT) {
-                // Dynamically map activity (0.0 to 1.0) to tick ms (250ms down to 50ms)
-                long tickMs = (long) (250.0F - (Math.max(0.0F, Math.min(1.0F, this.activity)) * 200.0F));
-                TimeStopManager.setSuperhotTickMs(tickMs);
+                if (player.isCreative() || player.hasPermissions(2) || (TimeStopManager.getInitiatorUuid() != null && TimeStopManager.getInitiatorUuid().equals(player.getUUID()))) {
+                    // Dynamically map activity (0.0 to 1.0) to tick ms (250ms down to 50ms)
+                    long tickMs = (long) (250.0F - (Math.max(0.0F, Math.min(1.0F, this.activity)) * 200.0F));
+                    TimeStopManager.setSuperhotTickMs(tickMs);
+                }
             }
         });
         return true;

@@ -38,7 +38,7 @@ public enum ChainTargetFilter {
         return switch (this) {
             case HOSTILE -> entity instanceof Enemy;
             case ALL -> !(entity instanceof Player player && (player.isCreative() || player.isSpectator()));
-            case PASSIVE -> (entity instanceof Animal) || !(entity instanceof Enemy);
+            case PASSIVE -> (entity instanceof Animal) && !(entity instanceof Enemy) && !(entity instanceof Player);
         };
     }
 

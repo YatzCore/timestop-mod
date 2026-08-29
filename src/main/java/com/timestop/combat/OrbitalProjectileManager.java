@@ -3,11 +3,13 @@ package com.timestop.combat;
 import com.timestop.item.rune.RuneType;
 import com.timestop.network.ModMessages;
 import com.timestop.network.SyncOrbitCountPacket;
+import com.timestop.network.SyncOrbitalEntityPacket;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -68,6 +70,13 @@ public class OrbitalProjectileManager {
 
         // 1. Check if this projectile was launched from orbit and has now impacted a surface or entity
         if (projectile.getPersistentData().contains("WasOrbitalLaunched") || projectile.getPersistentData().contains("OrbitalTargetId")) {
+            HitResult hit = event.getRayTraceResult();
+            if (hit instanceof EntityHitResult entityHit && entityHit.getEntity() == projectile.getOwner()) {
+                // Owner immunity: launched orbital projectiles never damage or hit the player who fired them!
+                event.setCanceled(true);
+                return;
+            }
+
             projectile.setNoGravity(false);
             projectile.getPersistentData().remove("OrbitalTargetId");
             projectile.getPersistentData().remove("WasOrbitalLaunched");
@@ -131,24 +140,29 @@ public class OrbitalProjectileManager {
             List<WeakReference<Projectile>> list = entry.getValue();
             if (list.isEmpty()) continue;
 
-            // Find player
-            WeakReference<Projectile> first = list.get(0);
-            Projectile pFirst = first.get();
-            if (pFirst == null || !(pFirst.level() instanceof ServerLevel level)) continue;
-
-            Player player = level.getPlayerByUUID(playerUuid);
-            if (player == null || !player.isAlive()) {
-                // Player left or died: drop projectiles
+            // Find player across all dimensions
+            ServerPlayer player = server != null ? server.getPlayerList().getPlayer(playerUuid) : null;
+            if (player == null || !player.isAlive() || RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL) {
+                // Player left, died, or unequipped the rune: drop projectiles
                 for (WeakReference<Projectile> ref : list) {
                     Projectile p = ref.get();
                     if (p != null && p.isAlive()) {
                         p.setNoGravity(false);
                         p.getPersistentData().remove("OrbitedPlayerUuid");
+                        p.getPersistentData().remove("InStasisOrbit");
+                        ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p),
+                                new SyncOrbitalEntityPacket(p.getId(), playerUuid, -1, -1, false));
                     }
                 }
+                list.clear();
                 playerOrbits.remove(playerUuid);
+                if (player != null) {
+                    ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new SyncOrbitCountPacket(0));
+                }
                 continue;
             }
+
+            ServerLevel level = player.serverLevel();
 
             int count = list.size();
             double angularSpeed = 0.09; // Smooth rotation
@@ -184,8 +198,14 @@ public class OrbitalProjectileManager {
                     hurting.zPower = 0.0;
                 }
 
-                proj.getPersistentData().putInt("OrbitIndex", i);
-                proj.getPersistentData().putInt("OrbitTotal", count);
+                int oldIndex = proj.getPersistentData().getInt("OrbitIndex");
+                int oldTotal = proj.getPersistentData().getInt("OrbitTotal");
+                if (oldIndex != i || oldTotal != count) {
+                    proj.getPersistentData().putInt("OrbitIndex", i);
+                    proj.getPersistentData().putInt("OrbitTotal", count);
+                    ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> proj),
+                            new SyncOrbitalEntityPacket(proj.getId(), playerUuid, i, count, true));
+                }
 
                 if (tick % 2 == 0) {
                     level.getChunkSource().broadcast(proj, new ClientboundTeleportEntityPacket(proj));
@@ -249,6 +269,15 @@ public class OrbitalProjectileManager {
                             arrow.setDeltaMovement(guided);
                             arrow.hasImpulse = true;
                         }
+
+                        Vec3 moveVec = proj.getDeltaMovement();
+                        double horiz = Math.sqrt(moveVec.x * moveVec.x + moveVec.z * moveVec.z);
+                        float yaw = (float) (Mth.atan2(moveVec.x, moveVec.z) * (180.0D / Math.PI));
+                        float pitch = (float) (Mth.atan2(moveVec.y, horiz) * (180.0D / Math.PI));
+                        proj.setYRot(yaw);
+                        proj.setXRot(pitch);
+                        proj.yRotO = yaw;
+                        proj.xRotO = pitch;
                     } else {
                         // Target dead or disappeared: cancel guidance and restore natural gravity
                         proj.setNoGravity(false);
@@ -303,16 +332,13 @@ public class OrbitalProjectileManager {
         level.sendParticles(ParticleTypes.PORTAL, projectile.getX(), projectile.getY(), projectile.getZ(),
                 12, 0.2, 0.2, 0.2, 0.1);
 
-        // Sync count to client HUD
+        // Sync count to client HUD and tracking clients
         if (player instanceof ServerPlayer serverPlayer) {
             ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
                     new SyncOrbitCountPacket(newCount));
         }
-
-        // If ring just hit max capacity (16/16), trigger auto-launch!
-        if (newCount >= MAX_ORBIT_COUNT) {
-            launchOrbitingProjectiles(player);
-        }
+        ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> projectile),
+                new SyncOrbitalEntityPacket(projectile.getId(), player.getUUID(), newCount - 1, newCount, true));
     }
 
     public static void launchOrbitingProjectiles(Player player) {
@@ -324,11 +350,14 @@ public class OrbitalProjectileManager {
         cleanOrbitList(list);
         if (list.isEmpty()) return;
 
-        // Find surrounding target mobs within 32 blocks
+        // Find surrounding target mobs within 32 blocks respecting ChainTargetFilter
         AABB searchBox = player.getBoundingBox().inflate(32.0);
-        List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class, searchBox,
-                e -> e.isAlive() && !e.isSpectator() && e != player
-                        && (e instanceof Enemy || e instanceof Mob));
+        ChainTargetFilter filter = RuneManager.getActiveChainFilter(player);
+        List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class, searchBox, e -> {
+            if (!e.isAlive() || e.isSpectator() || e == player) return false;
+            if (e instanceof TamableAnimal tamed && tamed.isOwnedBy(player)) return false;
+            return filter.matches(e);
+        });
 
         targets.sort(Comparator.comparingDouble(player::distanceToSqr));
 
@@ -342,6 +371,8 @@ public class OrbitalProjectileManager {
             proj.getPersistentData().remove("OrbitIndex");
             proj.getPersistentData().remove("OrbitTotal");
             proj.getPersistentData().putBoolean("WasOrbitalLaunched", true);
+            ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> proj),
+                    new SyncOrbitalEntityPacket(proj.getId(), player.getUUID(), -1, -1, false));
 
             LivingEntity target = null;
             Vec3 dir;
@@ -376,7 +407,7 @@ public class OrbitalProjectileManager {
                         6, 0.1, 0.1, 0.1, 0.05);
             } else if (isArrow) {
                 AbstractArrow arrow = (AbstractArrow) proj;
-                arrow.setNoGravity(true);
+                arrow.setNoGravity(target != null);
                 arrow.shoot(dir.x, dir.y, dir.z, 3.4F, 0.0F);
                 arrow.setCritArrow(true);
                 arrow.setBaseDamage(arrow.getBaseDamage() + 4.5);
@@ -438,15 +469,20 @@ public class OrbitalProjectileManager {
         }
 
         if (proj == null || !proj.isAlive()) return;
+        final Projectile toLaunch = proj;
 
-        // 1. Raycast / Cone scan along player cursor line of sight up to 64 blocks
+        // 1. Raycast / Cone scan along player cursor line of sight up to 32 blocks
         Vec3 eyePos = player.getEyePosition();
         Vec3 look = player.getLookAngle().normalize();
-        double maxDistance = 64.0;
+        double maxDistance = 32.0;
         AABB searchBox = player.getBoundingBox().inflate(maxDistance);
 
-        List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, searchBox,
-                e -> e.isAlive() && !e.isSpectator() && e != player && (e instanceof Enemy || e instanceof Mob));
+        ChainTargetFilter filter = RuneManager.getActiveChainFilter(player);
+        List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, searchBox, e -> {
+            if (!e.isAlive() || e.isSpectator() || e == player) return false;
+            if (e instanceof TamableAnimal tamed && tamed.isOwnedBy(player)) return false;
+            return filter.matches(e);
+        });
 
         LivingEntity bestTarget = null;
         double bestScore = Double.MAX_VALUE;
@@ -474,11 +510,15 @@ public class OrbitalProjectileManager {
             }
         }
 
+        // Spawn cleanly in front of player so arrow never passes through player's hitbox
+        Vec3 launchOrigin = eyePos.add(look.scale(0.8));
+        proj.setPos(launchOrigin.x, launchOrigin.y, launchOrigin.z);
+
         // Determine fire direction
         Vec3 fireDir;
         if (bestTarget != null) {
             Vec3 targetCenter = bestTarget.getBoundingBox().getCenter();
-            fireDir = targetCenter.subtract(proj.position()).normalize();
+            fireDir = targetCenter.subtract(launchOrigin).normalize();
             // Lock target into guidance tracking
             proj.getPersistentData().putInt("OrbitalTargetId", bestTarget.getId());
             activeGuidedProjectiles.add(new WeakReference<>(proj));
@@ -493,6 +533,8 @@ public class OrbitalProjectileManager {
         proj.getPersistentData().remove("OrbitTotal");
         proj.getPersistentData().putBoolean("WasOrbitalLaunched", true);
         proj.setOwner(player);
+        ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> toLaunch),
+                new SyncOrbitalEntityPacket(toLaunch.getId(), player.getUUID(), -1, -1, false));
 
         boolean isTrident = proj instanceof ThrownTrident;
         boolean isFireball = proj instanceof AbstractHurtingProjectile;
@@ -516,7 +558,7 @@ public class OrbitalProjectileManager {
                     8, 0.1, 0.1, 0.1, 0.08);
         } else if (isArrow) {
             AbstractArrow arrow = (AbstractArrow) proj;
-            arrow.setNoGravity(true);
+            arrow.setNoGravity(bestTarget != null);
             arrow.shoot(fireDir.x, fireDir.y, fireDir.z, 3.6F, 0.0F); // High-velocity sniper precision!
             arrow.setCritArrow(true);
             arrow.setBaseDamage(arrow.getBaseDamage() + 5.0);
@@ -568,6 +610,24 @@ public class OrbitalProjectileManager {
         if (player instanceof ServerPlayer serverPlayer) {
             ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
                     new SyncOrbitCountPacket(remaining));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(net.minecraftforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            playerOrbits.remove(player.getUUID());
+            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player),
+                    new SyncOrbitCountPacket(0));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            int count = getOrbitCount(player);
+            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player),
+                    new SyncOrbitCountPacket(count));
         }
     }
 }

@@ -2,6 +2,27 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.1.1] - 2026-08-29
+
+### Added
+- **SUPERHOT Visual Pipeline**: Authentic architectural off-white world shaders with bold geometric contour lines and pure crystal-red enemy rendering.
+- **Spatial Transposition Outlines**: Native Minecraft glowing outlines for swap targets (arcane violet for single swap, luminous gold for dual swap).
+- **Fullscreen Dead Eye Sepia**: Polished cinematic sepia grading with balanced clarity and zero dark-center vignetting.
+- **Rune Real-Time Network Sync**: Instant optimistic UI updates and bidirectional socket synchronization between client and server.
+
+### Changed
+- **Watch GUI Modernization**: Minimalist, tier-adaptive selection screens customized for Copper, Golden, Diamond, Netherite, and Creative Watches.
+- **Classic Watch Nomenclature**: Simplified watch naming to Copper, Golden, Diamond, Netherite, and Creative Watch.
+- **Transposition Arrow Physics**: Swapping with projectiles now inverts trajectory and orientation 180°, reflecting arrows back towards foes.
+
+### Fixed
+- Fixed dirt cliffs, flowers, and terrain mistakenly turning red in SUPERHOT mode.
+- Fixed directional lighting causing SUPERHOT mobs to appear half-red and half-white.
+- Fixed SUPERHOT enemies flashing white upon taking damage by suppressing vanilla hurt overlay.
+- Fixed item tossing snapping back to player inventory during time dilation and stasis.
+- Fixed death particle jittering during time stop.
+- Fixed dropped item pickup mechanics during time stop.
+
 ---
 
 ## [1.1.0] - 2026-08-28

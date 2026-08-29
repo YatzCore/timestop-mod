@@ -24,13 +24,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Modern, minimalist Obsidian & Slate console for temporal mode & rune socket management.
- * Features an interactive Rune Tray for picking and socketing exact runes from inventory.
+ * Calm, minimalist, tier-tailored control interface for temporal pocket watches.
+ * Features real-time optimistic updates and authoritative server sync for tactical runes.
  */
 public class TimeModeSelectionScreen extends Screen {
     private final InteractionHand hand;
     private TimeMode currentMode = TimeMode.TIME_STOP;
-    private WatchTier currentTier = WatchTier.CREATIVE;
+    private WatchTier currentTier = WatchTier.COPPER;
+    private ItemStack watchStack = ItemStack.EMPTY;
     private ItemStack socketedRune = ItemStack.EMPTY;
 
     public static class InventoryRuneEntry {
@@ -46,24 +47,29 @@ public class TimeModeSelectionScreen extends Screen {
     }
 
     private final List<InventoryRuneEntry> availableRunes = new ArrayList<>();
+    private int trayScrollOffset = 0;
 
-    // Palette constants
-    private static final int MODAL_BG = 0xF20F1218;       // Deep matte obsidian
-    private static final int MODAL_BORDER = 0xFF272D3B;   // Clean 1px slate rim
-    private static final int DIVIDER_COLOR = 0xFF1E2430;   // Subtle separator
-    private static final int CARD_RESTING = 0x55171B24;   // Translucent slate card
-    private static final int CARD_HOVER = 0x88252D3D;     // Subtle hover lift
-    private static final int CARD_ACTIVE = 0x881A2A40;    // Deep active card
-    private static final int CARD_LOCKED = 0x33101216;    // Dimmed locked card
-    private static final int ACCENT_CYAN = 0xFF38BDF8;    // Clean temporal cyan accent
-    private static final int ACCENT_GOLD = 0xFFF59E0B;    // Rune socket accent
-    private static final int TEXT_PRIMARY = 0xFFF1F5F9;   // Crisp white/silver
-    private static final int TEXT_MUTED = 0xFF94A3B8;     // Soft secondary slate
-    private static final int TEXT_DIM = 0xFF64748B;       // Tertiary / hotkey gray
-    private static final int TEXT_LOCKED = 0xFFF87171;    // Muted coral for lock requirements
+    // Visual theme palette per watch tier
+    private record TierTheme(int bg, int border, int header, int accent, int cardBg, int cardHover, int cardActive, int cardBorder) {}
+
+    private static final TierTheme THEME_COPPER = new TierTheme(
+            0xF215110E, 0xFF9A3412, 0xFFEA580C, 0xFFF97316, 0x4426170E, 0x773F2213, 0x884D1F08, 0x44F97316
+    );
+    private static final TierTheme THEME_GOLD = new TierTheme(
+            0xF216140D, 0xFFB45309, 0xFFF59E0B, 0xFFFBBF24, 0x44241B08, 0x773D2E0A, 0x884E3A06, 0x44FBBF24
+    );
+    private static final TierTheme THEME_DIAMOND = new TierTheme(
+            0xF20B151C, 0xFF0369A1, 0xFF38BDF8, 0xFF0EA5E9, 0x44081C2B, 0x770D2D44, 0x880C3D5E, 0x4438BDF8
+    );
+    private static final TierTheme THEME_NETHERITE = new TierTheme(
+            0xF2150E1C, 0xFF6B21A8, 0xFFA855F7, 0xFFC084FC, 0x441E0F2B, 0x77301647, 0x88421A63, 0x44C084FC
+    );
+    private static final TierTheme THEME_CREATIVE = new TierTheme(
+            0xF2190E18, 0xFFBE185D, 0xFFEC4899, 0xFFF472B6, 0x44280E23, 0x77421438, 0x885A144B, 0x44F472B6
+    );
 
     public TimeModeSelectionScreen(InteractionHand hand) {
-        super(Component.literal("Chronos Frequency Selector"));
+        super(Component.literal("Watch Interface"));
         this.hand = hand;
     }
 
@@ -73,25 +79,69 @@ public class TimeModeSelectionScreen extends Screen {
         refreshState();
     }
 
-    private void refreshState() {
+    @Override
+    public void tick() {
+        super.tick();
+        // Continuously keep inventory tray and socketed state 100% in sync with player inventory
+        refreshState();
+    }
+
+    public void onServerSync(ItemStack newSocketedRune) {
+        this.socketedRune = newSocketedRune != null ? newSocketedRune.copy() : ItemStack.EMPTY;
+        refreshState();
+    }
+
+    public void refreshState() {
         Player player = Minecraft.getInstance().player;
         this.availableRunes.clear();
 
         if (player != null) {
-            ItemStack stack = player.getItemInHand(this.hand);
-            this.currentMode = AbstractWatchItem.getMode(stack);
-            this.socketedRune = AbstractWatchItem.getSocketedRune(stack);
-            if (stack.getItem() instanceof AbstractWatchItem watch) {
+            this.watchStack = player.getItemInHand(this.hand);
+            this.currentMode = AbstractWatchItem.getMode(this.watchStack);
+            this.socketedRune = AbstractWatchItem.getSocketedRune(this.watchStack);
+            if (this.watchStack.getItem() instanceof AbstractWatchItem watch) {
                 this.currentTier = watch.getTier();
             }
 
-            // Scan inventory for tactical runes
-            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                ItemStack invStack = player.getInventory().getItem(i);
-                if (invStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
-                    this.availableRunes.add(new InventoryRuneEntry(i, invStack, runeItem.getType()));
+            // Scan inventory for usable tactical runes if watch supports sockets
+            if (this.currentTier.hasRuneSocket()) {
+                int watchSlot = (this.hand == InteractionHand.MAIN_HAND) ? player.getInventory().selected : 40;
+                for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                    if (i == watchSlot) continue; // Never scan the watch itself
+                    ItemStack invStack = player.getInventory().getItem(i);
+                    if (!invStack.isEmpty() && invStack.getCount() > 0 && invStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
+                        this.availableRunes.add(new InventoryRuneEntry(i, invStack, runeItem.getType()));
+                    }
                 }
             }
+        }
+    }
+
+    private TierTheme getTheme() {
+        return switch (this.currentTier) {
+            case COPPER -> THEME_COPPER;
+            case GILDED -> THEME_GOLD;
+            case DIAMOND -> THEME_DIAMOND;
+            case NETHERITE -> THEME_NETHERITE;
+            case CREATIVE -> THEME_CREATIVE;
+        };
+    }
+
+    private List<TimeMode> getDisplayModes() {
+        return new ArrayList<>(this.currentTier.getUnlockedModes());
+    }
+
+    private int getModalWidth() {
+        return this.currentTier == WatchTier.COPPER ? 250 : 330;
+    }
+
+    private int getModalHeight() {
+        if (this.currentTier == WatchTier.COPPER) {
+            return 140; // Compact 2-card layout without rune tray
+        } else if (this.currentTier == WatchTier.GILDED) {
+            return 224; // 2x2 grid + socket row
+        } else {
+            return 264; // 2x3 grid + socket row
         }
     }
 
@@ -99,331 +149,395 @@ public class TimeModeSelectionScreen extends Screen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(guiGraphics);
 
-        int modalWidth = 350;
-        int modalHeight = 268;
+        TierTheme theme = getTheme();
+        int modalWidth = getModalWidth();
+        int modalHeight = getModalHeight();
         int modalX = (this.width - modalWidth) / 2;
         int modalY = (this.height - modalHeight) / 2;
 
-        // 1. Modal Background & Outer Rim
-        guiGraphics.fill(modalX, modalY, modalX + modalWidth, modalY + modalHeight, MODAL_BG);
-        guiGraphics.renderOutline(modalX, modalY, modalWidth, modalHeight, MODAL_BORDER);
+        // 1. Modal Background & Outer Border
+        guiGraphics.fill(modalX, modalY, modalX + modalWidth, modalY + modalHeight, theme.bg);
+        guiGraphics.renderOutline(modalX, modalY, modalWidth, modalHeight, theme.border);
 
         // 2. Header Area
         int headerY = modalY + 10;
-        Component title = Component.literal("CHRONOS CONTROL").withStyle(ChatFormatting.BOLD);
-        guiGraphics.drawString(this.font, title, modalX + 16, headerY, TEXT_PRIMARY, false);
-
-        String tierBadge = this.currentTier.getDisplayName().toUpperCase();
-        int tierWidth = this.font.width(tierBadge);
-        guiGraphics.drawString(this.font, tierBadge, modalX + modalWidth - 16 - tierWidth, headerY, TEXT_MUTED, false);
-
-        // Header Divider Line
-        guiGraphics.fill(modalX + 16, modalY + 23, modalX + modalWidth - 16, modalY + 24, DIVIDER_COLOR);
-
-        // 3. Socket Status Row
-        int runeRowY = modalY + 28;
-        int runeSlotX = modalX + 16;
-        int runeSlotY = runeRowY;
-        int runeSlotSize = 22;
-
-        boolean isSocketHovered = mouseX >= runeSlotX && mouseX <= runeSlotX + runeSlotSize
-                && mouseY >= runeSlotY && mouseY <= runeSlotY + runeSlotSize;
-
-        int slotBg = isSocketHovered ? 0x88252D3D : 0x55171B24;
-        int slotBorder = isSocketHovered ? (this.currentTier.hasRuneSocket() ? ACCENT_GOLD : 0x44EF4444) : 0x22FFFFFF;
-        guiGraphics.fill(runeSlotX, runeSlotY, runeSlotX + runeSlotSize, runeSlotY + runeSlotSize, slotBg);
-        guiGraphics.renderOutline(runeSlotX, runeSlotY, runeSlotSize, runeSlotSize, slotBorder);
-
-        int runeTextX = runeSlotX + runeSlotSize + 8;
-        if (!this.currentTier.hasRuneSocket()) {
-            guiGraphics.drawString(this.font, "—", runeSlotX + 8, runeSlotY + 7, 0xFF475569, false);
-            guiGraphics.drawString(this.font, "Rune Socket: Locked", runeTextX, runeSlotY + 2, 0xFF64748B, false);
-            guiGraphics.drawString(this.font, "Requires Gilded Watch (Tier 2+)", runeTextX, runeSlotY + 12, 0xFF475569, false);
-        } else if (this.socketedRune.isEmpty()) {
-            guiGraphics.drawString(this.font, "◇", runeSlotX + 7, runeSlotY + 7, TEXT_DIM, false);
-            guiGraphics.drawString(this.font, "Rune Socket: Empty", runeTextX, runeSlotY + 2, TEXT_MUTED, false);
-            guiGraphics.drawString(this.font, "Select a rune below to socket", runeTextX, runeSlotY + 12, TEXT_DIM, false);
-        } else {
-            guiGraphics.renderItem(this.socketedRune, runeSlotX + 3, runeSlotY + 3);
-
-            RuneType type = RuneType.BLANK;
-            if (this.socketedRune.getItem() instanceof TemporalRuneItem runeItem) {
-                type = runeItem.getType();
-            }
-
-            int nameColor = switch (type) {
-                case DEFLECTION -> 0xFF38BDF8;
-                case SNATCHING -> 0xFFF59E0B;
-                case PHASING -> 0xFFC084FC;
-                case KINETIC -> 0xFFF97316;
-                case VAMPIRISM -> 0xFFEF4444;
-                case VOLATILE -> 0xFFEAB308;
-                case TACHYON -> 0xFF06B6D4;
-                case DEAD_EYE -> 0xFFFF2A2A;
-                case RICOCHET -> 0xFFFACC15;
-                case ORBITAL -> 0xFF38BDF8;
-                case TRANSPOSITION -> 0xFFC084FC;
-                default -> 0xFFE2E8F0;
-            };
-
-            guiGraphics.drawString(this.font, type.getDisplayName(), runeTextX, runeSlotY + 2, nameColor, false);
-            guiGraphics.drawString(this.font, getCleanRuneTag(type), runeTextX, runeSlotY + 12, TEXT_MUTED, false);
-
-            Component ejectHint = Component.literal("[Click to Eject]").withStyle(ChatFormatting.DARK_GRAY);
-            int ejectX = modalX + modalWidth - 16 - this.font.width(ejectHint);
-            guiGraphics.drawString(this.font, ejectHint, ejectX, runeSlotY + 7, 0xFF64748B, false);
-
-            if (type == RuneType.RICOCHET) {
-                com.timestop.combat.ChainTargetFilter filter = com.timestop.item.rune.TemporalRuneItem.getTargetFilter(this.socketedRune);
-                Component modeBadge = Component.literal("[Mode: " + filter.getDisplayName() + "]").withStyle(filter.getColor(), ChatFormatting.BOLD);
-                int badgeW = this.font.width(modeBadge);
-                int badgeX = ejectX - badgeW - 8;
-                guiGraphics.drawString(this.font, modeBadge, badgeX, runeSlotY + 7, 0xFFFFFFFF, false);
-            }
+        if (!this.watchStack.isEmpty()) {
+            guiGraphics.renderItem(this.watchStack, modalX + 12, headerY - 2);
         }
 
-        // 4. Rune Tray (Inventory Runes)
-        int trayY = modalY + 54;
-        guiGraphics.drawString(this.font, "INVENTORY RUNES:", modalX + 16, trayY + 6, TEXT_DIM, false);
+        int titleX = modalX + 34;
+        String titleText = this.currentTier.getDisplayName().toUpperCase();
+        guiGraphics.drawString(this.font, titleText, titleX, headerY, theme.header, false);
 
-        int trayStartX = modalX + 115;
+        String statBadge = getStatBadge();
+        int statWidth = this.font.width(statBadge);
+        guiGraphics.drawString(this.font, statBadge, modalX + modalWidth - 14 - statWidth, headerY + 1, 0xFF94A3B8, false);
+
+        // Header Divider
+        guiGraphics.fill(modalX + 12, modalY + 26, modalX + modalWidth - 12, modalY + 27, 0x22FFFFFF);
+
+        int currentY = modalY + 32;
+
+        // 3. Socket Row & Rune Tray (Only rendered if watch has rune socket)
         if (this.currentTier.hasRuneSocket()) {
-            if (this.availableRunes.isEmpty()) {
-                guiGraphics.drawString(this.font, "None found in bag", trayStartX, trayY + 6, 0xFF475569, false);
+            int socketSlotX = modalX + 14;
+            int socketSlotY = currentY;
+            int slotSize = 20;
+
+            boolean isSocketHovered = mouseX >= socketSlotX && mouseX <= socketSlotX + slotSize
+                    && mouseY >= socketSlotY && mouseY <= socketSlotY + slotSize;
+
+            int slotBg = isSocketHovered ? 0x88252D3D : 0x55171B24;
+            int slotBorder = isSocketHovered ? theme.accent : 0x25FFFFFF;
+            guiGraphics.fill(socketSlotX, socketSlotY, socketSlotX + slotSize, socketSlotY + slotSize, slotBg);
+            guiGraphics.renderOutline(socketSlotX, socketSlotY, slotSize, slotSize, slotBorder);
+
+            int textX = socketSlotX + slotSize + 8;
+            if (this.socketedRune.isEmpty()) {
+                guiGraphics.drawString(this.font, "◇", socketSlotX + 6, socketSlotY + 6, 0xFF64748B, false);
+                guiGraphics.drawString(this.font, "Empty Socket", textX, socketSlotY + 6, 0xFF94A3B8, false);
             } else {
-                for (int i = 0; i < this.availableRunes.size(); i++) {
-                    InventoryRuneEntry entry = this.availableRunes.get(i);
-                    int chipX = trayStartX + (i * 26);
+                guiGraphics.renderItem(this.socketedRune, socketSlotX + 2, socketSlotY + 2);
+
+                RuneType type = RuneType.BLANK;
+                if (this.socketedRune.getItem() instanceof TemporalRuneItem runeItem) {
+                    type = runeItem.getType();
+                }
+
+                guiGraphics.drawString(this.font, type.getDisplayName(), textX, socketSlotY + 6, 0xFFF1F5F9, false);
+
+                Component ejectBtn = Component.literal("[Eject]").withStyle(ChatFormatting.GRAY);
+                int ejectX = modalX + modalWidth - 14 - this.font.width(ejectBtn);
+                boolean isEjectHovered = mouseX >= ejectX - 2 && mouseX <= ejectX + this.font.width(ejectBtn) + 2
+                        && mouseY >= socketSlotY + 2 && mouseY <= socketSlotY + 16;
+                int ejectColor = isEjectHovered ? 0xFFEF4444 : 0xFF64748B;
+                guiGraphics.drawString(this.font, ejectBtn, ejectX, socketSlotY + 6, ejectColor, false);
+
+                if (type == RuneType.RICOCHET) {
+                    com.timestop.combat.ChainTargetFilter filter = TemporalRuneItem.getTargetFilter(this.socketedRune);
+                    Component modeBadge = Component.literal("[" + filter.getDisplayName() + "]").withStyle(filter.getColor());
+                    int badgeX = ejectX - this.font.width(modeBadge) - 6;
+                    guiGraphics.drawString(this.font, modeBadge, badgeX, socketSlotY + 6, 0xFFFFFFFF, false);
+                }
+
+                if (isSocketHovered) {
+                    guiGraphics.renderTooltip(this.font, Component.literal(type.getDisplayName() + ": " + getCleanRuneTag(type)), mouseX, mouseY);
+                }
+            }
+
+            // Available Rune Tray Chips
+            int trayY = currentY + 24;
+            int chipStartX = modalX + 14;
+            if (this.availableRunes.isEmpty()) {
+                guiGraphics.drawString(this.font, "No runes in bag", chipStartX, trayY + 6, 0xFF475569, false);
+            } else {
+                int maxVisible = 10;
+                int totalRunes = this.availableRunes.size();
+                int maxOffset = Math.max(0, totalRunes - maxVisible);
+                this.trayScrollOffset = Math.max(0, Math.min(maxOffset, this.trayScrollOffset));
+
+                int visibleCount = Math.min(totalRunes - this.trayScrollOffset, maxVisible);
+                for (int i = 0; i < visibleCount; i++) {
+                    int runeIndex = this.trayScrollOffset + i;
+                    if (runeIndex >= this.availableRunes.size()) break;
+
+                    InventoryRuneEntry entry = this.availableRunes.get(runeIndex);
+                    int chipX = chipStartX + (i * 24);
                     int chipY = trayY;
-                    int chipSize = 22;
+                    int chipSize = 20;
 
                     boolean isChipHovered = mouseX >= chipX && mouseX <= chipX + chipSize
                             && mouseY >= chipY && mouseY <= chipY + chipSize;
 
-                    int chipBg = isChipHovered ? 0x88252D3D : 0x55171B24;
-                    int chipBorder = isChipHovered ? ACCENT_CYAN : 0x22FFFFFF;
+                    int chipBg = isChipHovered ? 0x88252D3D : 0x44171B24;
+                    int chipBorder = isChipHovered ? theme.accent : 0x20FFFFFF;
 
                     guiGraphics.fill(chipX, chipY, chipX + chipSize, chipY + chipSize, chipBg);
                     guiGraphics.renderOutline(chipX, chipY, chipSize, chipSize, chipBorder);
-                    guiGraphics.renderItem(entry.stack, chipX + 3, chipY + 3);
-                    guiGraphics.renderItemDecorations(this.font, entry.stack, chipX + 3, chipY + 3);
+                    guiGraphics.renderItem(entry.stack, chipX + 2, chipY + 2);
+                    guiGraphics.renderItemDecorations(this.font, entry.stack, chipX + 2, chipY + 2);
 
                     if (isChipHovered) {
-                        guiGraphics.renderTooltip(this.font, Component.literal("Click to socket ").append(entry.type.getFormattedComponent()), mouseX, mouseY);
+                        guiGraphics.renderTooltip(this.font, Component.literal("Socket " + entry.type.getDisplayName()), mouseX, mouseY);
                     }
                 }
             }
+
+            // Divider before mode cards
+            guiGraphics.fill(modalX + 12, currentY + 48, modalX + modalWidth - 12, currentY + 49, 0x22FFFFFF);
+            currentY += 54;
         }
 
-        // Section Divider Line
-        guiGraphics.fill(modalX + 16, modalY + 80, modalX + modalWidth - 16, modalY + 81, DIVIDER_COLOR);
+        // 4. Mode Cards Grid
+        List<TimeMode> displayModes = getDisplayModes();
+        TimeMode hoveredMode = null;
 
-        // 5. Grid of Mode Cards (2 Columns x 3 Rows)
-        TimeMode[] modes = TimeMode.values();
-        int cardWidth = 151;
-        int cardHeight = 42;
-        int gapX = 16;
-        int gapY = 8;
-        int gridX = modalX + 16;
-        int gridY = modalY + 88;
+        if (this.currentTier == WatchTier.COPPER) {
+            int cardW = modalWidth - 24;
+            int cardH = 32;
+            int gapY = 8;
 
-        for (int i = 0; i < modes.length; i++) {
-            TimeMode mode = modes[i];
-            int col = i % 2;
-            int row = i / 2;
+            for (int i = 0; i < displayModes.size(); i++) {
+                TimeMode mode = displayModes.get(i);
+                int cy = currentY + i * (cardH + gapY);
+                boolean isHovered = mouseX >= modalX + 12 && mouseX <= modalX + 12 + cardW && mouseY >= cy && mouseY <= cy + cardH;
+                boolean isSelected = (mode == this.currentMode);
 
-            int cx = gridX + col * (cardWidth + gapX);
-            int cy = gridY + row * (cardHeight + gapY);
-
-            boolean isHovered = mouseX >= cx && mouseX <= cx + cardWidth && mouseY >= cy && mouseY <= cy + cardHeight;
-            boolean isSelected = (mode == this.currentMode);
-            boolean isUnlocked = this.currentTier.isModeUnlocked(mode);
-
-            int bg;
-            int border;
-
-            if (!isUnlocked) {
-                bg = isHovered ? 0x551C1315 : CARD_LOCKED;
-                border = isHovered ? 0x44EF4444 : 0x1AFFFFFF;
-            } else if (isSelected) {
-                bg = CARD_ACTIVE;
-                border = ACCENT_CYAN;
-            } else if (isHovered) {
-                bg = CARD_HOVER;
-                border = 0x66FFFFFF;
-            } else {
-                bg = CARD_RESTING;
-                border = 0x1FFFFFFF;
+                renderModeCard(guiGraphics, theme, modalX + 12, cy, cardW, cardH, mode, i + 1, isSelected, isHovered);
+                if (isHovered) hoveredMode = mode;
             }
+        } else {
+            int cardW = (modalWidth - 32) / 2;
+            int cardH = 28;
+            int gapX = 8;
+            int gapY = 6;
 
-            guiGraphics.fill(cx, cy, cx + cardWidth, cy + cardHeight, bg);
-            guiGraphics.renderOutline(cx, cy, cardWidth, cardHeight, border);
+            for (int i = 0; i < displayModes.size(); i++) {
+                TimeMode mode = displayModes.get(i);
+                int col = i % 2;
+                int row = i / 2;
 
-            if (isUnlocked && isSelected) {
-                guiGraphics.fill(cx, cy, cx + 3, cy + cardHeight, ACCENT_CYAN);
-            }
+                int cx = modalX + 12 + col * (cardW + gapX);
+                int cy = currentY + row * (cardH + gapY);
 
-            int textX = cx + (isSelected ? 9 : 8);
+                boolean isHovered = mouseX >= cx && mouseX <= cx + cardW && mouseY >= cy && mouseY <= cy + cardH;
+                boolean isSelected = (mode == this.currentMode);
 
-            if (isUnlocked) {
-                String hotkey = "[" + (i + 1) + "] ";
-                int hotkeyWidth = this.font.width(hotkey);
-                guiGraphics.drawString(this.font, hotkey, textX, cy + 7, TEXT_DIM, false);
-
-                int nameColor = isSelected ? ACCENT_CYAN : (isHovered ? 0xFFFFFF : TEXT_PRIMARY);
-                guiGraphics.drawString(this.font, mode.getDisplayName(), textX + hotkeyWidth, cy + 7, nameColor, false);
-
-                String tag = getCleanTag(mode);
-                guiGraphics.drawString(this.font, tag, textX, cy + 22, TEXT_MUTED, false);
-
-                if (isSelected) {
-                    guiGraphics.drawString(this.font, "●", cx + cardWidth - 14, cy + 7, ACCENT_CYAN, false);
-                }
-            } else {
-                WatchTier required = WatchTier.getMinimumTierFor(mode);
-
-                String hotkey = "[" + (i + 1) + "] ";
-                int hotkeyWidth = this.font.width(hotkey);
-                guiGraphics.drawString(this.font, hotkey, textX, cy + 7, 0xFF475569, false);
-                guiGraphics.drawString(this.font, mode.getDisplayName(), textX + hotkeyWidth, cy + 7, 0xFF64748B, false);
-
-                String lockHint = "Req: " + required.getDisplayName();
-                guiGraphics.drawString(this.font, lockHint, textX, cy + 22, TEXT_LOCKED, false);
+                renderModeCard(guiGraphics, theme, cx, cy, cardW, cardH, mode, i + 1, isSelected, isHovered);
+                if (isHovered) hoveredMode = mode;
             }
         }
 
-        // 6. Footer Hint
-        int footerY = modalY + modalHeight - 14;
-        Component hint = Component.literal("Select Mode: 1–6   •   Socket/Eject: Click Rune   •   Close: ESC").withStyle(ChatFormatting.GRAY);
-        guiGraphics.drawCenteredString(this.font, hint, modalX + modalWidth / 2, footerY, TEXT_DIM);
+        // 5. Minimalist Footer
+        int footerY = modalY + modalHeight - 13;
+        guiGraphics.drawCenteredString(this.font, "ESC to close", modalX + modalWidth / 2, footerY, 0xFF64748B);
+
+        // 6. Tooltip for hovered mode
+        if (hoveredMode != null) {
+            guiGraphics.renderTooltip(this.font, Component.literal(getCleanDescription(hoveredMode)), mouseX, mouseY);
+        }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private static String getCleanTag(TimeMode mode) {
+    private void renderModeCard(GuiGraphics guiGraphics, TierTheme theme, int x, int y, int w, int h,
+                                TimeMode mode, int hotkeyNum, boolean isSelected, boolean isHovered) {
+        int bg = isSelected ? theme.cardActive : (isHovered ? theme.cardHover : theme.cardBg);
+        int border = isSelected ? theme.accent : (isHovered ? 0x66FFFFFF : theme.cardBorder);
+
+        guiGraphics.fill(x, y, x + w, y + h, bg);
+        guiGraphics.renderOutline(x, y, w, h, border);
+
+        if (isSelected) {
+            guiGraphics.fill(x, y, x + 3, y + h, theme.accent);
+        }
+
+        int textX = x + (isSelected ? 9 : 8);
+        int textY = y + (h - 8) / 2;
+
+        String keyText = "[" + hotkeyNum + "] ";
+        int keyW = this.font.width(keyText);
+        guiGraphics.drawString(this.font, keyText, textX, textY, 0xFF64748B, false);
+
+        int nameColor = isSelected ? theme.accent : (isHovered ? 0xFFFFFFFF : 0xFFE2E8F0);
+        guiGraphics.drawString(this.font, mode.getDisplayName(), textX + keyW, textY, nameColor, false);
+
+        if (isSelected) {
+            guiGraphics.drawString(this.font, "●", x + w - 12, textY, theme.accent, false);
+        }
+    }
+
+    private String getStatBadge() {
+        return switch (this.currentTier) {
+            case COPPER -> "6s • 25s CD";
+            case GILDED -> "10s • 18s CD";
+            case DIAMOND -> "14s • 12s CD";
+            case NETHERITE -> "20s • 6s CD";
+            case CREATIVE -> "Infinite";
+        };
+    }
+
+    private static String getCleanDescription(TimeMode mode) {
         return switch (mode) {
-            case TIME_STOP -> "Complete stasis freeze";
-            case SLOW_MOTION -> "World runs at 25% speed";
-            case MATRIX -> "Hyper-speed player motion";
-            case SUPERHOT -> "Time moves when you move";
-            case DECELERATION_FIELD -> "Projectiles slow by 80%";
-            case FAST_FORWARD -> "5x world acceleration";
+            case TIME_STOP -> "Freezes all entity movement and physical interactions.";
+            case SLOW_MOTION -> "Slows world entities to 25% speed while you remain accelerated.";
+            case MATRIX -> "Grants hyper-speed player reflexes and attack speed.";
+            case SUPERHOT -> "Time moves only when you physically move or attack.";
+            case DECELERATION_FIELD -> "Creates an 80% projectile slowing field around you.";
+            case FAST_FORWARD -> "Accelerates world time and crop growth by 500%.";
         };
     }
 
     private static String getCleanRuneTag(RuneType type) {
         return switch (type) {
             case DEFLECTION -> "Auto-parries incoming projectiles";
-            case SNATCHING -> "Auto-collects incoming projectiles";
+            case SNATCHING -> "Auto-collects incoming projectiles into inventory";
             case PHASING -> "Auto-teleports away on imminent hit";
             case KINETIC -> "2.5x kinetic launch force on hits";
             case VAMPIRISM -> "Siphons time up to double cap";
             case VOLATILE -> "Delayed kinetic concussion bombs";
-            case TACHYON -> "3x mining & flurry in Slow-Mo/Matrix";
+            case TACHYON -> "Flurry attacks in Slow-Mo & Matrix";
             case DEAD_EYE -> "RDR2 Dead Eye: paints targets for volley";
-            case RICOCHET -> "Chain Lightning: ricochets between mobs";
-            case ORBITAL -> "Orbital Stasis: catches & returns projectiles";
-            case TRANSPOSITION -> "Boogie Woogie: swaps position with clap (G)";
-            default -> "Empty slot";
+            case RICOCHET -> "Chain Lightning ricochets between mobs";
+            case ORBITAL -> "Catches and returns enemy projectiles";
+            case TRANSPOSITION -> "Boogie Woogie: swap position with clap (G)";
+            default -> "Empty socket";
         };
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) { // Left click
-            int modalWidth = 350;
-            int modalHeight = 268;
+            int modalWidth = getModalWidth();
+            int modalHeight = getModalHeight();
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
+            int currentY = modalY + 32;
 
-            // 1. Check Socket Eject Click & Mode Toggle Click
-            int runeSlotX = modalX + 16;
-            int runeSlotY = modalY + 28;
-            int runeSlotSize = 22;
-            if (mouseX >= runeSlotX && mouseX <= runeSlotX + runeSlotSize && mouseY >= runeSlotY && mouseY <= runeSlotY + runeSlotSize) {
+            if (this.currentTier.hasRuneSocket()) {
+                int socketSlotX = modalX + 14;
+                int socketSlotY = currentY;
+                int slotSize = 20;
+
+                // 1. Check Eject or Socket Click
                 if (!this.socketedRune.isEmpty()) {
-                    ejectRune();
-                    return true;
-                }
-            }
-
-            // Check Mode Badge click for RICOCHET rune
-            if (!this.socketedRune.isEmpty() && this.socketedRune.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() == RuneType.RICOCHET) {
-                com.timestop.combat.ChainTargetFilter filter = TemporalRuneItem.getTargetFilter(this.socketedRune);
-                Component modeBadge = Component.literal("[Mode: " + filter.getDisplayName() + "]");
-                int badgeW = this.font.width(modeBadge);
-                int ejectW = this.font.width("[Click to Eject]");
-                int badgeX = modalX + modalWidth - 16 - ejectW - badgeW - 8;
-                if (mouseX >= badgeX - 2 && mouseX <= badgeX + badgeW + 2 && mouseY >= runeSlotY + 3 && mouseY <= runeSlotY + 17) {
-                    com.timestop.combat.ChainTargetFilter next = filter.next();
-                    TemporalRuneItem.setTargetFilter(this.socketedRune, next);
-                    com.timestop.network.ModMessages.sendToServer(new com.timestop.network.CycleRuneModePacket());
-                    if (this.minecraft != null && this.minecraft.player != null) {
-                        this.minecraft.player.playSound(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.8F);
+                    Component ejectBtn = Component.literal("[Eject]");
+                    int ejectX = modalX + modalWidth - 14 - this.font.width(ejectBtn);
+                    if ((mouseX >= socketSlotX && mouseX <= socketSlotX + slotSize && mouseY >= socketSlotY && mouseY <= socketSlotY + slotSize)
+                            || (mouseX >= ejectX - 4 && mouseX <= ejectX + this.font.width(ejectBtn) + 4 && mouseY >= socketSlotY && mouseY <= socketSlotY + slotSize)) {
+                        ejectRune();
+                        return true;
                     }
-                    return true;
-                }
-            }
 
-            // 2. Check Rune Tray Click
-            int trayY = modalY + 54;
-            int trayStartX = modalX + 115;
-            for (int i = 0; i < this.availableRunes.size(); i++) {
-                InventoryRuneEntry entry = this.availableRunes.get(i);
-                int chipX = trayStartX + (i * 26);
-                int chipY = trayY;
-                int chipSize = 22;
-
-                if (mouseX >= chipX && mouseX <= chipX + chipSize && mouseY >= chipY && mouseY <= chipY + chipSize) {
-                    socketSpecificRune(entry);
-                    return true;
+                    // Check Ricochet filter toggle
+                    if (this.socketedRune.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() == RuneType.RICOCHET) {
+                        com.timestop.combat.ChainTargetFilter filter = TemporalRuneItem.getTargetFilter(this.socketedRune);
+                        Component modeBadge = Component.literal("[" + filter.getDisplayName() + "]");
+                        int badgeX = ejectX - this.font.width(modeBadge) - 6;
+                        if (mouseX >= badgeX - 2 && mouseX <= badgeX + this.font.width(modeBadge) + 2 && mouseY >= socketSlotY && mouseY <= socketSlotY + slotSize) {
+                            com.timestop.combat.ChainTargetFilter next = filter.next();
+                            TemporalRuneItem.setTargetFilter(this.socketedRune, next);
+                            ModMessages.sendToServer(new com.timestop.network.CycleRuneModePacket());
+                            if (this.minecraft != null && this.minecraft.player != null) {
+                                this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.8F);
+                            }
+                            return true;
+                        }
+                    }
                 }
+
+                // 2. Check Rune Tray Click
+                int trayY = currentY + 24;
+                int chipStartX = modalX + 14;
+                int maxVisible = 10;
+                int totalRunes = this.availableRunes.size();
+                int visibleCount = Math.min(totalRunes - this.trayScrollOffset, maxVisible);
+
+                for (int i = 0; i < visibleCount; i++) {
+                    int runeIndex = this.trayScrollOffset + i;
+                    if (runeIndex >= this.availableRunes.size()) break;
+
+                    InventoryRuneEntry entry = this.availableRunes.get(runeIndex);
+                    int chipX = chipStartX + (i * 24);
+                    int chipY = trayY;
+                    int chipSize = 20;
+
+                    if (mouseX >= chipX && mouseX <= chipX + chipSize && mouseY >= chipY && mouseY <= chipY + chipSize) {
+                        socketSpecificRune(entry);
+                        return true;
+                    }
+                }
+
+                currentY += 54;
             }
 
             // 3. Check Mode Cards Click
-            int cardWidth = 151;
-            int cardHeight = 42;
-            int gapX = 16;
-            int gapY = 8;
-            int gridX = modalX + 16;
-            int gridY = modalY + 88;
+            List<TimeMode> displayModes = getDisplayModes();
 
-            TimeMode[] modes = TimeMode.values();
-            for (int i = 0; i < modes.length; i++) {
-                int col = i % 2;
-                int row = i / 2;
+            if (this.currentTier == WatchTier.COPPER) {
+                int cardW = modalWidth - 24;
+                int cardH = 32;
+                int gapY = 8;
 
-                int cx = gridX + col * (cardWidth + gapX);
-                int cy = gridY + row * (cardHeight + gapY);
+                for (int i = 0; i < displayModes.size(); i++) {
+                    int cy = currentY + i * (cardH + gapY);
+                    if (mouseX >= modalX + 12 && mouseX <= modalX + 12 + cardW && mouseY >= cy && mouseY <= cy + cardH) {
+                        selectMode(displayModes.get(i));
+                        return true;
+                    }
+                }
+            } else {
+                int cardW = (modalWidth - 32) / 2;
+                int cardH = 28;
+                int gapX = 8;
+                int gapY = 6;
 
-                if (mouseX >= cx && mouseX <= cx + cardWidth && mouseY >= cy && mouseY <= cy + cardHeight) {
-                    handleSelectionAttempt(modes[i]);
-                    return true;
+                for (int i = 0; i < displayModes.size(); i++) {
+                    int col = i % 2;
+                    int row = i / 2;
+                    int cx = modalX + 12 + col * (cardW + gapX);
+                    int cy = currentY + row * (cardH + gapY);
+
+                    if (mouseX >= cx && mouseX <= cx + cardW && mouseY >= cy && mouseY <= cy + cardH) {
+                        selectMode(displayModes.get(i));
+                        return true;
+                    }
                 }
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private void ejectRune() {
-        ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, -1));
+    private void selectMode(TimeMode mode) {
+        ModMessages.sendToServer(new SelectTimeModePacket(mode, this.hand));
         Player player = Minecraft.getInstance().player;
         if (player != null) {
-            ItemStack watchStack = player.getItemInHand(this.hand);
-            AbstractWatchItem.setSocketedRune(watchStack, ItemStack.EMPTY);
+            ItemStack stack = player.getItemInHand(this.hand);
+            AbstractWatchItem.setMode(stack, mode);
+        }
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.3F));
+        this.onClose();
+    }
+
+    private void ejectRune() {
+        ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, -1, RuneType.BLANK));
+        Player player = Minecraft.getInstance().player;
+        if (player != null && !this.socketedRune.isEmpty()) {
+            ItemStack stack = player.getItemInHand(this.hand);
+            ItemStack toReturn = this.socketedRune.copy();
+            AbstractWatchItem.setSocketedRune(stack, ItemStack.EMPTY);
+            this.socketedRune = ItemStack.EMPTY;
+
+            // Optimistically return rune to client player inventory immediately
+            player.getInventory().add(toReturn);
             Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 0.8F));
         }
         refreshState();
     }
 
     private void socketSpecificRune(InventoryRuneEntry entry) {
-        ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, entry.slotIndex));
+        ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, entry.slotIndex, entry.type));
         Player player = Minecraft.getInstance().player;
         if (player != null) {
-            ItemStack watchStack = player.getItemInHand(this.hand);
+            ItemStack stack = player.getItemInHand(this.hand);
+
+            // If there was a previously socketed rune, optimistically return it to inventory
+            if (!this.socketedRune.isEmpty()) {
+                player.getInventory().add(this.socketedRune.copy());
+            }
+
+            // Socket 1 item from clicked stack
             ItemStack copy = entry.stack.copy();
             copy.setCount(1);
-            AbstractWatchItem.setSocketedRune(watchStack, copy);
+            AbstractWatchItem.setSocketedRune(stack, copy);
+            this.socketedRune = copy;
+
+            // Shrink client inventory stack optimistically
+            entry.stack.shrink(1);
+            if (entry.stack.isEmpty()) {
+                player.getInventory().setItem(entry.slotIndex, ItemStack.EMPTY);
+            }
+
             Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.ARMOR_EQUIP_NETHERITE, 1.2F));
         }
         refreshState();
@@ -431,11 +545,11 @@ public class TimeModeSelectionScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode >= GLFW.GLFW_KEY_1 && keyCode <= GLFW.GLFW_KEY_6) {
+        List<TimeMode> displayModes = getDisplayModes();
+        if (keyCode >= GLFW.GLFW_KEY_1 && keyCode <= GLFW.GLFW_KEY_9) {
             int index = keyCode - GLFW.GLFW_KEY_1;
-            TimeMode[] modes = TimeMode.values();
-            if (index < modes.length) {
-                handleSelectionAttempt(modes[index]);
+            if (index < displayModes.size()) {
+                selectMode(displayModes.get(index));
                 return true;
             }
         }
@@ -443,26 +557,17 @@ public class TimeModeSelectionScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private void handleSelectionAttempt(TimeMode mode) {
-        Player player = Minecraft.getInstance().player;
-        if (!this.currentTier.isModeUnlocked(mode)) {
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.DISPENSER_FAIL, 1.4F));
-            if (player != null) {
-                WatchTier required = WatchTier.getMinimumTierFor(mode);
-                player.displayClientMessage(Component.literal("Locked: Requires " + required.getDisplayName()).withStyle(ChatFormatting.RED), true);
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (this.availableRunes.size() > 10) {
+            if (delta > 0) {
+                this.trayScrollOffset = Math.max(0, this.trayScrollOffset - 1);
+            } else if (delta < 0) {
+                this.trayScrollOffset = Math.min(Math.max(0, this.availableRunes.size() - 10), this.trayScrollOffset + 1);
             }
-            return;
+            return true;
         }
-
-        ModMessages.sendToServer(new SelectTimeModePacket(mode, this.hand));
-
-        if (player != null) {
-            ItemStack stack = player.getItemInHand(this.hand);
-            AbstractWatchItem.setMode(stack, mode);
-        }
-
-        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.3F));
-        this.onClose();
+        return super.mouseScrolled(mouseX, mouseY, delta);
     }
 
     @Override

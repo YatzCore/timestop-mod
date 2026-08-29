@@ -98,7 +98,7 @@ public class RuneManager {
             return runeItem.getType();
         }
 
-        // 3. Check inventory for socketed watch or carried rune
+        // 3. Check inventory for socketed watch
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
             if (stack.getItem() instanceof AbstractWatchItem) {
@@ -106,8 +106,6 @@ public class RuneManager {
                 if (rune != null && rune != RuneType.BLANK) {
                     return rune;
                 }
-            } else if (stack.getItem() instanceof TemporalRuneItem runeItem) {
-                return runeItem.getType();
             }
         }
 
@@ -271,7 +269,8 @@ public class RuneManager {
 
     @Nullable
     private static BlockPos findSafeLandingPos(Level level, BlockPos origin) {
-        for (int dy = 0; dy <= 2; dy++) {
+        if (isSafeSpot(level, origin)) return origin;
+        for (int dy = 1; dy <= 2; dy++) {
             for (int sign : new int[]{1, -1}) {
                 BlockPos check = origin.above(dy * sign);
                 if (isSafeSpot(level, check)) {
@@ -287,8 +286,9 @@ public class RuneManager {
         BlockState feet = level.getBlockState(pos);
         BlockState head = level.getBlockState(pos.above());
 
-        return below.isSolidRender(level, pos.below())
-                && !below.isAir()
+        boolean standable = !below.isAir() && (below.isSolidRender(level, pos.below()) || !below.getCollisionShape(level, pos.below()).isEmpty());
+
+        return standable
                 && feet.getCollisionShape(level, pos).isEmpty()
                 && head.getCollisionShape(level, pos.above()).isEmpty()
                 && !feet.liquid()

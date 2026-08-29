@@ -16,13 +16,16 @@
     "SpecialProjectileMixin",
     "AbstractArrowMixin",
     "AbstractArrowAccessor",
-    "ProjectileDecelerationMixin"
+    "ProjectileDecelerationMixin",
+    "ItemEntityMixin"
   ],
   "client": [
     "ClientLevelMixin",
     "EntityRenderDispatcherMixin",
     "LevelRendererMixin",
     "ParticleEngineMixin",
+    "SingleQuadParticleMixin",
+    "LivingEntityRendererMixin",
     "TimerMixin",
     "TextureAtlasMixin"
   ],

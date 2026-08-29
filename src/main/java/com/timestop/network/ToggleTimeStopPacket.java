@@ -29,7 +29,11 @@ public class ToggleTimeStopPacket {
             if (player != null && player.level() instanceof ServerLevel serverLevel) {
                 // If time is active, V key ONLY stops it!
                 if (TimeStopManager.isTimeStopped(serverLevel)) {
-                    TimeStopManager.resumeTime(serverLevel);
+                    if (player.isCreative() || player.hasPermissions(2) || (TimeStopManager.getInitiatorUuid() != null && TimeStopManager.getInitiatorUuid().equals(player.getUUID()))) {
+                        TimeStopManager.resumeTime(serverLevel);
+                    } else {
+                        player.displayClientMessage(Component.literal("You cannot stop another player's temporal field!").withStyle(net.minecraft.ChatFormatting.RED), true);
+                    }
                     return;
                 }
 

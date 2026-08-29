@@ -23,43 +23,63 @@ public abstract class PlayerMixin extends LivingEntity {
     @Inject(method = "aiStep", at = @At("TAIL"))
     private void onMatrixPlayerAiStep(CallbackInfo ci) {
         Player player = (Player) (Object) this;
+        TimeMode mode = player.level().isClientSide ? ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
+
         if (isAcceleratedExempt(player)) {
-            // 1. Weapon Hit Cooldown (Attack recharge):
-            // Normal 20 TPS increments attackStrengthTicker by 1 every 50ms.
-            // At slow TPS (200-250ms per tick), we advance it by +3 more (total 4 per tick = 20/sec)
-            // so weapon attack cooldown recharges at full normal speed!
-            this.attackStrengthTicker += 3;
+            // Dynamic compensation: only add extra ticks if the engine is running slower than 20 TPS!
+            // At 50ms (20 TPS), extraTicks is 0. At 200ms (5 TPS), extraTicks is 3 (total 4 per tick = 20/sec).
+            float tickMs = player.level().isClientSide ? ClientTimeStopManager.getClientTickMs() : TimeStopManager.getServerTickMs();
+            int extraTicks = Math.max(0, Math.round((tickMs - 50.0F) / 50.0F));
+
+            if (extraTicks > 0) {
+                // In MATRIX mode, MATRIX_ATTACK_MOD already provides +300% attack speed attribute.
+                // Do not duplicate with attackStrengthTicker advance.
+                if (mode != TimeMode.MATRIX) {
+                    this.attackStrengthTicker += extraTicks;
+                }
+
+                // 2. Item Cooldowns:
+                ItemCooldowns cooldowns = player.getCooldowns();
+                if (cooldowns != null) {
+                    for (int i = 0; i < extraTicks; i++) {
+                        cooldowns.tick();
+                    }
+                }
+
+                // 3. Item Usage:
+                if (this.isUsingItem() && this.useItem != null && !this.useItem.isEmpty()) {
+                    for (int i = 0; i < extraTicks; i++) {
+                        if (this.useItemRemaining > 0) {
+                            this.useItemRemaining--;
+                            if (this.useItemRemaining <= 0) {
+                                if (!this.useItem.useOnRelease()) {
+                                    if (!this.level().isClientSide) {
+                                        this.completeUsingItem();
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if (com.timestop.combat.TachyonRuneHandler.isTachyonActive(player)) {
-            // Tachyon flurry: double attack strength recharge speed!
-            this.attackStrengthTicker += 2;
+            // Tachyon flurry: attack recharge boost
+            this.attackStrengthTicker += 1;
         }
 
-        if (isAcceleratedExempt(player)) {
-
-            // 2. Item Cooldowns (Ender pearls, shields, chorus fruit):
-            ItemCooldowns cooldowns = player.getCooldowns();
-            if (cooldowns != null) {
-                for (int i = 0; i < 3; i++) {
-                    cooldowns.tick();
-                }
-            }
-
-            // 3. Item Usage (Eating food, drinking potions, drawing bow, loading crossbow):
-            // Accelerate useItemRemaining so charging, eating, and shooting complete at full normal speed!
-            if (this.isUsingItem() && this.useItem != null && !this.useItem.isEmpty()) {
-                for (int i = 0; i < 3; i++) {
-                    if (this.useItemRemaining > 0) {
-                        this.useItemRemaining--;
-                        if (this.useItemRemaining <= 0) {
-                            if (!this.useItem.useOnRelease()) {
-                                if (!this.level().isClientSide) {
-                                    this.completeUsingItem();
-                                }
-                            }
-                            break;
-                        }
+        // In full Time Stop, allow exempt player to collect floating items around them (mined blocks, mob drops)
+        if (!player.level().isClientSide && TimeStopManager.isTimeStopped(player.level()) 
+                && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP 
+                && TimeStopManager.isEntityExempt(player)) {
+            net.minecraft.world.phys.AABB reachBox = player.getBoundingBox().inflate(1.2D, 1.2D, 1.2D);
+            for (net.minecraft.world.entity.item.ItemEntity item : player.level().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, reachBox)) {
+                if (!item.isRemoved()) {
+                    // Do not vacuum up items the player just threw with Q unless crouching
+                    if (item.getOwner() != player || player.isCrouching()) {
+                        item.playerTouch(player);
                     }
                 }
             }

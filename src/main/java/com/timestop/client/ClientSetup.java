@@ -45,6 +45,7 @@ public class ClientSetup {
         MinecraftForge.EVENT_BUS.register(new ClientInteractionHandler());
         MinecraftForge.EVENT_BUS.register(new DeadEyeRenderer());
         MinecraftForge.EVENT_BUS.register(new ClientOrbitalHandler());
+        MinecraftForge.EVENT_BUS.register(new TranspositionRenderer());
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {
@@ -58,6 +59,7 @@ public class ClientSetup {
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "captured_projectiles_hud", CapturedProjectilesOverlay.HUD_ORBIT);
         event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "transposition_hud", TranspositionRenderer.HUD_TRANSPOSITION);
         event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "dead_eye_hud", DeadEyeRenderer.HUD_DEAD_EYE);
+        event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "superhot_hud", SuperhotRenderer.HUD_SUPERHOT);
     }
 
     public static class ClientForgeEvents {
@@ -79,6 +81,7 @@ public class ClientSetup {
                     Minecraft mc = Minecraft.getInstance();
                     boolean isSneak = mc.player != null && mc.player.isCrouching();
                     ModMessages.sendToServer(new com.timestop.network.TranspositionSwapPacket(isSneak));
+                    TranspositionRenderer.triggerSwapFlash();
                 }
             }
         }

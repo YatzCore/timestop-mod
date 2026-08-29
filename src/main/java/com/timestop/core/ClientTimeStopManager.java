@@ -8,7 +8,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientTimeStopManager {
     private static boolean clientTimeStopped = false;
@@ -24,8 +27,9 @@ public class ClientTimeStopManager {
     private static double prevMouseX = 0.0;
     private static double prevMouseY = 0.0;
     private static boolean wasFastLastFrame = false;
-
     private static final ResourceLocation DESATURATE_SHADER = new ResourceLocation("minecraft", "shaders/post/desaturate.json");
+    private static final ResourceLocation SUPERHOT_SHADER = new ResourceLocation("minecraft", "shaders/post/superhot.json");
+    private static ResourceLocation currentShader = null;
 
     public static boolean isTimeStopped() {
         return clientTimeStopped;
@@ -55,6 +59,8 @@ public class ClientTimeStopManager {
         }
     }
 
+    private static final Set<UUID> clientExemptPlayers = ConcurrentHashMap.newKeySet();
+
     public static boolean isEntityExempt(Entity entity) {
         if (!clientTimeStopped) return true;
 
@@ -65,32 +71,43 @@ public class ClientTimeStopManager {
             if (clientInitiatorUuid != null && player.getUUID().equals(clientInitiatorUuid)) {
                 return true;
             }
-            Player localPlayer = Minecraft.getInstance().player;
-            if (localPlayer != null && player.getUUID().equals(localPlayer.getUUID())) {
-                if (clientInitiatorUuid != null && clientInitiatorUuid.equals(localPlayer.getUUID())) {
-                    return true;
-                }
+            if (clientExemptPlayers.contains(player.getUUID())) {
+                return true;
             }
         }
 
         return false;
     }
 
-    public static void handleSync(boolean active, int duration, @Nullable UUID initiator, TimeMode mode) {
+    public static void handleSync(boolean active, int duration, @Nullable UUID initiator, TimeMode mode, Set<UUID> exempt) {
         clientTimeStopped = active;
         clientTotalDuration = duration;
         clientRemainingTicks = duration;
         clientInitiatorUuid = initiator;
         clientMode = mode;
+        clientExemptPlayers.clear();
+        if (exempt != null) {
+            clientExemptPlayers.addAll(exempt);
+        }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
-            if (active && mode == TimeMode.TIME_STOP) {
-                applyShader();
+            if (active) {
+                if (mode == TimeMode.TIME_STOP) {
+                    applyShader(DESATURATE_SHADER);
+                } else if (mode == TimeMode.SUPERHOT) {
+                    applyShader(SUPERHOT_SHADER);
+                } else {
+                    removeShader();
+                }
             } else {
                 removeShader();
             }
         }
+    }
+
+    public static void handleSync(boolean active, int duration, @Nullable UUID initiator, TimeMode mode) {
+        handleSync(active, duration, initiator, mode, Collections.emptySet());
     }
 
     public static void clientTick() {
@@ -125,15 +142,9 @@ public class ClientTimeStopManager {
                 || mc.player.swinging
                 || mc.player.isUsingItem();
 
-        // Direct mouse aiming tracking
-        double curX = mc.mouseHandler.xpos();
-        double curY = mc.mouseHandler.ypos();
-        double mouseDelta = Math.abs(curX - prevMouseX) + Math.abs(curY - prevMouseY);
-        prevMouseX = curX;
-        prevMouseY = curY;
-        boolean hasMouseLook = mouseDelta > 1.2;
-
-        float target = (hasMovementKey || hasAction || hasMouseLook) ? 1.0F : 0.0F;
+        // In Superhot: Moving (WASD, jump, sprint) or attacking/using item advances time.
+        // Mouse look allows aiming freely in slow motion without speeding time to normal!
+        float target = (hasMovementKey || hasAction) ? 1.0F : 0.0F;
 
         if (target >= 0.9F) {
             // Immediate real-time acceleration!
@@ -152,11 +163,18 @@ public class ClientTimeStopManager {
     }
 
     public static void applyShader() {
+        applyShader(DESATURATE_SHADER);
+    }
+
+    public static void applyShader(ResourceLocation shader) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gameRenderer != null && !shaderActive) {
+        if (mc.gameRenderer != null) {
             try {
-                mc.gameRenderer.loadEffect(DESATURATE_SHADER);
-                shaderActive = true;
+                if (!shaderActive || !shader.equals(currentShader)) {
+                    mc.gameRenderer.loadEffect(shader);
+                    shaderActive = true;
+                    currentShader = shader;
+                }
             } catch (Exception ignored) {
             }
         }
@@ -168,6 +186,7 @@ public class ClientTimeStopManager {
             try {
                 mc.gameRenderer.shutdownEffect();
                 shaderActive = false;
+                currentShader = null;
             } catch (Exception ignored) {
             }
         }

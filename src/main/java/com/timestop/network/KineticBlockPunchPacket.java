@@ -53,6 +53,9 @@ public class KineticBlockPunchPacket {
 
             Entity entity = level.getEntity(this.entityId);
             if (entity instanceof FallingBlockEntity || entity instanceof PrimedTnt) {
+                if (player.distanceToSqr(entity) > 64.0) {
+                    return; // Reject punch if beyond interaction reach
+                }
                 double power = player.getMainHandItem().isEmpty() ? 0.22 : 0.35;
                 Vec3 impulse = this.lookDirection.scale(power);
                 TemporalKineticBlockManager.recordHit(entity, impulse, player);

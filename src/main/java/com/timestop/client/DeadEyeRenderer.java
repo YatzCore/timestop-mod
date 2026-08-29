@@ -1,5 +1,6 @@
 package com.timestop.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.timestop.combat.DeadEyeManager;
 import com.timestop.combat.DeadEyeTag;
@@ -8,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
@@ -15,17 +17,23 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public class DeadEyeRenderer {
 
+    private static final ResourceLocation VIGNETTE_LOCATION = new ResourceLocation("textures/misc/vignette.png");
+
     public static final IGuiOverlay HUD_DEAD_EYE = (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
         if (!DeadEyeManager.clientAiming) return;
 
-        // 1. Warm Sepia / Amber Vignette Overlay on Screen Borders
-        int vignetteColor = 0x2E78350F; // Deep translucent amber/sepia
-        guiGraphics.fill(0, 0, screenWidth, 30, vignetteColor);
-        guiGraphics.fill(0, screenHeight - 30, screenWidth, screenHeight, vignetteColor);
-        guiGraphics.fill(0, 30, 30, screenHeight - 30, vignetteColor);
-        guiGraphics.fill(screenWidth - 30, 30, screenWidth, screenHeight - 30, vignetteColor);
+        // 1. Subtle, clear cinematic vignette (center 100% transparent and clear)
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        guiGraphics.setColor(0.60F, 0.40F, 0.20F, 0.22F); // Gentle warm amber tint on edges only
+        guiGraphics.blit(VIGNETTE_LOCATION, 0, 0, -90, 0.0F, 0.0F, screenWidth, screenHeight, screenWidth, screenHeight);
+        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
 
-        // 2. RDR2 Dead Eye Marked Cylinder Counter
+        // 3. RDR2 Dead Eye Marked Cylinder Counter
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         Font font = mc.font;
@@ -99,5 +107,7 @@ public class DeadEyeRenderer {
 
             poseStack.popPose();
         }
+
+        mc.renderBuffers().bufferSource().endBatch();
     }
 }

@@ -4,6 +4,7 @@ import com.timestop.core.TimeMode;
 import com.timestop.core.TimeStopManager;
 import net.minecraft.world.entity.projectile.AbstractHurtingProjectile;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,8 +18,27 @@ public abstract class ProjectileMixin {
     private void onPreTick(CallbackInfo ci) {
         Projectile projectile = (Projectile) (Object) this;
 
+        Level level = projectile.level();
+
+        if (level.isClientSide) {
+            if (com.timestop.client.ClientOrbitalHandler.isOrbiting(projectile.getId())) {
+                ci.cancel();
+                return;
+            }
+            if (com.timestop.core.ClientTimeStopManager.isTimeStopped() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+                ci.cancel();
+            }
+            return;
+        }
+
+        // Complete suspended stasis while captured in orbit
+        if (projectile.getPersistentData().getBoolean("InStasisOrbit")) {
+            ci.cancel();
+            return;
+        }
+
         // Complete suspended stasis in TIME_STOP mode
-        if (TimeStopManager.isTimeStopped(projectile.level()) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             if (projectile.tickCount >= 1) {
                 Vec3 vel = projectile.getDeltaMovement();
                 if (vel.lengthSqr() <= 1.0E-5 && projectile instanceof AbstractHurtingProjectile hurting) {

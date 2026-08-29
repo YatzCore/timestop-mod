@@ -11,7 +11,7 @@ import java.util.Set;
 public enum WatchTier {
     COPPER(
             1,
-            "Copper Chronometer",
+            "Copper Watch",
             ChatFormatting.GOLD,
             120, // 6 seconds duration
             500, // 25 seconds cooldown
@@ -22,7 +22,7 @@ public enum WatchTier {
     ),
     GILDED(
             2,
-            "Gilded Chronos Watch",
+            "Golden Watch",
             ChatFormatting.YELLOW,
             200, // 10 seconds duration
             360, // 18 seconds cooldown
@@ -33,7 +33,7 @@ public enum WatchTier {
     ),
     DIAMOND(
             3,
-            "Diamond Chronos Watch",
+            "Diamond Watch",
             ChatFormatting.AQUA,
             280, // 14 seconds duration
             240, // 12 seconds cooldown
@@ -44,7 +44,7 @@ public enum WatchTier {
     ),
     NETHERITE(
             4,
-            "Netherite Chronos Sovereign",
+            "Netherite Watch",
             ChatFormatting.DARK_PURPLE,
             400, // 20 seconds duration
             120, // 6 seconds cooldown (Rapid recharge!)
@@ -55,7 +55,7 @@ public enum WatchTier {
     ),
     CREATIVE(
             5,
-            "Infinite Chronos Watch",
+            "Creative Watch",
             ChatFormatting.LIGHT_PURPLE,
             0, // Infinite duration
             0, // Zero cooldown

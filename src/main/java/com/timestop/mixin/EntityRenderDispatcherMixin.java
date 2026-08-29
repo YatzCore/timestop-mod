@@ -14,8 +14,10 @@ public abstract class EntityRenderDispatcherMixin {
 
     @ModifyVariable(method = "render", at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private float clampPartialTicksForFrozenEntities(float partialTicks, Entity entity) {
-        if (ClientTimeStopManager.isTimeStopped() && !ClientTimeStopManager.isEntityExempt(entity)) {
-            return 1.0F; // Clamp frame interpolation to eliminate jitter
+        if (ClientTimeStopManager.isTimeStopped() 
+                && ClientTimeStopManager.getCurrentMode() == com.timestop.core.TimeMode.TIME_STOP 
+                && !ClientTimeStopManager.isEntityExempt(entity)) {
+            return 1.0F; // Clamp frame interpolation only in TIME_STOP to eliminate jitter
         }
         return partialTicks;
     }

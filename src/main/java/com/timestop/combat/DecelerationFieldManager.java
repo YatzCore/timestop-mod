@@ -74,14 +74,14 @@ public class DecelerationFieldManager {
         if (!ProjectileCombatHelper.isActiveInFlight(projectile)) return null;
 
         AABB searchBox = projectile.getBoundingBox().inflate(7.0);
-        List<Player> nearbyPlayers = projectile.level().getEntitiesOfClass(Player.class, searchBox,
-                p -> p.isAlive() && !p.isSpectator() && hasDecelerationField(p));
+        List<Player> nearbyPlayers = projectile.level().getEntitiesOfClass(Player.class, searchBox);
+        if (nearbyPlayers.isEmpty()) return null;
 
         for (Player player : nearbyPlayers) {
+            if (!player.isAlive() || player.isSpectator()) continue;
             // Player's own shots are NEVER slowed!
-            if (projectile.getOwner() == player) {
-                continue;
-            }
+            if (projectile.getOwner() == player) continue;
+            if (!hasDecelerationField(player)) continue;
 
             double radius = getDecelerationRadius(player);
             if (radius <= 0.0) continue;

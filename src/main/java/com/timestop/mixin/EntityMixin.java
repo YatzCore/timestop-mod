@@ -59,4 +59,25 @@ public abstract class EntityMixin {
             cir.setReturnValue(0.45F);
         }
     }
+
+    @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true)
+    private void onIsCurrentlyGlowing(CallbackInfoReturnable<Boolean> cir) {
+        Entity entity = (Entity) (Object) this;
+        if (entity.level().isClientSide()) {
+            if (com.timestop.client.TranspositionRenderer.isTargetOutlined(entity)) {
+                cir.setReturnValue(true);
+            }
+        }
+    }
+
+    @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true)
+    private void onGetTeamColor(CallbackInfoReturnable<Integer> cir) {
+        Entity entity = (Entity) (Object) this;
+        if (entity.level().isClientSide()) {
+            int color = com.timestop.client.TranspositionRenderer.getTargetOutlineColor(entity);
+            if (color != -1) {
+                cir.setReturnValue(color);
+            }
+        }
+    }
 }

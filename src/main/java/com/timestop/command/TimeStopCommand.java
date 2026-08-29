@@ -80,6 +80,11 @@ public class TimeStopCommand {
             TimeStopManager.addExemptPlayer(player.getUUID());
             source.sendSuccess(() -> Component.literal("Added §e" + player.getName().getString() + "§r to time stop exemption list."), true);
         }
+        if (TimeStopManager.isGlobalTimeStopped()) {
+            com.timestop.network.ModMessages.sendToClients(new com.timestop.network.TimeStopSyncPacket(
+                    true, TimeStopManager.getRemainingTicks(), TimeStopManager.getInitiatorUuid(),
+                    TimeStopManager.getCurrentMode(), TimeStopManager.getExemptPlayers()));
+        }
         return players.size();
     }
 
@@ -87,6 +92,11 @@ public class TimeStopCommand {
         for (ServerPlayer player : players) {
             TimeStopManager.removeExemptPlayer(player.getUUID());
             source.sendSuccess(() -> Component.literal("Removed §e" + player.getName().getString() + "§r from time stop exemption list."), true);
+        }
+        if (TimeStopManager.isGlobalTimeStopped()) {
+            com.timestop.network.ModMessages.sendToClients(new com.timestop.network.TimeStopSyncPacket(
+                    true, TimeStopManager.getRemainingTicks(), TimeStopManager.getInitiatorUuid(),
+                    TimeStopManager.getCurrentMode(), TimeStopManager.getExemptPlayers()));
         }
         return players.size();
     }

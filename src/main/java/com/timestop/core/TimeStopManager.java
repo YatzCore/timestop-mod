@@ -33,12 +33,17 @@ public class TimeStopManager {
     private static int totalDuration = 0;
     @Nullable
     private static UUID initiatorUuid = null;
+    private static TimeMode currentMode = TimeMode.TIME_STOP;
     @Nullable
     private static net.minecraft.world.item.Item initiatorWatchItem = null;
     private static int initiatorCooldownTicks = 300;
     private static int accumulatedVampirismBonus = 0;
-    private static TimeMode currentMode = TimeMode.TIME_STOP;
     private static final Set<UUID> exemptPlayers = ConcurrentHashMap.newKeySet();
+    private static java.lang.ref.WeakReference<ServerLevel> activeServerLevel = new java.lang.ref.WeakReference<>(null);
+
+    public static Set<UUID> getExemptPlayers() {
+        return Collections.unmodifiableSet(exemptPlayers);
+    }
 
     // Map of suspended projectiles: Projectile UUID -> stored velocity & kinetic data
     public static class ProjectileKineticData {
@@ -181,6 +186,7 @@ public class TimeStopManager {
         if (timeStopped) return;
 
         timeStopped = true;
+        activeServerLevel = new java.lang.ref.WeakReference<>(level);
         totalDuration = durationTicks;
         remainingTicks = durationTicks;
         accumulatedVampirismBonus = 0;
@@ -253,7 +259,7 @@ public class TimeStopManager {
         }
 
         // Broadcast to all clients
-        ModMessages.sendToClients(new TimeStopSyncPacket(true, durationTicks, initiatorUuid, mode));
+        ModMessages.sendToClients(new TimeStopSyncPacket(true, durationTicks, initiatorUuid, mode, exemptPlayers));
     }
 
     public static void startTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks) {
@@ -277,7 +283,7 @@ public class TimeStopManager {
         accumulatedVampirismBonus += actualAdd;
 
         // Sync updated duration to all clients
-        ModMessages.sendToClients(new TimeStopSyncPacket(true, remainingTicks, initiatorUuid, currentMode));
+        ModMessages.sendToClients(new TimeStopSyncPacket(true, remainingTicks, initiatorUuid, currentMode, exemptPlayers));
         return true;
     }
 
@@ -289,6 +295,7 @@ public class TimeStopManager {
         if (!timeStopped) return;
 
         timeStopped = false;
+        activeServerLevel = new java.lang.ref.WeakReference<>(null);
         remainingTicks = 0;
         totalDuration = 0;
         accumulatedVampirismBonus = 0;
@@ -331,7 +338,7 @@ public class TimeStopManager {
         currentMode = TimeMode.TIME_STOP;
 
         // Broadcast to all clients
-        ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP));
+        ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP, Collections.emptySet()));
     }
 
     public static void toggleTimeStop(ServerLevel level, Player player, int durationTicks, TimeMode mode) {
@@ -350,13 +357,22 @@ public class TimeStopManager {
         if (remainingTicks > 0) {
             remainingTicks--;
             if (remainingTicks <= 0) {
-                ServerLevel anyLevel = TemporalDamageBuffer.getLastKnownLevel();
+                ServerLevel anyLevel = activeServerLevel.get();
+                if (anyLevel == null) {
+                    anyLevel = TemporalDamageBuffer.getLastKnownLevel();
+                }
+                if (anyLevel == null) {
+                    net.minecraft.server.MinecraftServer s = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+                    if (s != null) {
+                        anyLevel = s.overworld();
+                    }
+                }
                 if (anyLevel != null) {
                     resumeTime(anyLevel);
                 } else {
                     timeStopped = false;
                     initiatorUuid = null;
-                    ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP));
+                    ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP, Collections.emptySet()));
                 }
             }
         }

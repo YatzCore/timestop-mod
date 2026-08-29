@@ -70,12 +70,40 @@ public class DeadEyeManager {
     }
 
     public static boolean isRangedWeapon(ItemStack stack) {
-        return stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem || stack.getItem() instanceof TridentItem;
+        return stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem;
     }
 
     // ==========================================
     // CLIENT-SIDE AIMING & TARGET PAINTING
     // ==========================================
+
+    public static final net.minecraft.resources.ResourceLocation SEPIA_SHADER = new net.minecraft.resources.ResourceLocation("timestop", "shaders/post/sepia.json");
+    private static boolean deadEyeShaderActive = false;
+
+    public static void applyDeadEyeShader() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gameRenderer != null && !deadEyeShaderActive) {
+            try {
+                mc.gameRenderer.loadEffect(SEPIA_SHADER);
+                deadEyeShaderActive = true;
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public static void removeDeadEyeShader() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gameRenderer != null && deadEyeShaderActive) {
+            try {
+                mc.gameRenderer.shutdownEffect();
+                deadEyeShaderActive = false;
+                if (com.timestop.core.ClientTimeStopManager.isTimeStopped() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+                    com.timestop.core.ClientTimeStopManager.applyShader();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
 
     public static void clientTick(Minecraft mc) {
         if (mc.player == null || mc.level == null) {
@@ -91,6 +119,7 @@ public class DeadEyeManager {
                 // Enter Dead Eye
                 clientAiming = true;
                 clientTags.clear();
+                applyDeadEyeShader();
                 ModMessages.sendToServer(new DeadEyeStatePacket(true));
                 mc.level.playSound(mc.player, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
                         SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.4F, 1.0F);
@@ -119,6 +148,7 @@ public class DeadEyeManager {
 
     private static void stopClientAiming(boolean executeIfTagged) {
         clientAiming = false;
+        removeDeadEyeShader();
         ModMessages.sendToServer(new DeadEyeStatePacket(false));
 
         if (executeIfTagged && !clientTags.isEmpty()) {
@@ -190,21 +220,27 @@ public class DeadEyeManager {
             }
         } else {
             if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.SLOW_MOTION) {
-                TimeStopManager.resumeTime(level);
+                if (player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
+                    TimeStopManager.resumeTime(level);
+                }
             }
         }
     }
 
     public static void executeVolley(ServerPlayer player, List<DeadEyeTag> tags) {
         if (player == null || tags == null || tags.isEmpty()) return;
+        if (!hasDeadEyeRune(player)) return;
         ServerLevel level = player.serverLevel();
 
-        // Resume normal time speed for the execution barrage
-        TimeStopManager.resumeTime(level);
+        // Resume normal time speed only if this player initiated slow motion
+        if (TimeStopManager.isTimeStopped(level) && player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
+            TimeStopManager.resumeTime(level);
+        }
 
         int delay = 0;
-        for (DeadEyeTag tag : tags) {
-            activeScheduledShots.add(new ScheduledVolleyShot(player, tag, delay));
+        int count = Math.min(tags.size(), MAX_TAGS);
+        for (int i = 0; i < count; i++) {
+            activeScheduledShots.add(new ScheduledVolleyShot(player, tags.get(i), delay));
             delay += 6; // 6 ticks = 300ms realistic rapid-fire bow cadence
         }
     }
@@ -235,11 +271,15 @@ public class DeadEyeManager {
                 WeakReference<Arrow> ref = arrowIt.next();
                 Arrow arrow = ref.get();
                 if (arrow == null || !arrow.isAlive() || arrow.onGround()) {
+                    if (arrow != null) {
+                        arrow.setNoGravity(false);
+                    }
                     activeHomingArrows.remove(ref);
                     continue;
                 }
 
                 int targetId = arrow.getPersistentData().getInt("DeadEyeTargetEntity");
+                boolean guided = false;
                 if (targetId != 0 && arrow.level() instanceof ServerLevel sl) {
                     Entity target = sl.getEntity(targetId);
                     if (target instanceof LivingEntity living && living.isAlive()) {
@@ -249,10 +289,16 @@ public class DeadEyeManager {
 
                         // Precision trajectory guidance
                         Vec3 currentVel = arrow.getDeltaMovement();
-                        Vec3 guided = currentVel.normalize().scale(0.82).add(toTarget.scale(0.18)).normalize().scale(3.8);
-                        arrow.setDeltaMovement(guided);
+                        Vec3 guidedVel = currentVel.normalize().scale(0.82).add(toTarget.scale(0.18)).normalize().scale(3.8);
+                        arrow.setDeltaMovement(guidedVel);
                         arrow.hasImpulse = true;
+                        guided = true;
                     }
+                }
+                if (!guided) {
+                    arrow.setNoGravity(false);
+                    arrow.getPersistentData().remove("DeadEyeTargetEntity");
+                    activeHomingArrows.remove(ref);
                 }
             }
         }
@@ -302,6 +348,8 @@ public class DeadEyeManager {
             arrow.getPersistentData().putInt("DeadEyeTargetEntity", targetEntity.getId());
             arrow.getPersistentData().putBoolean("DeadEyeIsHead", tag.isHead);
             activeHomingArrows.add(new WeakReference<>(arrow));
+        } else {
+            arrow.setNoGravity(false);
         }
 
         level.addFreshEntity(arrow);
@@ -325,8 +373,19 @@ public class DeadEyeManager {
         if (player.isCreative()) return true;
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
-        return EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, main) > 0
+        boolean hasInfinity = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, main) > 0
                 || EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, off) > 0;
+        return hasInfinity && hasAtLeastOneArrow(player);
+    }
+
+    private static boolean hasAtLeastOneArrow(Player player) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() == Items.ARROW || stack.getItem() == Items.SPECTRAL_ARROW || stack.getItem() == Items.TIPPED_ARROW) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int getAvailableArrowCount(Player player) {
@@ -344,9 +403,20 @@ public class DeadEyeManager {
     }
 
     private static boolean consumeArrow(ServerPlayer player) {
+        if (player.isCreative()) return true;
+        ItemStack main = player.getMainHandItem();
+        ItemStack off = player.getOffhandItem();
+        boolean hasInfinity = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, main) > 0
+                || EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, off) > 0;
+
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() == Items.ARROW || stack.getItem() == Items.SPECTRAL_ARROW || stack.getItem() == Items.TIPPED_ARROW) {
+            if (stack.getItem() == Items.ARROW) {
+                if (!hasInfinity) {
+                    stack.shrink(1);
+                }
+                return true;
+            } else if (stack.getItem() == Items.SPECTRAL_ARROW || stack.getItem() == Items.TIPPED_ARROW) {
                 stack.shrink(1);
                 return true;
             }

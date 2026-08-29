@@ -50,18 +50,30 @@ public class TranspositionManager {
             return true;
         }
 
-        // 3. Check entire inventory for carried rune item
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() == RuneType.TRANSPOSITION) {
-                return true;
-            }
-        }
-
         return false;
     }
 
+    private static Entity cachedClientTarget = null;
+    private static int lastClientCacheTick = -1;
+
+    public static Entity getCachedSwapTargetClient(Player player) {
+        if (player == null) return null;
+        int tick = player.tickCount;
+        if (cachedClientTarget != null && (!cachedClientTarget.isAlive() || cachedClientTarget.level() != player.level())) {
+            cachedClientTarget = null;
+        }
+        if (lastClientCacheTick != tick && tick % 2 == 0) {
+            lastClientCacheTick = tick;
+            cachedClientTarget = findSwapTargetClient(player);
+        }
+        return cachedClientTarget;
+    }
+
     public static boolean isOnCooldown(Player player) {
+        return getCooldownRemainingMs(player) > 0L;
+    }
+
+    public static long getCooldownRemainingMs(Player player) {
         long lastTime = playerCooldowns.getOrDefault(player.getUUID(), 0L);
         long now = System.currentTimeMillis();
         boolean timeSlow = TimeStopManager.isTimeStopped(player.level());
@@ -70,10 +82,18 @@ public class TranspositionManager {
         // Guard against negative deltas or clock shifts
         if (now < lastTime) {
             playerCooldowns.remove(player.getUUID());
-            return false;
+            return 0L;
         }
 
-        return (now - lastTime) < requiredMs;
+        long elapsed = now - lastTime;
+        return elapsed < requiredMs ? (requiredMs - elapsed) : 0L;
+    }
+
+    public static List<Entity> getClientSwapCandidates(Player player) {
+        if (player == null) return Collections.emptyList();
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 look = player.getLookAngle().normalize();
+        return getSwapCandidates(player, eyePos, look, MAX_SWAP_DISTANCE);
     }
 
     public static void setCooldown(Player player) {
@@ -154,10 +174,19 @@ public class TranspositionManager {
         player.resetFallDistance();
         player.setDeltaMovement(player.getLookAngle().scale(0.15));
 
-        // 4. Move projectile to player previous chest location, continuing trajectory
+        // 4. Move projectile to player previous position and REVERSE trajectory 180 degrees
         proj.setPos(pPos.x, pPos.y + 1.2, pPos.z);
-        proj.setDeltaMovement(projVel);
+        Vec3 reversedVel = projVel.scale(-1.0);
+        proj.setDeltaMovement(reversedVel);
+        proj.setYRot((proj.getYRot() + 180.0F) % 360.0F);
+        proj.setXRot(-proj.getXRot());
+        proj.yRotO = proj.getYRot();
+        proj.xRotO = proj.getXRot();
         proj.hasImpulse = true;
+
+        if (proj instanceof net.minecraft.world.entity.projectile.AbstractArrow arrow) {
+            arrow.setOwner(player);
+        }
 
         level.getChunkSource().broadcast(proj, new ClientboundTeleportEntityPacket(proj));
         level.getChunkSource().broadcast(proj, new ClientboundSetEntityMotionPacket(proj));

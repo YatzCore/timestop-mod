@@ -17,11 +17,15 @@ public abstract class LivingEntityMixin {
     private void onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
 
+        boolean timeActive = entity.level().isClientSide 
+                ? com.timestop.core.ClientTimeStopManager.isTimeStopped() 
+                : TimeStopManager.isGlobalTimeStopped();
+
         // 1. Zero Damage Immunity Lockout (Projectiles ONLY):
-        // Clear I-frames strictly for projectile impacts so rapid arrows
+        // Clear I-frames strictly during temporal manipulation so rapid arrows
         // (volleys, stasis discharges, Dead Eye, ricochets) never bounce off or deal zero damage.
-        // Melee attacks maintain normal vanilla attack cooldowns and I-frames for balance.
-        if (source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
+        // During normal vanilla gameplay, vanilla I-frames are 100% preserved.
+        if (timeActive && source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
             entity.invulnerableTime = 0;
             entity.hurtTime = 0;
             entity.hurtDuration = 0;

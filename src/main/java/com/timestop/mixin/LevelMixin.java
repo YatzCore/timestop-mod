@@ -14,7 +14,10 @@ public abstract class LevelMixin {
     @Inject(method = "tickBlockEntities", at = @At("HEAD"), cancellable = true)
     private void onTickBlockEntities(CallbackInfo ci) {
         Level level = (Level) (Object) this;
-        if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        boolean stopped = level.isClientSide
+                ? (com.timestop.core.ClientTimeStopManager.isTimeStopped() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP)
+                : (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP);
+        if (stopped) {
             ci.cancel();
         }
     }

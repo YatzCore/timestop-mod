@@ -51,7 +51,10 @@ public class SnatchProjectilePacket {
             }
 
             Entity entity = level.getEntity(this.entityId);
-            if (entity instanceof Projectile projectile) {
+            if (entity instanceof Projectile projectile && com.timestop.combat.ProjectileCombatHelper.isActiveInFlight(projectile)) {
+                if (player.distanceToSqr(projectile) > 64.0) {
+                    return; // Reject snatch if beyond interaction reach
+                }
                 TemporalInteractionEvents.snatchProjectile(projectile, player);
             }
         });

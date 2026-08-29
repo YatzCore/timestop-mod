@@ -107,6 +107,12 @@ public class ModMessages {
                 .consumerMainThread(SyncOrbitCountPacket::handle)
                 .add();
 
+        INSTANCE.messageBuilder(SyncOrbitalEntityPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(SyncOrbitalEntityPacket::new)
+                .encoder(SyncOrbitalEntityPacket::toBytes)
+                .consumerMainThread(SyncOrbitalEntityPacket::handle)
+                .add();
+
         INSTANCE.messageBuilder(SingleFireProjectilePacket.class, nextId(), NetworkDirection.PLAY_TO_SERVER)
                 .decoder(SingleFireProjectilePacket::new)
                 .encoder(SingleFireProjectilePacket::toBytes)
@@ -117,6 +123,12 @@ public class ModMessages {
                 .decoder(TranspositionSwapPacket::new)
                 .encoder(TranspositionSwapPacket::toBytes)
                 .consumerMainThread(TranspositionSwapPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(SyncRuneSocketPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(SyncRuneSocketPacket::new)
+                .encoder(SyncRuneSocketPacket::toBytes)
+                .consumerMainThread(SyncRuneSocketPacket::handle)
                 .add();
     }
 

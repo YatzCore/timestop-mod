@@ -27,6 +27,7 @@ public class TemporalKineticBlockManager {
         public boolean isSupercharged = false;
         public boolean isVolatile = false;
         public WeakReference<Entity> entityRef;
+        public UUID puncherUuid = null;
 
         public KineticRecord(Entity entity) {
             this.entityRef = new WeakReference<>(entity);
@@ -57,6 +58,7 @@ public class TemporalKineticBlockManager {
 
     public static void recordHit(Entity entity, Vec3 impulse, Player player) {
         KineticRecord record = records.computeIfAbsent(entity.getUUID(), k -> new KineticRecord(entity));
+        record.puncherUuid = player.getUUID();
 
         RuneType rune = RuneManager.getSocketedRuneType(player);
         boolean supercharged = (rune == RuneType.KINETIC);
@@ -115,8 +117,11 @@ public class TemporalKineticBlockManager {
 
                 if (entity instanceof FallingBlockEntity fallingBlock) {
                     fallingBlock.setNoGravity(false);
-                    fallingBlock.dropItem = false;
+                    fallingBlock.dropItem = true;
                     fallingBlock.time = 1;
+                    if (record.puncherUuid != null) {
+                        fallingBlock.getPersistentData().putUUID("KineticPuncherUuid", record.puncherUuid);
+                    }
 
                     if (fallingBlock.getBlockState().getBlock() instanceof AnvilBlock) {
                         fallingBlock.setHurtsEntities(8.0F, 60);
@@ -186,8 +191,12 @@ public class TemporalKineticBlockManager {
 
                 // Check collision with living entities
                 List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class, block.getBoundingBox().inflate(0.5));
+                UUID puncherUuid = block.getPersistentData().hasUUID("KineticPuncherUuid") ? block.getPersistentData().getUUID("KineticPuncherUuid") : null;
                 for (LivingEntity target : targets) {
                     if (target.isAlive()) {
+                        if (puncherUuid != null && target.getUUID().equals(puncherUuid)) {
+                            continue; // Prevent self-damage to puncher!
+                        }
                         float damage = (float) (block.getDeltaMovement().length() * 12.0F);
                         target.hurt(level.damageSources().fallingBlock(block), Math.max(6.0F, damage));
                         target.setDeltaMovement(target.getDeltaMovement().add(block.getDeltaMovement().scale(0.6)));
