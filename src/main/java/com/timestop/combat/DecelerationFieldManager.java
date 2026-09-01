@@ -36,15 +36,17 @@ public class DecelerationFieldManager {
             }
         }
 
-        // 2. Active DECELERATION_FIELD mode in engine
+        // 2. Active DECELERATION_FIELD mode (or MATRIX / SLOW_MOTION bullet-time) in engine
         boolean isModeActive;
         if (player.level().isClientSide) {
+            TimeMode mode = ClientTimeStopManager.getCurrentMode();
             isModeActive = ClientTimeStopManager.isTimeStopped()
-                    && ClientTimeStopManager.getCurrentMode() == TimeMode.DECELERATION_FIELD
+                    && (mode == TimeMode.DECELERATION_FIELD || mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION)
                     && ClientTimeStopManager.isEntityExempt(player);
         } else {
+            TimeMode mode = TimeStopManager.getCurrentMode();
             isModeActive = TimeStopManager.isGlobalTimeStopped()
-                    && TimeStopManager.getCurrentMode() == TimeMode.DECELERATION_FIELD
+                    && (mode == TimeMode.DECELERATION_FIELD || mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION)
                     && TimeStopManager.isEntityExempt(player);
         }
 

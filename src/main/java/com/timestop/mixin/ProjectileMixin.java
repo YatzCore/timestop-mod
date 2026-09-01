@@ -25,6 +25,12 @@ public abstract class ProjectileMixin {
                 ci.cancel();
                 return;
             }
+            if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+                if (com.timestop.core.ClientBubbleManager.isPositionInStasis(projectile.position())) {
+                    ci.cancel();
+                }
+                return;
+            }
             if (com.timestop.core.ClientTimeStopManager.isTimeStopped() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
                 ci.cancel();
             }
@@ -37,8 +43,18 @@ public abstract class ProjectileMixin {
             return;
         }
 
+        boolean isStasis = false;
+        if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.TemporalBubble dominant = com.timestop.core.TemporalBubbleManager.getDominantBubble(level.dimension(), projectile.position());
+            if (dominant != null && dominant.getMode() == TimeMode.TIME_STOP) {
+                isStasis = true;
+            }
+        } else if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+            isStasis = true;
+        }
+
         // Complete suspended stasis in TIME_STOP mode
-        if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        if (isStasis) {
             if (projectile.tickCount >= 1) {
                 Vec3 vel = projectile.getDeltaMovement();
                 if (vel.lengthSqr() <= 1.0E-5 && projectile instanceof AbstractHurtingProjectile hurting) {
@@ -48,6 +64,11 @@ public abstract class ProjectileMixin {
                     TimeStopManager.registerSuspendedProjectile(projectile, vel);
                 }
                 ci.cancel();
+            }
+        } else {
+            // Projectile is not in stasis: if it was previously suspended, resume it immediately!
+            if (TimeStopManager.isProjectileSuspended(projectile) && level instanceof net.minecraft.server.level.ServerLevel sl) {
+                TimeStopManager.resumeSingleProjectile(sl, projectile);
             }
         }
     }

@@ -27,12 +27,27 @@ public class ToggleTimeStopPacket {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null && player.level() instanceof ServerLevel serverLevel) {
-                // If time is active, V key ONLY stops it!
-                if (TimeStopManager.isTimeStopped(serverLevel)) {
+                boolean isOmnipotentActive = TimeStopManager.isGlobalTimeStopActive() || com.timestop.core.TemporalBubbleManager.hasCreativeBubble();
+                if (isOmnipotentActive) {
+                    if (!player.isCreative() && !player.hasPermissions(2) && !player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
+                        player.displayClientMessage(Component.literal("The temporal continuum is locked by an almighty force (Admin/Creative Clock)!").withStyle(net.minecraft.ChatFormatting.RED), true);
+                        return;
+                    }
+                }
+
+                // If this player already has an active bubble, pressing V stops their own bubble!
+                com.timestop.core.TemporalBubble existing = com.timestop.core.TemporalBubbleManager.getPlayerBubble(player.getUUID());
+                if (existing != null) {
+                    com.timestop.core.TemporalBubbleManager.stopBubble(serverLevel, existing);
+                    return;
+                }
+
+                // If global time stop is active, check permissions
+                if (TimeStopManager.isGlobalTimeStopActive()) {
                     if (player.isCreative() || player.hasPermissions(2) || (TimeStopManager.getInitiatorUuid() != null && TimeStopManager.getInitiatorUuid().equals(player.getUUID()))) {
                         TimeStopManager.resumeTime(serverLevel);
                     } else {
-                        player.displayClientMessage(Component.literal("You cannot stop another player's temporal field!").withStyle(net.minecraft.ChatFormatting.RED), true);
+                        player.displayClientMessage(Component.literal("The global temporal field is locked by an almighty force (Creative/Command)!").withStyle(net.minecraft.ChatFormatting.RED), true);
                     }
                     return;
                 }

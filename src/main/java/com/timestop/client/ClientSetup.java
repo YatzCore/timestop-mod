@@ -46,6 +46,7 @@ public class ClientSetup {
         MinecraftForge.EVENT_BUS.register(new DeadEyeRenderer());
         MinecraftForge.EVENT_BUS.register(new ClientOrbitalHandler());
         MinecraftForge.EVENT_BUS.register(new TranspositionRenderer());
+        MinecraftForge.EVENT_BUS.register(new com.timestop.client.renderer.TemporalBubbleRenderer());
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {
@@ -67,6 +68,7 @@ public class ClientSetup {
         public void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase == TickEvent.Phase.END) {
                 ClientTimeStopManager.clientTick();
+                com.timestop.core.ClientBubbleManager.clientTick();
                 com.timestop.combat.DeadEyeManager.clientTick(Minecraft.getInstance());
 
                 while (TIME_STOP_KEY.consumeClick()) {
@@ -91,6 +93,12 @@ public class ClientSetup {
             if (event.phase == TickEvent.Phase.START) {
                 ClientTimeStopManager.onRenderFrameMotion();
             }
+        }
+
+        @SubscribeEvent
+        public void onLoggingOut(net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+            com.timestop.core.ClientBubbleManager.reset();
+            com.timestop.core.ClientTimeStopManager.reset();
         }
     }
 }

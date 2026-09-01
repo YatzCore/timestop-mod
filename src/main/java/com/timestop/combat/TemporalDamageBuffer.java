@@ -6,6 +6,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
@@ -71,8 +72,10 @@ public class TemporalDamageBuffer {
                 // Siphons duration with per-mob diminishing returns and double-duration cap
                 if (leechedMobsThisSession.add(victim.getUUID())) {
                     boolean isLethal = (victim.getHealth() - (record.totalDamage + amount)) <= 0;
-                    int bonusTicks = isLethal ? 30 : 10; // +1.5s on lethal, +0.5s on initial hit
-                    if (TimeStopManager.extendTimeStop(bonusTicks)) {
+                    int bonusTicks = isLethal ? 30 : 10;
+                    boolean extended = com.timestop.core.TemporalBubbleManager.extendPlayerBubble(player.getUUID(), bonusTicks)
+                            || TimeStopManager.extendTimeStop(bonusTicks);
+                    if (extended) {
                         player.displayClientMessage(Component.literal("+" + (bonusTicks / 20.0F) + "s Chrono-Leech!").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD), true);
                         if (victim.level() instanceof ServerLevel sl) {
                             sl.sendParticles(ParticleTypes.DAMAGE_INDICATOR, victim.getX(), victim.getY() + 1.0, victim.getZ(), 6, 0.2, 0.2, 0.2, 0.1);
@@ -115,6 +118,29 @@ public class TemporalDamageBuffer {
         return records.containsKey(uuid);
     }
 
+    public static Map<UUID, DamageRecord> getRecords() {
+        return Collections.unmodifiableMap(records);
+    }
+
+    public static LivingEntity getVictim(UUID uuid) {
+        return victimEntities.get(uuid);
+    }
+
+    public static void dischargeEntity(ServerLevel level, UUID victimUuid) {
+        DamageRecord record = records.remove(victimUuid);
+        LivingEntity victim = victimEntities.remove(victimUuid);
+        if (record == null) return;
+        if (victim == null || !victim.isAlive()) {
+            Entity entity = level.getEntity(victimUuid);
+            if (entity instanceof LivingEntity living) {
+                victim = living;
+            }
+        }
+        if (victim != null && victim.isAlive()) {
+            applyDischarge(level, victim, record);
+        }
+    }
+
     public static void dischargeAll(ServerLevel level) {
         for (Map.Entry<UUID, DamageRecord> entry : records.entrySet()) {
             UUID victimUuid = entry.getKey();
@@ -129,53 +155,64 @@ public class TemporalDamageBuffer {
             }
 
             if (victim != null && victim.isAlive()) {
-                // Ensure invulnerability is cleared
-                victim.invulnerableTime = 0;
-
-                // Apply accumulated damage
-                DamageSource source = record.lastDamageSource != null ? record.lastDamageSource : level.damageSources().generic();
-                victim.hurt(source, record.totalDamage);
-
-                // Apply accumulated knockback vector
-                Vec3 finalKb = record.totalKnockback;
-                // Cap knockback to avoid launching entities into unloaded chunks
-                double maxSpeed = record.isSuperchargedKinetic ? 8.0 : 4.0;
-                if (finalKb.length() > maxSpeed) {
-                    finalKb = finalKb.normalize().scale(maxSpeed);
-                }
-                victim.setDeltaMovement(victim.getDeltaMovement().add(finalKb));
-                victim.hurtMarked = true;
-
-                // Focused kinetic impact discharge
-                double centerY = victim.getY() + victim.getBbHeight() * 0.5;
-                level.sendParticles(ParticleTypes.SWEEP_ATTACK,
-                        victim.getX(), centerY, victim.getZ(),
-                        1, 0, 0, 0, 0);
-                level.sendParticles(ParticleTypes.CRIT,
-                        victim.getX(), centerY, victim.getZ(),
-                        Math.min(35, 12 + record.hitCount * 5), 0.25, 0.35, 0.25, 0.18);
-                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                        victim.getX(), centerY, victim.getZ(),
-                        10, 0.2, 0.2, 0.2, 0.12);
-
-                if (record.isSuperchargedKinetic) {
-                    level.sendParticles(ParticleTypes.SONIC_BOOM,
-                            victim.getX(), centerY, victim.getZ(),
-                            1, 0, 0, 0, 0);
-                    level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
-                            SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.8F);
-                }
-
-                level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
-                        SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 1.2F, 1.2F);
-                level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
-                        SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.6F, 1.6F);
+                applyDischarge(level, victim, record);
             }
         }
 
         records.clear();
         victimEntities.clear();
         leechedMobsThisSession.clear();
+    }
+
+    private static void applyDischarge(ServerLevel level, LivingEntity victim, DamageRecord record) {
+        // Ensure invulnerability is cleared
+        victim.invulnerableTime = 0;
+
+        // Apply accumulated damage
+        DamageSource source = record.lastDamageSource != null ? record.lastDamageSource : level.damageSources().generic();
+        victim.hurt(source, record.totalDamage);
+
+        // Apply accumulated knockback vector
+        Vec3 finalKb = record.totalKnockback;
+        // Cap knockback to avoid launching entities into unloaded chunks
+        double maxSpeed = record.isSuperchargedKinetic ? 8.0 : 4.0;
+        if (finalKb.length() > maxSpeed) {
+            finalKb = finalKb.normalize().scale(maxSpeed);
+        }
+        victim.setDeltaMovement(victim.getDeltaMovement().add(finalKb));
+        victim.hurtMarked = true;
+        victim.hasImpulse = true;
+
+        // Broadcast motion packet immediately to all nearby clients so the launch trajectory is animated smoothly
+        level.getChunkSource().broadcast(victim, new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(victim));
+        if (victim instanceof ServerPlayer sp) {
+            sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(victim));
+        }
+
+        // Focused kinetic impact discharge
+        double centerY = victim.getY() + victim.getBbHeight() * 0.5;
+        level.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                victim.getX(), centerY, victim.getZ(),
+                1, 0, 0, 0, 0);
+        level.sendParticles(ParticleTypes.CRIT,
+                victim.getX(), centerY, victim.getZ(),
+                Math.min(35, 12 + record.hitCount * 5), 0.25, 0.35, 0.25, 0.18);
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                victim.getX(), centerY, victim.getZ(),
+                10, 0.2, 0.2, 0.2, 0.12);
+
+        if (record.isSuperchargedKinetic) {
+            level.sendParticles(ParticleTypes.SONIC_BOOM,
+                    victim.getX(), centerY, victim.getZ(),
+                    1, 0, 0, 0, 0);
+            level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+                    SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.8F);
+        }
+
+        level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+                SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 1.2F, 1.2F);
+        level.playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+                SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.6F, 1.6F);
     }
 
     @Nullable

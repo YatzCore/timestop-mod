@@ -5,6 +5,7 @@ import com.timestop.combat.TemporalKineticBlockManager;
 import com.timestop.item.ModItems;
 import com.timestop.network.ModMessages;
 import com.timestop.network.TimeStopSyncPacket;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
@@ -109,8 +110,8 @@ public class TimeStopManager {
     private static final Map<UUID, ProjectileKineticData> projectileData = new ConcurrentHashMap<>();
     private static final Map<UUID, Projectile> projectileEntities = new ConcurrentHashMap<>();
 
-    // Dynamic tick duration for SUPERHOT mode (250ms = 4 TPS idle, 50ms = 20 TPS moving)
-    private static volatile long superhotTickMs = 250L;
+    // Dynamic tick duration for SUPERHOT mode (500ms = 2 TPS idle extreme slow-mo, 50ms = 20 TPS moving)
+    private static volatile long superhotTickMs = 500L;
 
     // Attribute modifiers for Matrix mode: ZERO potion effects, pure engine attribute boost!
     private static final UUID MATRIX_SPEED_UUID = UUID.fromString("c0a80101-0000-0000-0000-000000000001");
@@ -120,41 +121,81 @@ public class TimeStopManager {
     private static final AttributeModifier MATRIX_ATTACK_MOD = new AttributeModifier(
             MATRIX_ATTACK_UUID, "Matrix Attack Speed", 3.0, AttributeModifier.Operation.MULTIPLY_TOTAL);
 
-    public static boolean isGlobalTimeStopped() {
+    public static boolean isGlobalTimeStopActive() {
         return timeStopped;
+    }
+
+    public static boolean isGlobalTimeStopped() {
+        return timeStopped || TemporalBubbleManager.hasActiveBubbles();
     }
 
     public static boolean isTimeStopped(@Nullable Level level) {
-        return timeStopped;
+        return timeStopped || TemporalBubbleManager.hasActiveBubbles();
     }
 
     public static TimeMode getCurrentMode() {
+        if (timeStopped) {
+            return currentMode;
+        }
+        if (TemporalBubbleManager.hasActiveBubbles()) {
+            TemporalBubble dominant = null;
+            for (TemporalBubble b : TemporalBubbleManager.getActiveBubbles().values()) {
+                if (dominant == null || b.getTier().getTierLevel() > dominant.getTier().getTierLevel()) {
+                    dominant = b;
+                }
+            }
+            if (dominant != null) return dominant.getMode();
+        }
         return currentMode;
     }
 
     public static void setSuperhotTickMs(long ms) {
-        superhotTickMs = Math.max(50L, Math.min(250L, ms));
+        superhotTickMs = Math.max(50L, Math.min(500L, ms));
     }
 
     /**
      * Governs the server's core tick interval in milliseconds.
      */
     public static long getServerTickMs() {
-        if (!timeStopped) return 50L;
-        switch (currentMode) {
-            case FAST_FORWARD:
-                return 10L; // 10ms = 100 TPS (5x speed for everything: movement, smelting, dying, daylight)
-            case SLOW_MOTION:
-            case MATRIX:
-                return 200L; // 200ms = 5 TPS (0.25x speed: silky-smooth bullet time)
-            case SUPERHOT:
-                return superhotTickMs; // Dynamically scaled by player motion
-            default:
-                return 50L; // 50ms = 20 TPS (normal)
+        if (timeStopped) {
+            switch (currentMode) {
+                case FAST_FORWARD:
+                    return 10L;
+                case SLOW_MOTION:
+                case MATRIX:
+                    return 200L;
+                case SUPERHOT:
+                    return superhotTickMs;
+                default:
+                    return 50L;
+            }
         }
+
+        if (TemporalBubbleManager.hasActiveBubbles()) {
+            // Scale server tick rate if active bubbles require slow-mo, matrix, fast-forward, or superhot
+            for (TemporalBubble b : TemporalBubbleManager.getActiveBubbles().values()) {
+                if (b.getMode() == TimeMode.FAST_FORWARD) {
+                    return 10L;
+                } else if (b.getMode() == TimeMode.SLOW_MOTION || b.getMode() == TimeMode.MATRIX) {
+                    return 200L;
+                } else if (b.getMode() == TimeMode.SUPERHOT) {
+                    return (long) (500L - (b.getSuperhotActivity() * 450.0F));
+                }
+            }
+        }
+
+        return 50L;
     }
 
     public static boolean isEntityExempt(Entity entity) {
+        if (TemporalBubbleManager.hasActiveBubbles()) {
+            TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(entity.level().dimension(), entity.position());
+            if (dominant == null) {
+                return true; // Outside all bubbles = free to act!
+            }
+            return dominant.canEntityAct(entity);
+        }
+
         if (!timeStopped) return true;
 
         if (entity instanceof Player player) {
@@ -170,6 +211,19 @@ public class TimeStopManager {
         return false;
     }
 
+    public static void setMode(TimeMode mode) {
+        currentMode = mode;
+        syncLegacyState();
+    }
+
+    public static void syncLegacyState() {
+        if (timeStopped) {
+            ModMessages.sendToClients(new TimeStopSyncPacket(true, remainingTicks, initiatorUuid, currentMode, exemptPlayers));
+        } else {
+            ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP, Collections.emptySet()));
+        }
+    }
+
     public static void addExemptPlayer(UUID uuid) {
         exemptPlayers.add(uuid);
     }
@@ -182,8 +236,56 @@ public class TimeStopManager {
         return (initiatorUuid != null && initiatorUuid.equals(uuid)) || exemptPlayers.contains(uuid);
     }
 
+    public static boolean isServerForceGlobalMode() {
+        return TimeStopSavedData.get().isServerForceGlobalMode();
+    }
+
+    public static void setServerForceGlobalMode(boolean global) {
+        TimeStopSavedData.get().setServerForceGlobalMode(global);
+    }
+
+    public static boolean isWatchConfiguredGlobal(@Nullable Player player) {
+        if (player == null) return false;
+        net.minecraft.world.item.ItemStack main = player.getMainHandItem();
+        net.minecraft.world.item.ItemStack off = player.getOffhandItem();
+        if (main.getItem() instanceof com.timestop.item.AbstractWatchItem) {
+            return com.timestop.item.AbstractWatchItem.isGlobalScope(main);
+        }
+        if (off.getItem() instanceof com.timestop.item.AbstractWatchItem) {
+            return com.timestop.item.AbstractWatchItem.isGlobalScope(off);
+        }
+        return false;
+    }
+
     public static void startTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks, TimeMode mode) {
-        if (timeStopped) return;
+        if (timeStopped) {
+            if (initiator != null && !initiator.isCreative() && !initiator.hasPermissions(2) && (initiatorUuid == null || !initiatorUuid.equals(initiator.getUUID()))) {
+                initiator.displayClientMessage(Component.literal("The universe is locked in global temporal stasis!").withStyle(ChatFormatting.RED), true);
+                return;
+            }
+        }
+
+        if (initiator != null && !isServerForceGlobalMode() && !isWatchConfiguredGlobal(initiator)) {
+            if (timeStopped) {
+                initiator.displayClientMessage(Component.literal("Cannot spawn localized bubbles while global server stasis is active!").withStyle(ChatFormatting.RED), true);
+                return;
+            }
+            TemporalBubbleManager.startBubble(level, initiator, durationTicks, mode);
+            return;
+        }
+
+        startGlobalTimeStop(level, initiator, durationTicks, mode);
+    }
+
+    public static void startGlobalTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks, TimeMode mode) {
+        if (timeStopped) {
+            if (initiator != null && !initiator.isCreative() && !initiator.hasPermissions(2) && (initiatorUuid == null || !initiatorUuid.equals(initiator.getUUID()))) {
+                return;
+            }
+        }
+
+        // Collapse all localized bubbles because global server time stop takes absolute precedence!
+        TemporalBubbleManager.stopAllBubbles(level);
 
         timeStopped = true;
         activeServerLevel = new java.lang.ref.WeakReference<>(level);
@@ -194,6 +296,8 @@ public class TimeStopManager {
         initiatorUuid = initiator != null ? initiator.getUUID() : null;
         initiatorWatchItem = null;
         initiatorCooldownTicks = 300;
+        exemptPlayers.clear();
+
         if (initiator != null) {
             net.minecraft.world.item.ItemStack main = initiator.getMainHandItem();
             net.minecraft.world.item.ItemStack off = initiator.getOffhandItem();
@@ -203,6 +307,16 @@ public class TimeStopManager {
             } else if (off.getItem() instanceof com.timestop.item.AbstractWatchItem w) {
                 initiatorWatchItem = w;
                 initiatorCooldownTicks = w.getTier().getCooldownTicks();
+            }
+
+            // Whitelist teammates and Chrono-Allies
+            exemptPlayers.addAll(com.timestop.friend.FriendManager.getFriends(initiator.getUUID()));
+            if (initiator.getTeam() != null) {
+                for (ServerPlayer other : level.getServer().getPlayerList().getPlayers()) {
+                    if (other.getTeam() != null && other.getTeam().isAlliedTo(initiator.getTeam())) {
+                        exemptPlayers.add(other.getUUID());
+                    }
+                }
             }
         }
 
@@ -247,7 +361,7 @@ public class TimeStopManager {
                             SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 2.0F, 0.6F);
                     break;
             }
-            Component msg = Component.literal("[Temporal Engine] ").withStyle(net.minecraft.ChatFormatting.GOLD)
+            Component msg = Component.literal("[Global Temporal Engine] ").withStyle(net.minecraft.ChatFormatting.GOLD)
                     .append(mode.getFormattedComponent())
                     .append(Component.literal(" activated!").withStyle(net.minecraft.ChatFormatting.GREEN));
             initiator.displayClientMessage(msg, true);
@@ -342,10 +456,13 @@ public class TimeStopManager {
     }
 
     public static void toggleTimeStop(ServerLevel level, Player player, int durationTicks, TimeMode mode) {
-        if (timeStopped) {
+        TemporalBubble existing = TemporalBubbleManager.getPlayerBubble(player.getUUID());
+        if (existing != null) {
+            TemporalBubbleManager.stopBubble(level, existing);
+        } else if (timeStopped) {
             resumeTime(level);
         } else {
-            startTimeStop(level, player, durationTicks, mode);
+            TemporalBubbleManager.startBubble(level, player, durationTicks, mode);
         }
     }
 
@@ -555,9 +672,23 @@ public class TimeStopManager {
         projectileEntities.remove(projectile.getUUID());
     }
 
+    public static Map<UUID, Projectile> getSuspendedProjectiles() {
+        return Collections.unmodifiableMap(projectileEntities);
+    }
+
     public static void registerSuspendedProjectile(Projectile projectile, Vec3 originalVelocity) {
-        if (!timeStopped || currentMode != TimeMode.TIME_STOP) return;
-        projectileData.put(projectile.getUUID(), new ProjectileKineticData(originalVelocity, projectile.getOwner()));
+        boolean isStasis = false;
+        if (TemporalBubbleManager.hasActiveBubbles()) {
+            TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(projectile.level().dimension(), projectile.position());
+            if (dominant != null && dominant.getMode() == TimeMode.TIME_STOP) {
+                isStasis = true;
+            }
+        } else if (timeStopped && currentMode == TimeMode.TIME_STOP) {
+            isStasis = true;
+        }
+
+        if (!isStasis) return;
+        projectileData.putIfAbsent(projectile.getUUID(), new ProjectileKineticData(originalVelocity, projectile.getOwner()));
         projectileEntities.put(projectile.getUUID(), projectile);
 
         // Lock in place
@@ -565,62 +696,82 @@ public class TimeStopManager {
         projectile.setNoGravity(true);
     }
 
-    private static void resumeProjectiles(ServerLevel level) {
-        for (Map.Entry<UUID, ProjectileKineticData> entry : projectileData.entrySet()) {
-            Projectile projectile = projectileEntities.get(entry.getKey());
-            if (projectile != null && projectile.isAlive()) {
-                ProjectileKineticData data = entry.getValue();
-                Vec3 velocity = data.getDischargeVelocity();
+    public static void resumeSingleProjectile(ServerLevel level, Projectile projectile) {
+        if (projectile == null) return;
+        UUID uuid = projectile.getUUID();
+        ProjectileKineticData data = projectileData.remove(uuid);
+        projectileEntities.remove(uuid);
+        if (data == null) return;
 
-                projectile.setNoGravity(false);
-                projectile.setDeltaMovement(velocity);
+        if (projectile.isAlive()) {
+            Vec3 velocity = data.getDischargeVelocity();
 
-                double horiz = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-                float yRot = (float) (Mth.atan2(velocity.x, velocity.z) * (180.0D / Math.PI));
-                float xRot = (float) (Mth.atan2(velocity.y, horiz) * (180.0D / Math.PI));
-                projectile.setYRot(yRot);
-                projectile.setXRot(xRot);
-                projectile.yRotO = yRot;
-                projectile.hasImpulse = true;
-                level.getChunkSource().broadcast(projectile, new ClientboundTeleportEntityPacket(projectile));
-                level.getChunkSource().broadcast(projectile, new ClientboundSetEntityMotionPacket(projectile));
+            projectile.setNoGravity(false);
+            projectile.setDeltaMovement(velocity);
 
-                // If it's an arrow, apply kinetic bonus damage, crit particles, and piercing!
-                if (projectile instanceof AbstractArrow arrow) {
-                    if (data.hitCount > 0) {
-                        arrow.setBaseDamage(arrow.getBaseDamage() + data.totalDamageBonus);
-                        arrow.setCritArrow(true);
-                        arrow.setPierceLevel((byte) Math.min(5, arrow.getPierceLevel() + data.hitCount));
-                    }
-                }
+            double horiz = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+            float yRot = (float) (Mth.atan2(velocity.x, velocity.z) * (180.0D / Math.PI));
+            float xRot = (float) (Mth.atan2(velocity.y, horiz) * (180.0D / Math.PI));
+            projectile.setYRot(yRot);
+            projectile.setXRot(xRot);
+            projectile.yRotO = yRot;
+            projectile.hasImpulse = true;
+            level.getChunkSource().broadcast(projectile, new ClientboundTeleportEntityPacket(projectile));
+            level.getChunkSource().broadcast(projectile, new ClientboundSetEntityMotionPacket(projectile));
 
-                if (projectile instanceof AbstractHurtingProjectile hurting) {
-                    Vec3 norm = velocity.normalize();
-                    hurting.xPower = norm.x * 0.1D;
-                    hurting.yPower = norm.y * 0.1D;
-                    hurting.zPower = norm.z * 0.1D;
-                }
-
-                // Launch puff at discharge origin
-                level.sendParticles(ParticleTypes.POOF,
-                        projectile.getX(), projectile.getY(), projectile.getZ(),
-                        4, 0.08, 0.08, 0.08, 0.02);
-
-                Vec3 vDir = velocity.normalize();
-                int particleCount = 8 + Math.min(20, data.hitCount * 4);
-                level.sendParticles(ParticleTypes.CRIT,
-                        projectile.getX(), projectile.getY(), projectile.getZ(),
-                        particleCount, vDir.x * 0.2, vDir.y * 0.2, vDir.z * 0.2, 0.15);
-
+            // If it's an arrow, apply kinetic bonus damage, crit particles, and piercing!
+            if (projectile instanceof AbstractArrow arrow) {
                 if (data.hitCount > 0) {
-                    level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                            projectile.getX(), projectile.getY(), projectile.getZ(),
-                            8 + Math.min(12, data.hitCount * 3), vDir.x * 0.25, vDir.y * 0.25, vDir.z * 0.25, 0.15);
+                    arrow.setBaseDamage(arrow.getBaseDamage() + data.totalDamageBonus);
+                    arrow.setCritArrow(true);
+                    arrow.setPierceLevel((byte) Math.min(5, arrow.getPierceLevel() + data.hitCount));
                 }
+            }
 
-                float pitch = Math.min(2.0F, 1.0F + (data.hitCount * 0.15F));
-                level.playSound(null, projectile.getX(), projectile.getY(), projectile.getZ(),
-                        SoundEvents.ARROW_SHOOT, SoundSource.PLAYERS, 1.5F, pitch);
+            if (projectile instanceof AbstractHurtingProjectile hurting) {
+                Vec3 norm = velocity.normalize();
+                hurting.xPower = norm.x * 0.1D;
+                hurting.yPower = norm.y * 0.1D;
+                hurting.zPower = norm.z * 0.1D;
+            }
+
+            // Launch puff at discharge origin
+            level.sendParticles(ParticleTypes.POOF,
+                    projectile.getX(), projectile.getY(), projectile.getZ(),
+                    4, 0.08, 0.08, 0.08, 0.02);
+
+            Vec3 vDir = velocity.normalize();
+            int particleCount = 8 + Math.min(20, data.hitCount * 4);
+            level.sendParticles(ParticleTypes.CRIT,
+                    projectile.getX(), projectile.getY(), projectile.getZ(),
+                    particleCount, vDir.x * 0.2, vDir.y * 0.2, vDir.z * 0.2, 0.15);
+
+            if (data.hitCount > 0) {
+                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                        projectile.getX(), projectile.getY(), projectile.getZ(),
+                        8 + Math.min(12, data.hitCount * 3), vDir.x * 0.25, vDir.y * 0.25, vDir.z * 0.25, 0.15);
+            }
+
+            float pitch = Math.min(2.0F, 1.0F + (data.hitCount * 0.15F));
+            level.playSound(null, projectile.getX(), projectile.getY(), projectile.getZ(),
+                    SoundEvents.ARROW_SHOOT, SoundSource.PLAYERS, 1.5F, pitch);
+        }
+    }
+
+    public static void resumeProjectiles(ServerLevel level) {
+        for (UUID uuid : new ArrayList<>(projectileData.keySet())) {
+            Projectile projectile = projectileEntities.get(uuid);
+            if (projectile == null || !projectile.isAlive()) {
+                Entity found = level.getEntity(uuid);
+                if (found instanceof Projectile p) {
+                    projectile = p;
+                }
+            }
+            if (projectile != null) {
+                resumeSingleProjectile(level, projectile);
+            } else {
+                projectileData.remove(uuid);
+                projectileEntities.remove(uuid);
             }
         }
         projectileData.clear();

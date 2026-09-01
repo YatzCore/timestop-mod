@@ -14,6 +14,14 @@ public abstract class EntityRenderDispatcherMixin {
 
     @ModifyVariable(method = "render", at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private float clampPartialTicksForFrozenEntities(float partialTicks, Entity entity) {
+        if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.ClientBubbleManager.ClientBubble b = com.timestop.core.ClientBubbleManager.getDominantBubble(entity.position());
+            if (b != null && b.mode == com.timestop.core.TimeMode.TIME_STOP && !b.canEntityAct(entity)) {
+                return 1.0F; // Clamp frame interpolation only for entities inside stasis bubbles
+            }
+            return partialTicks; // Smooth rendering for entities outside or in slow-mo/matrix/superhot
+        }
+
         if (ClientTimeStopManager.isTimeStopped() 
                 && ClientTimeStopManager.getCurrentMode() == com.timestop.core.TimeMode.TIME_STOP 
                 && !ClientTimeStopManager.isEntityExempt(entity)) {

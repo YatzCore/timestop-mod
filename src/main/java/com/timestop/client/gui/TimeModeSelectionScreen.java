@@ -173,6 +173,55 @@ public class TimeModeSelectionScreen extends Screen {
         int statWidth = this.font.width(statBadge);
         guiGraphics.drawString(this.font, statBadge, modalX + modalWidth - 14 - statWidth, headerY + 1, 0xFF94A3B8, false);
 
+        // Creative Watch Scope Toggle Button
+        if (this.currentTier == WatchTier.CREATIVE) {
+            boolean isGlobal = AbstractWatchItem.isGlobalScope(this.watchStack);
+            int scopeBtnW = 105;
+            int scopeBtnH = 14;
+            int scopeBtnX = modalX + modalWidth - 14 - statWidth - scopeBtnW - 8;
+            int scopeBtnY = headerY - 2;
+
+            boolean isScopeHovered = mouseX >= scopeBtnX && mouseX <= scopeBtnX + scopeBtnW
+                    && mouseY >= scopeBtnY && mouseY <= scopeBtnY + scopeBtnH;
+
+            int scopeBg = isScopeHovered ? 0x88421438 : 0x44280E23;
+            int scopeBorder = isScopeHovered ? 0xFFF472B6 : (isGlobal ? 0xFFEC4899 : 0xFF38BDF8);
+            guiGraphics.fill(scopeBtnX, scopeBtnY, scopeBtnX + scopeBtnW, scopeBtnY + scopeBtnH, scopeBg);
+            guiGraphics.renderOutline(scopeBtnX, scopeBtnY, scopeBtnW, scopeBtnH, scopeBorder);
+
+            String scopeLabel = isGlobal ? "🌐 Full Server" : "🔮 Local Bubble";
+            int labelColor = isGlobal ? 0xFFF472B6 : 0xFF38BDF8;
+            int labelX = scopeBtnX + (scopeBtnW - this.font.width(scopeLabel)) / 2;
+            guiGraphics.drawString(this.font, scopeLabel, labelX, scopeBtnY + 3, labelColor, false);
+
+            if (isScopeHovered) {
+                Component tip = isGlobal
+                        ? Component.literal("Scope: FULL SERVER (Freezes time across all dimensions)")
+                        : Component.literal("Scope: LOCAL BUBBLE (Creates a localized temporal sphere)");
+                guiGraphics.renderTooltip(this.font, tip, mouseX, mouseY);
+            }
+        }
+
+        // Settings Button [ ⚙ ]
+        int settingsBtnW = 16;
+        int settingsBtnH = 14;
+        int extraRightOffset = (this.currentTier == WatchTier.CREATIVE) ? 115 : 0;
+        int settingsBtnX = modalX + modalWidth - 14 - statWidth - extraRightOffset - settingsBtnW - 4;
+        int settingsBtnY = headerY - 2;
+
+        boolean isSettingsHovered = mouseX >= settingsBtnX && mouseX <= settingsBtnX + settingsBtnW
+                && mouseY >= settingsBtnY && mouseY <= settingsBtnY + settingsBtnH;
+
+        int setBg = isSettingsHovered ? 0x88252D3D : 0x44171B24;
+        int setBorder = isSettingsHovered ? 0xFF38BDF8 : 0x4438BDF8;
+        guiGraphics.fill(settingsBtnX, settingsBtnY, settingsBtnX + settingsBtnW, settingsBtnY + settingsBtnH, setBg);
+        guiGraphics.renderOutline(settingsBtnX, settingsBtnY, settingsBtnW, settingsBtnH, setBorder);
+        guiGraphics.drawString(this.font, "⚙", settingsBtnX + 4, settingsBtnY + 3, isSettingsHovered ? 0xFF38BDF8 : 0xFF94A3B8, false);
+
+        if (isSettingsHovered) {
+            guiGraphics.renderTooltip(this.font, Component.literal("Temporal Engine Settings"), mouseX, mouseY);
+        }
+
         // Header Divider
         guiGraphics.fill(modalX + 12, modalY + 26, modalX + modalWidth - 12, modalY + 27, 0x22FFFFFF);
 
@@ -393,6 +442,43 @@ public class TimeModeSelectionScreen extends Screen {
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
             int currentY = modalY + 32;
+
+            // Settings Button Click
+            String statBadge = getStatBadge();
+            int statWidth = this.font.width(statBadge);
+            int settingsBtnW = 16;
+            int settingsBtnH = 14;
+            int extraRightOffset = (this.currentTier == WatchTier.CREATIVE) ? 115 : 0;
+            int settingsBtnX = modalX + modalWidth - 14 - statWidth - extraRightOffset - settingsBtnW - 4;
+            int settingsBtnY = modalY + 10 - 2;
+
+            if (mouseX >= settingsBtnX && mouseX <= settingsBtnX + settingsBtnW && mouseY >= settingsBtnY && mouseY <= settingsBtnY + settingsBtnH) {
+                if (this.minecraft != null) {
+                    this.minecraft.setScreen(new com.timestop.client.gui.TimeStopSettingsScreen(this, this.hand));
+                    if (this.minecraft.player != null) {
+                        this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.2F);
+                    }
+                }
+                return true;
+            }
+
+            // 0. Check Creative Watch Scope Button Click
+            if (this.currentTier == WatchTier.CREATIVE) {
+                int scopeBtnW = 105;
+                int scopeBtnH = 14;
+                int scopeBtnX = modalX + modalWidth - 14 - statWidth - scopeBtnW - 8;
+                int scopeBtnY = modalY + 10 - 2;
+
+                if (mouseX >= scopeBtnX && mouseX <= scopeBtnX + scopeBtnW && mouseY >= scopeBtnY && mouseY <= scopeBtnY + scopeBtnH) {
+                    boolean newScope = !AbstractWatchItem.isGlobalScope(this.watchStack);
+                    AbstractWatchItem.setGlobalScope(this.watchStack, newScope);
+                    ModMessages.sendToServer(new com.timestop.network.SetWatchScopePacket(this.hand, newScope));
+                    if (this.minecraft != null && this.minecraft.player != null) {
+                        this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, newScope ? 1.4F : 1.0F);
+                    }
+                    return true;
+                }
+            }
 
             if (this.currentTier.hasRuneSocket()) {
                 int socketSlotX = modalX + 14;

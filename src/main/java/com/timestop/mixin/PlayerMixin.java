@@ -20,6 +20,37 @@ public abstract class PlayerMixin extends LivingEntity {
         super(type, level);
     }
 
+    @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
+    private void onPrePlayerAiStep(CallbackInfo ci) {
+        Player player = (Player) (Object) this;
+        boolean inStasis = false;
+        if (player.level().isClientSide) {
+            if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+                com.timestop.core.ClientBubbleManager.ClientBubble b = com.timestop.core.ClientBubbleManager.getDominantBubble(player.position());
+                if (b != null && b.mode == TimeMode.TIME_STOP && !b.canEntityAct(player)) {
+                    inStasis = true;
+                }
+            } else if (ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP && !ClientTimeStopManager.isEntityExempt(player)) {
+                inStasis = true;
+            }
+        } else {
+            if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+                com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
+                if (b != null && b.getMode() == TimeMode.TIME_STOP && !b.canEntityAct(player)) {
+                    inStasis = true;
+                }
+            } else if (TimeStopManager.isTimeStopped(player.level()) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP && !TimeStopManager.isEntityExempt(player)) {
+                inStasis = true;
+            }
+        }
+
+        if (inStasis) {
+            player.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            player.setOldPosAndRot();
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "aiStep", at = @At("TAIL"))
     private void onMatrixPlayerAiStep(CallbackInfo ci) {
         Player player = (Player) (Object) this;
@@ -90,11 +121,16 @@ public abstract class PlayerMixin extends LivingEntity {
         if (player.level().isClientSide) {
             if (!ClientTimeStopManager.isTimeStopped() || !ClientTimeStopManager.isEntityExempt(player)) return false;
             TimeMode mode = ClientTimeStopManager.getCurrentMode();
-            return mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT;
+            return mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION;
         } else {
+            if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+                com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
+                if (b == null || !b.canEntityAct(player)) return false;
+                return b.getMode() == TimeMode.MATRIX || b.getMode() == TimeMode.SLOW_MOTION;
+            }
             if (!TimeStopManager.isTimeStopped(player.level()) || !TimeStopManager.isEntityExempt(player)) return false;
             TimeMode mode = TimeStopManager.getCurrentMode();
-            return mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT;
+            return mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION;
         }
     }
 }

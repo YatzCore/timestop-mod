@@ -19,17 +19,30 @@ public abstract class LiquidBlockMixin {
 
     @Inject(method = "getCollisionShape", at = @At("HEAD"), cancellable = true)
     private void onGetCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        boolean active;
-        TimeMode mode;
-        if (level instanceof net.minecraft.world.level.Level l && l.isClientSide) {
-            active = com.timestop.core.ClientTimeStopManager.isTimeStopped();
-            mode = com.timestop.core.ClientTimeStopManager.getCurrentMode();
-        } else {
-            active = TimeStopManager.isGlobalTimeStopped();
-            mode = TimeStopManager.getCurrentMode();
-        }
-        if (active && mode == TimeMode.TIME_STOP) {
-            cir.setReturnValue(Shapes.block());
+        if (level instanceof net.minecraft.world.level.Level l) {
+            net.minecraft.world.phys.Vec3 blockCenter = new net.minecraft.world.phys.Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+            boolean inStasis = false;
+
+            if (l.isClientSide) {
+                if (com.timestop.core.ClientBubbleManager.hasActiveBubbles() && com.timestop.core.ClientBubbleManager.isPositionInStasis(blockCenter)) {
+                    inStasis = true;
+                } else if (com.timestop.core.ClientTimeStopManager.isGlobalTimeStopActive() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+                    inStasis = true;
+                }
+            } else {
+                if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && com.timestop.core.TemporalBubbleManager.isPositionInStasis(l.dimension(), blockCenter)) {
+                    inStasis = true;
+                } else if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+                    inStasis = true;
+                }
+            }
+
+            if (inStasis && com.timestop.config.TimeStopConfig.COMMON.enableWaterWalkingInStasis.get()) {
+                // Allow entities walking on top of frozen liquids to walk across, but don't trap entities submerged inside
+                if (context.isAbove(Shapes.block(), pos, true)) {
+                    cir.setReturnValue(Shapes.block());
+                }
+            }
         }
     }
 }

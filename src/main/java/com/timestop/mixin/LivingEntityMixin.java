@@ -17,29 +17,30 @@ public abstract class LivingEntityMixin {
     private void onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
 
+        boolean isStasis = !entity.level().isClientSide && com.timestop.core.TemporalBubbleManager.isEntityInStasis(entity);
+
+        // Damage accumulation and hit suspension is EXCLUSIVELY for TIME_STOP stasis!
+        if (isStasis) {
+            entity.invulnerableTime = 0;
+            entity.hurtTime = 0;
+            entity.hurtDuration = 0;
+
+            TemporalDamageBuffer.recordHit(entity, amount, source);
+            // Broadcast entity hurt event (tilt + red flash) so client receives immediate visual feedback
+            entity.level().broadcastEntityEvent(entity, (byte) 2);
+            cir.setReturnValue(true);
+            return;
+        }
+
         boolean timeActive = entity.level().isClientSide 
                 ? com.timestop.core.ClientTimeStopManager.isTimeStopped() 
                 : TimeStopManager.isGlobalTimeStopped();
 
-        // 1. Zero Damage Immunity Lockout (Projectiles ONLY):
-        // Clear I-frames strictly during temporal manipulation so rapid arrows
-        // (volleys, stasis discharges, Dead Eye, ricochets) never bounce off or deal zero damage.
-        // During normal vanilla gameplay, vanilla I-frames are 100% preserved.
+        // Zero Damage Immunity Lockout (Projectiles ONLY in non-stasis modes):
         if (timeActive && source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
             entity.invulnerableTime = 0;
             entity.hurtTime = 0;
             entity.hurtDuration = 0;
-        }
-
-        // 2. Damage accumulation and hit suspension is EXCLUSIVELY for TIME_STOP mode!
-        // In SLOW_MOTION, MATRIX, and FAST_FORWARD, hits register immediately.
-        if (!entity.level().isClientSide 
-                && TimeStopManager.isTimeStopped(entity.level()) 
-                && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP 
-                && !TimeStopManager.isEntityExempt(entity)) {
-            TemporalDamageBuffer.recordHit(entity, amount, source);
-            // Return TRUE so projectile callers (like AbstractArrow) know the hit succeeded and DO NOT bounce the arrow!
-            cir.setReturnValue(true);
         }
     }
 }

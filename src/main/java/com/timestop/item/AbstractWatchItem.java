@@ -52,6 +52,23 @@ public abstract class AbstractWatchItem extends Item {
         stack.getOrCreateTag().putString("TimeMode", mode.name());
     }
 
+    public static boolean isGlobalScope(ItemStack stack) {
+        if (stack.getItem() instanceof CreativeWatchItem || (stack.getItem() instanceof AbstractWatchItem w && w.getTier() == WatchTier.CREATIVE)) {
+            if (stack.hasTag() && stack.getTag().contains("GlobalScope")) {
+                return stack.getTag().getBoolean("GlobalScope");
+            }
+            return true; // Creative Clock is GLOBAL (Full Server) by default!
+        }
+        if (stack.hasTag() && stack.getTag().contains("GlobalScope")) {
+            return stack.getTag().getBoolean("GlobalScope");
+        }
+        return false;
+    }
+
+    public static void setGlobalScope(ItemStack stack, boolean global) {
+        stack.getOrCreateTag().putBoolean("GlobalScope", global);
+    }
+
     public static ItemStack getSocketedRune(ItemStack stack) {
         if (stack.hasTag() && stack.getTag().contains("SocketedRune", Tag.TAG_COMPOUND)) {
             return ItemStack.of(stack.getTag().getCompound("SocketedRune"));
@@ -166,8 +183,26 @@ public abstract class AbstractWatchItem extends Item {
 
         // NORMAL RIGHT CLICK: Activate or Stop!
         if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
-            if (TimeStopManager.isTimeStopped(serverLevel)) {
-                TimeStopManager.resumeTime(serverLevel);
+            boolean isOmnipotentActive = TimeStopManager.isGlobalTimeStopActive() || com.timestop.core.TemporalBubbleManager.hasCreativeBubble();
+            if (isOmnipotentActive) {
+                if (!player.isCreative() && !player.hasPermissions(2) && !player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
+                    player.displayClientMessage(Component.literal("The temporal continuum is locked by an almighty force (Admin/Creative Clock)!").withStyle(ChatFormatting.RED), true);
+                    return InteractionResultHolder.fail(stack);
+                }
+            }
+
+            com.timestop.core.TemporalBubble existing = com.timestop.core.TemporalBubbleManager.getPlayerBubble(player.getUUID());
+            if (existing != null) {
+                com.timestop.core.TemporalBubbleManager.stopBubble(serverLevel, existing);
+                return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+            } else if (TimeStopManager.isGlobalTimeStopActive()) {
+                if (player.isCreative() || player.hasPermissions(2) || (TimeStopManager.getInitiatorUuid() != null && TimeStopManager.getInitiatorUuid().equals(player.getUUID()))) {
+                    TimeStopManager.resumeTime(serverLevel);
+                    return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+                } else {
+                    player.displayClientMessage(Component.literal("The global temporal field is locked by an almighty force (Creative/Command)!").withStyle(ChatFormatting.RED), true);
+                    return InteractionResultHolder.fail(stack);
+                }
             } else {
                 // Check if on cooldown
                 if (player.getCooldowns().isOnCooldown(this)) {
@@ -204,11 +239,20 @@ public abstract class AbstractWatchItem extends Item {
         tooltipComponents.add(Component.literal("Mode Info: ").withStyle(ChatFormatting.GRAY)
                 .append(mode.getDescriptionComponent()));
 
+        if (this.tier == WatchTier.CREATIVE || isGlobalScope(stack)) {
+            boolean global = isGlobalScope(stack);
+            tooltipComponents.add(Component.literal("- Scope: ").withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal(global ? "🌐 Full Server (Global)" : "🔮 Local Sphere (Bubble)").withStyle(global ? ChatFormatting.LIGHT_PURPLE : ChatFormatting.AQUA))
+                    .append(Component.literal(" [Shift+R-Click]").withStyle(ChatFormatting.DARK_GRAY)));
+        }
+
         tooltipComponents.add(Component.empty());
 
         String durationStr = tier.getDurationTicks() == 0 ? "Unlimited" : (tier.getDurationTicks() / 20) + "s";
         String cooldownStr = tier.getCooldownTicks() == 0 ? "None" : (tier.getCooldownTicks() / 20) + "s";
-        tooltipComponents.add(Component.literal("- Duration: ").withStyle(ChatFormatting.GRAY)
+        tooltipComponents.add(Component.literal("- Domain Radius: ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal((int) tier.getBubbleRadius() + "m").withStyle(ChatFormatting.AQUA))
+                .append(Component.literal(" | Duration: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(durationStr).withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(" | Cooldown: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(cooldownStr).withStyle(ChatFormatting.YELLOW)));

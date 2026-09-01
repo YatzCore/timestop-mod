@@ -33,7 +33,7 @@ public class SuperhotRenderer {
         float activity = ClientTimeStopManager.getSuperhotActivity();
         boolean isMoving = activity > 0.15F;
 
-        String status = isMoving ? "▶ TIME IN MOTION" : "■ TIME IS FROZEN";
+        String status = isMoving ? "▶ TIME IN MOTION" : "■ TIME DILATED";
         int statusColor = isMoving ? 0xFFFF3333 : 0xFFEEEEEE;
         int statusWidth = font.width(status);
         int statusX = (screenWidth - statusWidth) / 2;

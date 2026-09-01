@@ -14,7 +14,8 @@ public abstract class ParticleEngineMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void onTickParticles(CallbackInfo ci) {
-        if (ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        if (com.timestop.core.ClientBubbleManager.isCameraInsideStasis() 
+                || (ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP)) {
             ci.cancel();
         }
     }
@@ -25,8 +26,9 @@ public abstract class ParticleEngineMixin {
             argsOnly = true
     )
     private float clampParticlePartialTicks(float partialTicks) {
-        if (ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-            return 1.0F; // Freeze particle frame interpolation to eliminate shaking in TIME_STOP
+        if (com.timestop.core.ClientBubbleManager.isCameraInsideStasis() 
+                || (ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP)) {
+            return 1.0F; // Freeze particle frame interpolation with zero jitter
         }
         return partialTicks;
     }

@@ -23,10 +23,21 @@ public abstract class LevelRendererMixin {
 
     @ModifyVariable(method = "renderEntity", at = @At("HEAD"), argsOnly = true)
     private float clampPartialTicksInLevelRenderer(float partialTicks, Entity entity) {
-        if (ClientTimeStopManager.isTimeStopped() && !ClientTimeStopManager.isEntityExempt(entity)) {
+        if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.ClientBubbleManager.ClientBubble b = com.timestop.core.ClientBubbleManager.getDominantBubble(entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
+            if (b != null) {
+                if (b.mode == TimeMode.TIME_STOP && !b.canEntityAct(entity)) {
+                    entity.setOldPosAndRot();
+                    return 1.0F; // Freeze interpolation strictly for entities inside stasis!
+                }
+                return partialTicks; // Normal smooth 144+ FPS animation for all other modes!
+            }
+        }
+
+        if (ClientTimeStopManager.isGlobalTimeStopActive() && !ClientTimeStopManager.isEntityExempt(entity)) {
             if (ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
                 entity.setOldPosAndRot();
-                return 1.0F; // Freeze interpolation to exact position
+                return 1.0F;
             }
         }
         return partialTicks;
@@ -81,12 +92,9 @@ public abstract class LevelRendererMixin {
 
     @Inject(method = "tickRain", at = @At("HEAD"), cancellable = true)
     private void onTickRain(Camera camera, CallbackInfo ci) {
-        if (ClientTimeStopManager.isTimeStopped()) {
-            if (ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-                ci.cancel();
-            } else if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getGameTime() % 4 != 0) {
-                ci.cancel();
-            }
+        if (com.timestop.core.ClientBubbleManager.isCameraInsideStasis() 
+                || (ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP)) {
+            ci.cancel();
         }
     }
 }

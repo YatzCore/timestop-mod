@@ -33,6 +33,9 @@ public class TimeStopMod {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
 
+        net.minecraftforge.fml.ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.CLIENT, com.timestop.config.TimeStopConfig.CLIENT_SPEC);
+        net.minecraftforge.fml.ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, com.timestop.config.TimeStopConfig.COMMON_SPEC);
+
         if (FMLEnvironment.dist == Dist.CLIENT) {
             ClientSetup.init(modEventBus);
         }
@@ -63,12 +66,36 @@ public class TimeStopMod {
         public static void onServerTick(TickEvent.ServerTickEvent event) {
             if (event.phase == TickEvent.Phase.END) {
                 TimeStopManager.serverTick();
+                com.timestop.core.TemporalBubbleManager.serverTick();
             }
         }
 
         @SubscribeEvent
         public static void onRegisterCommands(RegisterCommandsEvent event) {
             TimeStopCommand.register(event.getDispatcher());
+            com.timestop.command.FriendCommand.register(event.getDispatcher());
+        }
+
+        @SubscribeEvent
+        public static void onPlayerLoggedIn(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                com.timestop.friend.FriendManager.cachePlayerName(serverPlayer);
+                com.timestop.core.TemporalBubbleManager.syncAllToPlayer(serverPlayer);
+            }
+        }
+
+        @SubscribeEvent
+        public static void onPlayerLoggedOut(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                com.timestop.core.TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
+            }
+        }
+
+        @SubscribeEvent
+        public static void onLivingDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event) {
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                com.timestop.core.TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
+            }
         }
     }
 }

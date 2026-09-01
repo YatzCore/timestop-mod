@@ -11,16 +11,32 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 public class ChronoOverlay {
     public static final IGuiOverlay HUD_CHRONO = (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
-        if (!ClientTimeStopManager.isTimeStopped()) {
+        int remainingTicks = 0;
+        int totalDuration = 0;
+        TimeMode mode = TimeMode.TIME_STOP;
+        boolean active = false;
+
+        if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.ClientBubbleManager.ClientBubble bubble = com.timestop.core.ClientBubbleManager.getCameraBubble();
+            if (bubble != null) {
+                active = true;
+                remainingTicks = bubble.remainingTicks;
+                totalDuration = bubble.totalDuration;
+                mode = bubble.mode;
+            }
+        } else if (ClientTimeStopManager.isTimeStopped()) {
+            active = true;
+            remainingTicks = ClientTimeStopManager.getRemainingTicks();
+            totalDuration = ClientTimeStopManager.getTotalDuration();
+            mode = ClientTimeStopManager.getCurrentMode();
+        }
+
+        if (!active || !com.timestop.config.TimeStopConfig.CLIENT.enableTimerHud.get()) {
             return;
         }
 
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-
-        int remainingTicks = ClientTimeStopManager.getRemainingTicks();
-        int totalDuration = ClientTimeStopManager.getTotalDuration();
-        TimeMode mode = ClientTimeStopManager.getCurrentMode();
 
         int x = screenWidth / 2;
         int y = 20;

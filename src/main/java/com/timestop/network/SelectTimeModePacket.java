@@ -41,6 +41,19 @@ public class SelectTimeModePacket {
                 if (stack.getItem() instanceof com.timestop.item.AbstractWatchItem watch) {
                     if (watch.getTier().isModeUnlocked(this.mode)) {
                         com.timestop.item.AbstractWatchItem.setMode(stack, this.mode);
+
+                        // If this player is currently the initiator of global time stop, dynamically update mode!
+                        if (com.timestop.core.TimeStopManager.isGlobalTimeStopActive() && player.getUUID().equals(com.timestop.core.TimeStopManager.getInitiatorUuid())) {
+                            com.timestop.core.TimeStopManager.setMode(this.mode);
+                        }
+
+                        // If this player currently has an active bubble, dynamically update mode!
+                        com.timestop.core.TemporalBubble bubble = com.timestop.core.TemporalBubbleManager.getPlayerBubble(player.getUUID());
+                        if (bubble != null) {
+                            bubble.setMode(this.mode);
+                            com.timestop.core.TemporalBubbleManager.syncBubbleToClients(bubble);
+                        }
+
                         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8F, 1.2F);
                     }

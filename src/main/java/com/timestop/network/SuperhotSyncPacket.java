@@ -27,11 +27,21 @@ public class SuperhotSyncPacket {
         NetworkEvent.Context context = supplier.get();
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
-            if (player != null && TimeStopManager.isGlobalTimeStopped() && TimeStopManager.getCurrentMode() == TimeMode.SUPERHOT) {
-                if (player.isCreative() || player.hasPermissions(2) || (TimeStopManager.getInitiatorUuid() != null && TimeStopManager.getInitiatorUuid().equals(player.getUUID()))) {
-                    // Dynamically map activity (0.0 to 1.0) to tick ms (250ms down to 50ms)
-                    long tickMs = (long) (250.0F - (Math.max(0.0F, Math.min(1.0F, this.activity)) * 200.0F));
+            if (player != null) {
+                com.timestop.core.TemporalBubble bubble = com.timestop.core.TemporalBubbleManager.getPlayerBubble(player.getUUID());
+                if (bubble == null) {
+                    bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
+                }
+                if (bubble != null && bubble.getMode() == TimeMode.SUPERHOT) {
+                    bubble.setPlayerActivity(player.getUUID(), this.activity);
+                    float collectiveActivity = bubble.getSuperhotActivity();
+                    long tickMs = (long) (500.0F - (Math.max(0.0F, Math.min(1.0F, collectiveActivity)) * 450.0F));
                     TimeStopManager.setSuperhotTickMs(tickMs);
+                    ModMessages.sendToClients(new SuperhotActivitySyncPacket(collectiveActivity));
+                } else if (TimeStopManager.isGlobalTimeStopped() && TimeStopManager.getCurrentMode() == TimeMode.SUPERHOT) {
+                    long tickMs = (long) (500.0F - (Math.max(0.0F, Math.min(1.0F, this.activity)) * 450.0F));
+                    TimeStopManager.setSuperhotTickMs(tickMs);
+                    ModMessages.sendToClients(new SuperhotActivitySyncPacket(this.activity));
                 }
             }
         });

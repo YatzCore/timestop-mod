@@ -2,7 +2,43 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
-## [1.1.1] - 2026-08-29
+## [1.2.0] - 2026-09-01
+
+### Added
+- **Localized Temporal Bubbles**:
+  - Survival watches deploy localized temporal spheres centered on the user (Copper: 10m, Gilded: 16m, Diamond: 24m, Netherite: 32m, Creative: 100m or Full Server).
+  - True multi-bubble concurrent simulation: Multiple players can project localized time fields simultaneously across the server without conflicts or world tick degradation.
+  - Bubble boundary visual rendering with dimensional distortion rings and particle perimeters.
+- **Multiplayer Chrono-Allies & Party System**:
+  - Direct alliance commands integrated under `/timestop friend`, `/timestop party`, `/friend`, and `/party` (accessible to all players without requiring OP permissions).
+  - Automatic stasis exemption for scoreboard teams and Chrono-Allies, allowing teammates to move, fight, and shoot alongside you within your active domain.
+  - Interactive clickable chat invites with `[Accept]` and `[Decline]` actions.
+- **Citadel & Animation Framework Compatibility**:
+  - Fully integrated compatibility with Citadel, Alex's Mobs, and Alex's Caves custom animated entities and multipart models during stasis.
+- **Omnipotent Administrative Protection**:
+  - Creative Clocks default to Global Server Mode with supreme override authority.
+  - Survival players are prevented from overriding or canceling active admin temporal fields.
+- **Temporal Configuration Screen & Settings**:
+  - Added in-game client settings screen accessible from the Watch GUI.
+
+### Changed
+- **Superhot Motion Dynamic Dilation**:
+  - Polished authentic Superhot slow-motion physics: seamless real-time velocity scaling when running, jumping, and attacking, transitioning into cinematic slow-motion during mid-air falls.
+  - Optimized crystalline red mob rendering with specular crystal overlays and pure white environment desaturation.
+- **Kinetic Vector & Stasis Discharge**:
+  - Unified spatial bounding box stasis calculations across all entities.
+  - Stasis discharge now broadcasts client motion packets immediately, delivering high-velocity launches for all accumulated hits.
+- **Water-Walking in Stasis**:
+  - Solid surface collision logic for frozen water and lava updated to work seamlessly across localized bubbles and global server stasis.
+
+### Fixed
+- Fixed kinetic knockback vectors being wiped when moving a temporal bubble away from hit mobs.
+- Fixed rain splash and stasis particles shaking/jittering due to interpolation lerp oscillation.
+- Fixed Creative Clock defaulting to local bubble instead of global scope.
+- Fixed global grayscale shader stripping when localized bubbles were created elsewhere on the server.
+- Fixed Superhot mob red crystal overlay tinting terrain and organic foliage blocks.
+
+---
 
 ### Added
 - **SUPERHOT Visual Pipeline**: Authentic architectural off-white world shaders with bold geometric contour lines and pure crystal-red enemy rendering.

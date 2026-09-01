@@ -130,6 +130,24 @@ public class ModMessages {
                 .encoder(SyncRuneSocketPacket::toBytes)
                 .consumerMainThread(SyncRuneSocketPacket::handle)
                 .add();
+
+        INSTANCE.messageBuilder(TemporalBubbleSyncPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(TemporalBubbleSyncPacket::new)
+                .encoder(TemporalBubbleSyncPacket::toBytes)
+                .consumerMainThread(TemporalBubbleSyncPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(SuperhotActivitySyncPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(SuperhotActivitySyncPacket::new)
+                .encoder(SuperhotActivitySyncPacket::toBytes)
+                .consumerMainThread(SuperhotActivitySyncPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(SetWatchScopePacket.class, nextId(), NetworkDirection.PLAY_TO_SERVER)
+                .decoder(SetWatchScopePacket::new)
+                .encoder(SetWatchScopePacket::toBytes)
+                .consumerMainThread(SetWatchScopePacket::handle)
+                .add();
     }
 
     public static <MSG> void sendToServer(MSG message) {

@@ -24,6 +24,7 @@ public class ClientTimeStopManager {
 
     // SUPERHOT dynamic motion tracking
     private static float superhotActivity = 0.0F;
+    private static volatile float serverSyncedSuperhotActivity = 0.0F;
     private static double prevMouseX = 0.0;
     private static double prevMouseY = 0.0;
     private static boolean wasFastLastFrame = false;
@@ -31,11 +32,25 @@ public class ClientTimeStopManager {
     private static final ResourceLocation SUPERHOT_SHADER = new ResourceLocation("minecraft", "shaders/post/superhot.json");
     private static ResourceLocation currentShader = null;
 
-    public static boolean isTimeStopped() {
+    public static boolean isGlobalTimeStopActive() {
         return clientTimeStopped;
     }
 
+    public static boolean isTimeStopped() {
+        if (clientTimeStopped) {
+            return true; // Global Server Time Stop is active everywhere!
+        }
+        if (ClientBubbleManager.hasActiveBubbles()) {
+            return ClientBubbleManager.getCameraBubble() != null;
+        }
+        return false;
+    }
+
     public static TimeMode getCurrentMode() {
+        if (ClientBubbleManager.hasActiveBubbles()) {
+            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
+            if (b != null) return b.mode;
+        }
         return clientMode;
     }
 
@@ -44,24 +59,50 @@ public class ClientTimeStopManager {
     }
 
     public static float getClientTickMs() {
-        if (!clientTimeStopped) return 50.0F;
-        switch (clientMode) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null || mc.screen != null) {
+            return 50.0F; // Never accelerate or slow down GUI, death screen, or main menu
+        }
+        TimeMode mode = clientMode;
+        boolean active = clientTimeStopped;
+        if (ClientBubbleManager.hasActiveBubbles()) {
+            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
+            if (b != null) {
+                active = true;
+                mode = b.mode;
+            } else if (!clientTimeStopped) {
+                return 50.0F; // Camera outside bubble and no global time stop = normal real-time!
+            }
+        }
+        if (!active) return 50.0F;
+        switch (mode) {
             case FAST_FORWARD:
-                return 10.0F; // 10ms = 100 TPS (5x speed for everything!)
+                return 10.0F; // 10ms = 100 TPS (5x speed)
             case SLOW_MOTION:
             case MATRIX:
-                return 200.0F; // 200ms = 5 TPS (0.25x speed for everything!)
+                return 200.0F; // 200ms = 5 TPS (0.25x speed)
             case SUPERHOT:
-                // 250ms = 4 TPS at rest, smoothly scaling to 50ms = 20 TPS when moving
-                return 250.0F - (superhotActivity * 200.0F);
+                return 500.0F - (superhotActivity * 450.0F); // 500ms (idle extreme slow-mo) down to 50ms (moving)
             default:
-                return 50.0F; // 50ms = 20 TPS (normal)
+                return 50.0F;
+        }
+    }
+
+    public static void setServerSyncedSuperhotActivity(float activity) {
+        if (activity > 0.15F) {
+            superhotActivity = Math.max(superhotActivity, activity);
         }
     }
 
     private static final Set<UUID> clientExemptPlayers = ConcurrentHashMap.newKeySet();
 
     public static boolean isEntityExempt(Entity entity) {
+        if (ClientBubbleManager.hasActiveBubbles()) {
+            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getDominantBubble(entity.position());
+            if (b == null) return true; // Outside bubble -> free to act!
+            return b.canEntityAct(entity);
+        }
+
         if (!clientTimeStopped) return true;
 
         if (entity instanceof Player player) {
@@ -77,6 +118,19 @@ public class ClientTimeStopManager {
         }
 
         return false;
+    }
+
+    public static void reset() {
+        clientTimeStopped = false;
+        clientRemainingTicks = 0;
+        clientTotalDuration = 0;
+        clientInitiatorUuid = null;
+        clientMode = TimeMode.TIME_STOP;
+        clientExemptPlayers.clear();
+        superhotActivity = 0.0F;
+        serverSyncedSuperhotActivity = 0.0F;
+        wasFastLastFrame = false;
+        removeShader();
     }
 
     public static void handleSync(boolean active, int duration, @Nullable UUID initiator, TimeMode mode, Set<UUID> exempt) {
@@ -117,8 +171,19 @@ public class ClientTimeStopManager {
     }
 
     public static void onRenderFrameMotion() {
-        if (!clientTimeStopped || clientMode != TimeMode.SUPERHOT) {
+        boolean isSuperhot = false;
+        if (ClientBubbleManager.hasActiveBubbles()) {
+            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
+            if (b != null && b.mode == TimeMode.SUPERHOT) {
+                isSuperhot = true;
+            }
+        } else if (clientTimeStopped && clientMode == TimeMode.SUPERHOT) {
+            isSuperhot = true;
+        }
+
+        if (!isSuperhot) {
             superhotActivity = 0.0F;
+            serverSyncedSuperhotActivity = 0.0F;
             wasFastLastFrame = false;
             return;
         }
@@ -142,9 +207,14 @@ public class ClientTimeStopManager {
                 || mc.player.swinging
                 || mc.player.isUsingItem();
 
-        // In Superhot: Moving (WASD, jump, sprint) or attacking/using item advances time.
-        // Mouse look allows aiming freely in slow motion without speeding time to normal!
-        float target = (hasMovementKey || hasAction) ? 1.0F : 0.0F;
+        boolean myLocalFast = hasMovementKey || hasAction;
+        if (myLocalFast != wasFastLastFrame) {
+            wasFastLastFrame = myLocalFast;
+            ModMessages.sendToServer(new SuperhotSyncPacket(myLocalFast ? 1.0F : 0.0F));
+        }
+
+        // In Superhot: Moving or acting advances time. If any player on server in this sphere is moving, time also advances!
+        float target = (myLocalFast || serverSyncedSuperhotActivity > 0.15F) ? 1.0F : 0.0F;
 
         if (target >= 0.9F) {
             // Immediate real-time acceleration!
@@ -153,13 +223,6 @@ public class ClientTimeStopManager {
             // Smooth decay to standstill (approx 0.3s)
             superhotActivity = Math.max(0.0F, superhotActivity - 0.045F);
         }
-
-        // Send sync packet when state transitions between active motion and rest
-        boolean isFastNow = superhotActivity > 0.25F;
-        if (isFastNow != wasFastLastFrame) {
-            wasFastLastFrame = isFastNow;
-            ModMessages.sendToServer(new SuperhotSyncPacket(superhotActivity));
-        }
     }
 
     public static void applyShader() {
@@ -167,6 +230,10 @@ public class ClientTimeStopManager {
     }
 
     public static void applyShader(ResourceLocation shader) {
+        if (!com.timestop.config.TimeStopConfig.CLIENT.enableShaders.get()) {
+            removeShader();
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null) {
             try {

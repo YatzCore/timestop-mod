@@ -33,16 +33,19 @@ public class TemporalInteractionEvents {
         Player player = event.getEntity();
         Entity target = event.getTarget();
 
-        if (!TimeStopManager.isGlobalTimeStopped()) {
-            return;
+        TimeMode mode;
+        if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
+            if (b == null || !b.canEntityAct(player)) return;
+            mode = b.getMode();
+        } else {
+            if (!TimeStopManager.isGlobalTimeStopped() || !TimeStopManager.isEntityExempt(player)) {
+                return;
+            }
+            mode = TimeStopManager.getCurrentMode();
         }
 
-        TimeMode mode = TimeStopManager.getCurrentMode();
         if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT) {
-            return;
-        }
-
-        if (!TimeStopManager.isEntityExempt(player)) {
             return;
         }
 
@@ -81,16 +84,19 @@ public class TemporalInteractionEvents {
         Player player = event.getEntity();
         Entity target = event.getTarget();
 
-        if (!TimeStopManager.isGlobalTimeStopped()) {
-            return;
+        TimeMode mode;
+        if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
+            if (b == null || !b.canEntityAct(player)) return;
+            mode = b.getMode();
+        } else {
+            if (!TimeStopManager.isGlobalTimeStopped() || !TimeStopManager.isEntityExempt(player)) {
+                return;
+            }
+            mode = TimeStopManager.getCurrentMode();
         }
 
-        TimeMode mode = TimeStopManager.getCurrentMode();
         if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT) {
-            return;
-        }
-
-        if (!TimeStopManager.isEntityExempt(player)) {
             return;
         }
 

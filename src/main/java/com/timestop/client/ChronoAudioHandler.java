@@ -16,7 +16,22 @@ public class ChronoAudioHandler {
 
     @SubscribeEvent
     public void onPlaySound(PlaySoundEvent event) {
-        if (!ClientTimeStopManager.isTimeStopped() || ClientTimeStopManager.getCurrentMode() != TimeMode.TIME_STOP) {
+        boolean inStasis = false;
+        if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.cameraEntity != null) {
+                net.minecraft.world.phys.Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
+                inStasis = com.timestop.core.ClientBubbleManager.isPositionInStasis(camPos);
+            }
+        } else {
+            inStasis = ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP;
+        }
+
+        if (!com.timestop.config.TimeStopConfig.CLIENT.enableSounds.get()) {
+            return;
+        }
+
+        if (!inStasis) {
             return;
         }
 
@@ -42,7 +57,28 @@ public class ChronoAudioHandler {
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
 
-        if (!ClientTimeStopManager.isTimeStopped() || ClientTimeStopManager.getCurrentMode() != TimeMode.TIME_STOP) {
+        boolean inStasis = false;
+        int remaining = 0;
+        int total = 0;
+
+        if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.cameraEntity != null) {
+                net.minecraft.world.phys.Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
+                com.timestop.core.ClientBubbleManager.ClientBubble bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(camPos);
+                if (bubble != null && bubble.mode == TimeMode.TIME_STOP) {
+                    inStasis = true;
+                    remaining = bubble.remainingTicks;
+                    total = bubble.totalDuration;
+                }
+            }
+        } else {
+            inStasis = ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP;
+            remaining = ClientTimeStopManager.getRemainingTicks();
+            total = ClientTimeStopManager.getTotalDuration();
+        }
+
+        if (!inStasis || !com.timestop.config.TimeStopConfig.CLIENT.enableSounds.get()) {
             heartbeatTimer = 0;
             return;
         }
@@ -59,9 +95,6 @@ public class ChronoAudioHandler {
         }
 
         // 2. Accelerating clock tick countdown warning during the final 3 seconds (60 ticks)
-        int remaining = ClientTimeStopManager.getRemainingTicks();
-        int total = ClientTimeStopManager.getTotalDuration();
-
         if (total > 0 && remaining <= 60 && remaining > 0) {
             boolean shouldClick = false;
             float pitch = 1.0F;
