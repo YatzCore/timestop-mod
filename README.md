@@ -49,6 +49,26 @@ Socketable into Tier 2–4 watches to grant unique powers:
 - **R**: Release orbiting projectiles (with Orbital Rune).
 - **G**: Spatial Transposition swap (with Transposition Rune).
 
+## Commands & Permissions
+
+The mod features a full command engine for both server administration and multiplayer party coordination:
+
+### Quick Reference
+| Command | Permission | Description |
+| :--- | :--- | :--- |
+| `/timestop start <mode> [seconds]` | Operator (Level 2) | Activates server-wide time distortion in the specified mode. |
+| `/timestop stop` | Operator (Level 2) | Immediately dissolves all active temporal bubbles and resumes time. |
+| `/timestop toggle [seconds]` | Operator (Level 2) | Toggles time stop on or off. |
+| `/timestop exempt <add\|remove> <players>` | Operator (Level 2) | Whitelists players from global time stop effects. |
+| `/timestop servermode <global\|bubble>` | Operator (Level 2) | Sets server policy for pocket watches (localized spheres vs server-wide). |
+| `/timestop status` | Operator (Level 2) | Outputs real-time temporal engine diagnostics and active bubble stats. |
+| `/friend add <player>` | All Players | Invites a player to become a Chrono-Ally (immune inside your time spheres). |
+| `/friend accept <player>` | All Players | Accepts an incoming alliance request. |
+| `/friend remove <name>` | All Players | Breaks an alliance with a player (online or offline). |
+| `/friend list` | All Players | Displays active Chrono-Allies and pending requests. |
+
+For full command documentation, subcommands, and tutorials, see [COMMANDS.md](COMMANDS.md).
+
 ## Crafting Progression
 
 - **Copper Chronometer**: Crafted with 4 Copper Ingots and 1 Clock.
@@ -60,7 +80,7 @@ Socketable into Tier 2–4 watches to grant unique powers:
 ## Installation
 
 1. Install **Minecraft 1.20.1** with **Forge** or **NeoForge** (47.1.0 or higher).
-2. Download `timestop-1.20.1-1.1.0.jar` from [Releases](https://github.com/YatzCore/timestop-mod/releases).
+2. Download `timestop-1.20.1-1.2.1.jar` from [Releases](https://github.com/YatzCore/timestop-mod/releases).
 3. Place the `.jar` into your `.minecraft/mods` folder.
 
 ## License
