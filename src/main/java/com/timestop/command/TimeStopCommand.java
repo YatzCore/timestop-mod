@@ -102,9 +102,16 @@ public class TimeStopCommand {
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> FriendCommand.declineRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("remove")
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> FriendCommand.removeFriend(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))
                         .then(Commands.argument("name", StringArgumentType.word())
+                                .suggests((ctx, builder) -> {
+                                    ServerPlayer p = ctx.getSource().getPlayer();
+                                    if (p != null) {
+                                        for (java.util.UUID u : com.timestop.friend.FriendManager.getFriends(p.getUUID())) {
+                                            builder.suggest(com.timestop.friend.FriendManager.getPlayerName(u));
+                                        }
+                                    }
+                                    return builder.buildFuture();
+                                })
                                 .executes(ctx -> FriendCommand.removeFriendByName(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("list")
                         .executes(ctx -> FriendCommand.listFriends(ctx.getSource())))

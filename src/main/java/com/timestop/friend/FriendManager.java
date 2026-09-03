@@ -135,9 +135,9 @@ public class FriendManager {
                         .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/friend decline " + sender.getGameProfile().getName()))
                         .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to decline request from " + sender.getGameProfile().getName()))));
 
-        MutableComponent inviteMsg = Component.literal("⌛ ").withStyle(ChatFormatting.AQUA)
+        MutableComponent inviteMsg = Component.literal("[Chrono-Alliance] ").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)
                 .append(Component.literal(sender.getGameProfile().getName()).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
-                .append(Component.literal(" wants to be your Chrono-Ally! You will both be able to move freely in each other's time spheres. ")
+                .append(Component.literal(" wants to form an alliance. Both players can move freely within each other's temporal fields. ")
                         .withStyle(ChatFormatting.WHITE))
                 .append(acceptBtn)
                 .append(Component.literal(" "))
@@ -174,15 +174,15 @@ public class FriendManager {
 
         syncActiveBubblesForFriends(accepter, requester);
 
-        Component successMsg = Component.literal("✦ Chrono-Alliance established! You and ").withStyle(ChatFormatting.GREEN)
+        Component successMsg = Component.literal("[Chrono-Alliance] Alliance established with ").withStyle(ChatFormatting.GREEN)
                 .append(Component.literal(requester.getGameProfile().getName()).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
-                .append(Component.literal(" can now freely traverse each other's time spheres!").withStyle(ChatFormatting.GREEN));
+                .append(Component.literal(". You can now freely enter each other's temporal fields.").withStyle(ChatFormatting.GREEN));
 
         accepter.displayClientMessage(successMsg, false);
 
-        Component requesterMsg = Component.literal("✦ ").withStyle(ChatFormatting.GREEN)
+        Component requesterMsg = Component.literal("[Chrono-Alliance] ").withStyle(ChatFormatting.GREEN)
                 .append(Component.literal(accepter.getGameProfile().getName()).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
-                .append(Component.literal(" accepted your Chrono-Ally request! You can now freely traverse each other's time spheres!").withStyle(ChatFormatting.GREEN));
+                .append(Component.literal(" accepted your alliance request.").withStyle(ChatFormatting.GREEN));
 
         requester.displayClientMessage(requesterMsg, false);
         return true;
