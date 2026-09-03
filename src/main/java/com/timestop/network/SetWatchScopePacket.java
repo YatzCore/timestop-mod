@@ -34,7 +34,12 @@ public class SetWatchScopePacket {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 ItemStack stack = player.getItemInHand(this.hand);
-                if (stack.getItem() instanceof AbstractWatchItem) {
+                if (stack.getItem() instanceof AbstractWatchItem watch) {
+                    boolean allowed = player.isCreative() || watch.getTier() == com.timestop.item.WatchTier.CREATIVE;
+                    if (this.globalScope && !allowed) {
+                        AbstractWatchItem.setGlobalScope(stack, false);
+                        return;
+                    }
                     AbstractWatchItem.setGlobalScope(stack, this.globalScope);
                 }
             }

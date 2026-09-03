@@ -134,13 +134,12 @@ public class ClientInteractionHandler {
 
                 ModMessages.sendToServer(new SnatchProjectilePacket(targetedProjectile.getId()));
 
-                // Immediate client-side removal and feedback
+                // Immediate client-side feedback
                 mc.level.playSound(mc.player, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
                         SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 1.2F, 1.4F);
                 mc.level.playSound(mc.player, targetedProjectile.getX(), targetedProjectile.getY(), targetedProjectile.getZ(),
                         SoundEvents.WOOL_BREAK, SoundSource.PLAYERS, 0.8F, 1.3F);
 
-                targetedProjectile.discard();
                 mc.player.swing(event.getHand());
             }
         }

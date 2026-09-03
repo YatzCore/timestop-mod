@@ -64,8 +64,8 @@ public abstract class ClientLevelMixin {
 
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
-        if (!com.timestop.core.ClientBubbleManager.hasActiveBubbles() && ClientTimeStopManager.isTimeStopped() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-            ci.cancel(); // Freeze sun/moon progression only in global TIME_STOP
+        if (ClientTimeStopManager.isGlobalTimeStopActive() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+            ci.cancel(); // Freeze sun/moon progression in global TIME_STOP
             return;
         }
 

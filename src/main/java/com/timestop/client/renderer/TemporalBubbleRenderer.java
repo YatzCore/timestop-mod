@@ -78,21 +78,45 @@ public class TemporalBubbleRenderer {
     private static final float LIGHT_Y = 0.7071F;
     private static final float LIGHT_Z = 0.40825F;
 
+    // Cached config values to avoid reflection/map lookups every frame
+    private static boolean cachedEnableBubbleRender = true;
+    private static double cachedBubbleOpacity = 0.35;
+    private static boolean cachedEnableSpecular = true;
+    private static boolean cachedEnableGrid = false;
+    private static boolean cachedEnableEquator = true;
+    private static long lastConfigRefreshTime = 0;
+
+    private static void refreshConfigIfNeeded() {
+        long now = System.currentTimeMillis();
+        if (now - lastConfigRefreshTime > 1000L) {
+            lastConfigRefreshTime = now;
+            if (TimeStopConfig.CLIENT_SPEC.isLoaded()) {
+                cachedEnableBubbleRender = TimeStopConfig.CLIENT.enableBubbleRender.get();
+                cachedBubbleOpacity = TimeStopConfig.CLIENT.bubbleOpacity.get();
+                cachedEnableSpecular = TimeStopConfig.CLIENT.enableSpecularSheen.get();
+                cachedEnableGrid = TimeStopConfig.CLIENT.enableBubbleGrid.get();
+                cachedEnableEquator = TimeStopConfig.CLIENT.enableEquatorRing.get();
+            }
+        }
+    }
+
     @SubscribeEvent
     public void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         if (!ClientBubbleManager.hasActiveBubbles()) return;
-        if (!TimeStopConfig.CLIENT.enableBubbleRender.get()) return;
+
+        refreshConfigIfNeeded();
+        if (!cachedEnableBubbleRender) return;
 
         Camera camera = event.getCamera();
         Vec3 camPos = camera.getPosition();
         PoseStack poseStack = event.getPoseStack();
 
         float gameTime = (System.currentTimeMillis() % 3600000) / 1000.0F;
-        double userOpacity = TimeStopConfig.CLIENT.bubbleOpacity.get();
-        boolean enableSpecular = TimeStopConfig.CLIENT.enableSpecularSheen.get();
-        boolean enableGrid = TimeStopConfig.CLIENT.enableBubbleGrid.get();
-        boolean enableEquator = TimeStopConfig.CLIENT.enableEquatorRing.get();
+        double userOpacity = cachedBubbleOpacity;
+        boolean enableSpecular = cachedEnableSpecular;
+        boolean enableGrid = cachedEnableGrid;
+        boolean enableEquator = cachedEnableEquator;
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();

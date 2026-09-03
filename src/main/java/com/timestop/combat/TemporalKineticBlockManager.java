@@ -103,67 +103,110 @@ public class TemporalKineticBlockManager {
     }
 
     public static void dischargeAll(ServerLevel level) {
-        for (Map.Entry<UUID, KineticRecord> entry : records.entrySet()) {
+        if (records.isEmpty()) return;
+        net.minecraft.server.MinecraftServer server = level.getServer();
+        for (Map.Entry<UUID, KineticRecord> entry : new ArrayList<>(records.entrySet())) {
             UUID entityUuid = entry.getKey();
             KineticRecord record = entry.getValue();
             Entity entity = record.entityRef.get();
+            ServerLevel targetLevel = level;
 
-            if (entity == null || !entity.isAlive()) {
-                entity = level.getEntity(entityUuid);
+            if (entity != null && entity.isAlive() && entity.level() instanceof ServerLevel sl) {
+                targetLevel = sl;
+            } else {
+                for (ServerLevel sl : server.getAllLevels()) {
+                    Entity e = sl.getEntity(entityUuid);
+                    if (e != null && e.isAlive()) {
+                        entity = e;
+                        targetLevel = sl;
+                        break;
+                    }
+                }
             }
 
             if (entity != null && entity.isAlive()) {
-                Vec3 finalVel = record.totalVelocity;
-
-                if (entity instanceof FallingBlockEntity fallingBlock) {
-                    fallingBlock.setNoGravity(false);
-                    fallingBlock.dropItem = true;
-                    fallingBlock.time = 1;
-                    if (record.puncherUuid != null) {
-                        fallingBlock.getPersistentData().putUUID("KineticPuncherUuid", record.puncherUuid);
-                    }
-
-                    if (fallingBlock.getBlockState().getBlock() instanceof AnvilBlock) {
-                        fallingBlock.setHurtsEntities(8.0F, 60);
-                    }
-
-                    fallingBlock.setDeltaMovement(finalVel);
-                    fallingBlock.hasImpulse = true;
-                    activeKineticBlocks.add(new WeakReference<>(fallingBlock));
-                } else if (entity instanceof PrimedTnt tnt) {
-                    tnt.setDeltaMovement(finalVel);
-                    tnt.hasImpulse = true;
-                } else {
-                    entity.setDeltaMovement(finalVel);
-                    entity.hasImpulse = true;
-                }
-
-                double centerY = entity.getY() + 0.5;
-                level.sendParticles(ParticleTypes.POOF,
-                        entity.getX(), centerY, entity.getZ(),
-                        6, 0.2, 0.2, 0.2, 0.04);
-                level.sendParticles(ParticleTypes.CRIT,
-                        entity.getX(), centerY, entity.getZ(),
-                        record.isSupercharged ? 24 : 12, finalVel.x * 0.2, finalVel.y * 0.2 + 0.1, finalVel.z * 0.2, 0.15);
-                level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                        entity.getX(), centerY, entity.getZ(),
-                        record.isSupercharged ? 16 : 8, 0.15, 0.15, 0.15, 0.1);
-
-                if (record.isSupercharged) {
-                    level.sendParticles(ParticleTypes.SONIC_BOOM,
-                            entity.getX(), centerY, entity.getZ(),
-                            1, 0, 0, 0, 0);
-                    level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
-                            SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.8F);
-                }
-
-                level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
-                        SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 0.8F, 1.6F);
-                level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
-                        SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1.4F, 0.8F);
+                applyDischargeSingle(targetLevel, entity, record);
             }
         }
         records.clear();
+    }
+
+    public static void dischargeInArea(ServerLevel level, Vec3 center, double radius) {
+        double rSq = radius * radius;
+        List<UUID> toDischarge = new ArrayList<>();
+        for (UUID uuid : records.keySet()) {
+            KineticRecord record = records.get(uuid);
+            Entity entity = record != null ? record.entityRef.get() : null;
+            if (entity == null || !entity.isAlive()) {
+                entity = level.getEntity(uuid);
+            }
+            if (entity != null && entity.level() == level && entity.distanceToSqr(center) <= rSq) {
+                toDischarge.add(uuid);
+            }
+        }
+        for (UUID uuid : toDischarge) {
+            KineticRecord record = records.remove(uuid);
+            if (record != null) {
+                Entity entity = record.entityRef.get();
+                if (entity == null || !entity.isAlive()) {
+                    entity = level.getEntity(uuid);
+                }
+                if (entity != null && entity.isAlive()) {
+                    applyDischargeSingle(level, entity, record);
+                }
+            }
+        }
+    }
+
+    private static void applyDischargeSingle(ServerLevel level, Entity entity, KineticRecord record) {
+        Vec3 finalVel = record.totalVelocity;
+
+        if (entity instanceof FallingBlockEntity fallingBlock) {
+            fallingBlock.setNoGravity(false);
+            fallingBlock.dropItem = true;
+            fallingBlock.time = 1;
+            if (record.puncherUuid != null) {
+                fallingBlock.getPersistentData().putUUID("KineticPuncherUuid", record.puncherUuid);
+            }
+
+            if (fallingBlock.getBlockState().getBlock() instanceof AnvilBlock) {
+                fallingBlock.setHurtsEntities(8.0F, 60);
+            }
+
+            fallingBlock.setDeltaMovement(finalVel);
+            fallingBlock.hasImpulse = true;
+            activeKineticBlocks.add(new WeakReference<>(fallingBlock));
+        } else if (entity instanceof PrimedTnt tnt) {
+            tnt.setDeltaMovement(finalVel);
+            tnt.hasImpulse = true;
+        } else {
+            entity.setDeltaMovement(finalVel);
+            entity.hasImpulse = true;
+        }
+
+        double centerY = entity.getY() + 0.5;
+        level.sendParticles(ParticleTypes.POOF,
+                entity.getX(), centerY, entity.getZ(),
+                6, 0.2, 0.2, 0.2, 0.04);
+        level.sendParticles(ParticleTypes.CRIT,
+                entity.getX(), centerY, entity.getZ(),
+                record.isSupercharged ? 24 : 12, finalVel.x * 0.2, finalVel.y * 0.2 + 0.1, finalVel.z * 0.2, 0.15);
+        level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                entity.getX(), centerY, entity.getZ(),
+                record.isSupercharged ? 16 : 8, 0.15, 0.15, 0.15, 0.1);
+
+        if (record.isSupercharged) {
+            level.sendParticles(ParticleTypes.SONIC_BOOM,
+                    entity.getX(), centerY, entity.getZ(),
+                    1, 0, 0, 0, 0);
+            level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
+                    SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.8F);
+        }
+
+        level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
+                SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 0.8F, 1.6F);
+        level.playSound(null, entity.getX(), entity.getY(), entity.getZ(),
+                SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1.4F, 0.8F);
     }
 
     public static void serverTick() {

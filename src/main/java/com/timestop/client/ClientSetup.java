@@ -45,7 +45,6 @@ public class ClientSetup {
         MinecraftForge.EVENT_BUS.register(new ClientInteractionHandler());
         MinecraftForge.EVENT_BUS.register(new DeadEyeRenderer());
         MinecraftForge.EVENT_BUS.register(new ClientOrbitalHandler());
-        MinecraftForge.EVENT_BUS.register(new TranspositionRenderer());
         MinecraftForge.EVENT_BUS.register(new com.timestop.client.renderer.TemporalBubbleRenderer());
     }
 

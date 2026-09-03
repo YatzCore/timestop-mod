@@ -53,6 +53,35 @@ public class TranspositionManager {
         return false;
     }
 
+    private static List<Entity> cachedClientCandidates = Collections.emptyList();
+    private static int lastCandidatesCacheTick = -1;
+
+    public static List<Entity> getCachedClientCandidates(Player player) {
+        if (player == null) return Collections.emptyList();
+        int tick = player.tickCount;
+        if (lastCandidatesCacheTick != tick) {
+            lastCandidatesCacheTick = tick;
+            if (hasTranspositionRune(player)) {
+                Vec3 eyePos = player.getEyePosition();
+                Vec3 look = player.getLookAngle().normalize();
+                cachedClientCandidates = getSwapCandidates(player, eyePos, look, MAX_SWAP_DISTANCE);
+            } else {
+                cachedClientCandidates = Collections.emptyList();
+            }
+        }
+        return cachedClientCandidates;
+    }
+
+    public static void clearPlayerCooldown(UUID uuid) {
+        playerCooldowns.remove(uuid);
+    }
+
+    public static void clearAllCooldowns() {
+        playerCooldowns.clear();
+        cachedClientCandidates = Collections.emptyList();
+        cachedClientTarget = null;
+    }
+
     private static Entity cachedClientTarget = null;
     private static int lastClientCacheTick = -1;
 

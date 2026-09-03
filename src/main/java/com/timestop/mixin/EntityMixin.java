@@ -64,8 +64,11 @@ public abstract class EntityMixin {
     private void onIsCurrentlyGlowing(CallbackInfoReturnable<Boolean> cir) {
         Entity entity = (Entity) (Object) this;
         if (entity.level().isClientSide()) {
-            if (com.timestop.client.TranspositionRenderer.isTargetOutlined(entity)) {
-                cir.setReturnValue(true);
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.player != null && com.timestop.combat.TranspositionManager.hasTranspositionRune(mc.player)) {
+                if (com.timestop.client.TranspositionRenderer.isTargetOutlined(entity)) {
+                    cir.setReturnValue(true);
+                }
             }
         }
     }
@@ -74,9 +77,12 @@ public abstract class EntityMixin {
     private void onGetTeamColor(CallbackInfoReturnable<Integer> cir) {
         Entity entity = (Entity) (Object) this;
         if (entity.level().isClientSide()) {
-            int color = com.timestop.client.TranspositionRenderer.getTargetOutlineColor(entity);
-            if (color != -1) {
-                cir.setReturnValue(color);
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.player != null && com.timestop.combat.TranspositionManager.hasTranspositionRune(mc.player)) {
+                int color = com.timestop.client.TranspositionRenderer.getTargetOutlineColor(entity);
+                if (color != -1) {
+                    cir.setReturnValue(color);
+                }
             }
         }
     }

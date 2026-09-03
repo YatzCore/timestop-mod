@@ -2,6 +2,27 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.2.1] - 2026-09-02
+
+### Fixed
+- **Client Performance & Transposition Lag**: Replaced per-frame spatial queries and raycasts in `TranspositionRenderer` with tick-cached candidate verification and upfront rune possession checks in `EntityMixin`, eliminating severe FPS drops.
+- **Dedicated Server Tickrate Stability**: Decoupled `getServerTickMs()` from local temporal bubbles so localized spheres no longer throttle the dedicated server tickrate to 5 TPS.
+- **Global Time Stop Priority**: Fixed stasis exemption logic so entities outside local bubbles remain frozen when global server-wide time stop is active.
+- **Chunk & Environment Stasis**: Fixed 3D chunk boundary intersection for localized stasis and corrected sun/moon and weather freezing logic during global time stop.
+- **Combat Balance & Exploits**:
+  - Tied Phasing Rune projectile immunity strictly to evasion cooldown readiness.
+  - Eliminated infinite item duplication when snatching hostile projectiles (`WitherSkull`, `ShulkerBullet`, `DragonFireball`, `LlamaSpit`).
+  - Preserved custom potion effects on tipped arrows and enchantments/durability on thrown tridents.
+- **Deceleration Field Search**: Optimized projectile checking to iterate dimension players directly with radius guards instead of spatial chunk entity searches.
+- **Networking & Packet Security**:
+  - Added server-side creative permission validation to `SetWatchScopePacket` to prevent unauthorized scope escalation.
+  - Sanitized coordinates, normalized vectors, and enforced a 6-block reach validation in `KineticBlockPunchPacket`.
+  - Removed premature client-side entity disposal in `ClientInteractionHandler` to maintain server authority.
+- **Memory Management & Lifecycle**:
+  - Converted static entity registries (`TimeStopManager`, `TemporalDamageBuffer`, `TemporalKineticBlockManager`) to `WeakReference` with multi-dimension search.
+  - Added disconnect and server stopping listeners to strip leftover Matrix speed modifiers, collapse abandoned bubbles, and clear static caches.
+  - Resolved Brigadier command collision on `/friend remove <name>` and enabled offline friend removal with tab-completion.
+
 ## [1.2.0] - 2026-09-01
 
 ### Added

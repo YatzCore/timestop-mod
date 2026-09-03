@@ -47,6 +47,13 @@ public class FriendManager {
         }
     }
 
+    public static void resetCache() {
+        friendCache.clear();
+        nameCache.clear();
+        pendingRequests.clear();
+        cacheInitialized = false;
+    }
+
     public static boolean isFriend(UUID a, UUID b) {
         if (a == null || b == null) return false;
         if (a.equals(b)) return true;

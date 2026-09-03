@@ -49,20 +49,22 @@ public abstract class ServerLevelMixin {
     @Inject(method = "tickChunk", at = @At("HEAD"), cancellable = true)
     private void onTickChunk(LevelChunk chunk, int randomTickSpeed, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+            ci.cancel();
+            return;
+        }
         if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
-            if (com.timestop.core.TemporalBubbleManager.isPositionInStasis(level.dimension(), chunk.getPos().getMiddleBlockX(), 64.0, chunk.getPos().getMiddleBlockZ())) {
+            if (com.timestop.core.TemporalBubbleManager.doesBubbleIntersectChunk(level.dimension(), chunk.getPos().x, chunk.getPos().z, level.getMinBuildHeight(), level.getMaxBuildHeight())) {
                 ci.cancel();
             }
-        } else if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-            ci.cancel();
         }
     }
 
     @Inject(method = "advanceWeatherCycle", at = @At("HEAD"), cancellable = true)
     private void onAdvanceWeatherCycle(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
-        // Weather freezes globally only if legacy global time stop is active
-        if (!com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        // Weather freezes globally only if global time stop is active
+        if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             ci.cancel();
         }
     }
@@ -70,8 +72,8 @@ public abstract class ServerLevelMixin {
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
-        // World time freezes globally only if legacy global time stop is active
-        if (!com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        // World time freezes globally only if global time stop is active
+        if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             ci.cancel();
             return;
         }

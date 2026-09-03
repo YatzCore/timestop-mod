@@ -108,7 +108,7 @@ public class TimeStopManager {
     }
 
     private static final Map<UUID, ProjectileKineticData> projectileData = new ConcurrentHashMap<>();
-    private static final Map<UUID, Projectile> projectileEntities = new ConcurrentHashMap<>();
+    private static final Map<UUID, java.lang.ref.WeakReference<Projectile>> projectileEntities = new ConcurrentHashMap<>();
 
     // Dynamic tick duration for SUPERHOT mode (500ms = 2 TPS idle extreme slow-mo, 50ms = 20 TPS moving)
     private static volatile long superhotTickMs = 500L;
@@ -155,6 +155,8 @@ public class TimeStopManager {
 
     /**
      * Governs the server's core tick interval in milliseconds.
+     * Note: Only global server-wide time stop modulates nextTickTime.
+     * Local temporal bubbles never degrade dedicated server tick performance.
      */
     public static long getServerTickMs() {
         if (timeStopped) {
@@ -170,24 +172,34 @@ public class TimeStopManager {
                     return 50L;
             }
         }
-
-        if (TemporalBubbleManager.hasActiveBubbles()) {
-            // Scale server tick rate if active bubbles require slow-mo, matrix, fast-forward, or superhot
-            for (TemporalBubble b : TemporalBubbleManager.getActiveBubbles().values()) {
-                if (b.getMode() == TimeMode.FAST_FORWARD) {
-                    return 10L;
-                } else if (b.getMode() == TimeMode.SLOW_MOTION || b.getMode() == TimeMode.MATRIX) {
-                    return 200L;
-                } else if (b.getMode() == TimeMode.SUPERHOT) {
-                    return (long) (500L - (b.getSuperhotActivity() * 450.0F));
-                }
-            }
-        }
-
         return 50L;
     }
 
     public static boolean isEntityExempt(Entity entity) {
+        if (timeStopped) {
+            // Global time stop is active across the server!
+            if (entity instanceof Player player) {
+                if (player.isCreative() || player.isSpectator()) {
+                    return true;
+                }
+                if (initiatorUuid != null && player.getUUID().equals(initiatorUuid)) {
+                    return true;
+                }
+                if (exemptPlayers.contains(player.getUUID())) {
+                    return true;
+                }
+            }
+            // Check if entity is inside a localized bubble that explicitly exempts it
+            if (TemporalBubbleManager.hasActiveBubbles()) {
+                TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(entity.level().dimension(), entity.position());
+                if (dominant != null) {
+                    return dominant.canEntityAct(entity);
+                }
+            }
+            return false;
+        }
+
+        // Global time stop is NOT active: check localized bubbles
         if (TemporalBubbleManager.hasActiveBubbles()) {
             TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(entity.level().dimension(), entity.position());
             if (dominant == null) {
@@ -196,19 +208,7 @@ public class TimeStopManager {
             return dominant.canEntityAct(entity);
         }
 
-        if (!timeStopped) return true;
-
-        if (entity instanceof Player player) {
-            if (player.isCreative() || player.isSpectator()) {
-                return true;
-            }
-            if (initiatorUuid != null && player.getUUID().equals(initiatorUuid)) {
-                return true;
-            }
-            return exemptPlayers.contains(player.getUUID());
-        }
-
-        return false;
+        return true;
     }
 
     public static void setMode(TimeMode mode) {
@@ -506,7 +506,8 @@ public class TimeStopManager {
         }
     }
 
-    private static void removeMatrixAttributes(Player player) {
+    public static void removeMatrixAttributes(Player player) {
+        if (player == null) return;
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null && speed.hasModifier(MATRIX_SPEED_MOD)) {
             speed.removeModifier(MATRIX_SPEED_MOD);
@@ -530,7 +531,7 @@ public class TimeStopManager {
         ProjectileKineticData data = projectileData.computeIfAbsent(projectile.getUUID(),
                 k -> new ProjectileKineticData(projectile.getDeltaMovement(), projectile.getOwner()));
         data.addPunch(projectile, player);
-        projectileEntities.put(projectile.getUUID(), projectile);
+        projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
 
         com.timestop.item.rune.RuneType rune = com.timestop.combat.RuneManager.getSocketedRuneType(player);
         if (rune == com.timestop.item.rune.RuneType.KINETIC) {
@@ -659,7 +660,7 @@ public class TimeStopManager {
         ProjectileKineticData data = projectileData.computeIfAbsent(projectile.getUUID(),
                 k -> new ProjectileKineticData(newVelocity, player));
         data.direction = newVelocity.lengthSqr() > 1e-5 ? newVelocity.normalize() : data.direction;
-        projectileEntities.put(projectile.getUUID(), projectile);
+        projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
         projectile.setDeltaMovement(Vec3.ZERO);
         projectile.setNoGravity(true);
         if (player != null) {
@@ -667,13 +668,28 @@ public class TimeStopManager {
         }
     }
 
+    public static void removeSuspendedProjectile(UUID uuid) {
+        if (uuid != null) {
+            projectileData.remove(uuid);
+            projectileEntities.remove(uuid);
+        }
+    }
+
     public static void removeSuspendedProjectile(Projectile projectile) {
-        projectileData.remove(projectile.getUUID());
-        projectileEntities.remove(projectile.getUUID());
+        if (projectile != null) {
+            removeSuspendedProjectile(projectile.getUUID());
+        }
     }
 
     public static Map<UUID, Projectile> getSuspendedProjectiles() {
-        return Collections.unmodifiableMap(projectileEntities);
+        Map<UUID, Projectile> map = new HashMap<>();
+        for (Map.Entry<UUID, java.lang.ref.WeakReference<Projectile>> entry : projectileEntities.entrySet()) {
+            Projectile p = entry.getValue() != null ? entry.getValue().get() : null;
+            if (p != null && p.isAlive()) {
+                map.put(entry.getKey(), p);
+            }
+        }
+        return Collections.unmodifiableMap(map);
     }
 
     public static void registerSuspendedProjectile(Projectile projectile, Vec3 originalVelocity) {
@@ -689,7 +705,7 @@ public class TimeStopManager {
 
         if (!isStasis) return;
         projectileData.putIfAbsent(projectile.getUUID(), new ProjectileKineticData(originalVelocity, projectile.getOwner()));
-        projectileEntities.put(projectile.getUUID(), projectile);
+        projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
 
         // Lock in place
         projectile.setDeltaMovement(Vec3.ZERO);
@@ -748,8 +764,8 @@ public class TimeStopManager {
 
             if (data.hitCount > 0) {
                 level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
-                        projectile.getX(), projectile.getY(), projectile.getZ(),
-                        8 + Math.min(12, data.hitCount * 3), vDir.x * 0.25, vDir.y * 0.25, vDir.z * 0.25, 0.15);
+                    projectile.getX(), projectile.getY(), projectile.getZ(),
+                    8 + Math.min(12, data.hitCount * 3), vDir.x * 0.25, vDir.y * 0.25, vDir.z * 0.25, 0.15);
             }
 
             float pitch = Math.min(2.0F, 1.0F + (data.hitCount * 0.15F));
@@ -759,23 +775,62 @@ public class TimeStopManager {
     }
 
     public static void resumeProjectiles(ServerLevel level) {
+        net.minecraft.server.MinecraftServer server = level.getServer();
         for (UUID uuid : new ArrayList<>(projectileData.keySet())) {
-            Projectile projectile = projectileEntities.get(uuid);
-            if (projectile == null || !projectile.isAlive()) {
-                Entity found = level.getEntity(uuid);
-                if (found instanceof Projectile p) {
-                    projectile = p;
+            java.lang.ref.WeakReference<Projectile> ref = projectileEntities.get(uuid);
+            Projectile projectile = ref != null ? ref.get() : null;
+            ServerLevel targetLevel = level;
+
+            if (projectile != null && projectile.isAlive() && projectile.level() instanceof ServerLevel sl) {
+                targetLevel = sl;
+            } else {
+                for (ServerLevel sl : server.getAllLevels()) {
+                    Entity found = sl.getEntity(uuid);
+                    if (found instanceof Projectile p && p.isAlive()) {
+                        projectile = p;
+                        targetLevel = sl;
+                        break;
+                    }
                 }
             }
-            if (projectile != null) {
-                resumeSingleProjectile(level, projectile);
+
+            if (projectile != null && projectile.isAlive()) {
+                resumeSingleProjectile(targetLevel, projectile);
             } else {
-                projectileData.remove(uuid);
-                projectileEntities.remove(uuid);
+                removeSuspendedProjectile(uuid);
             }
         }
         projectileData.clear();
         projectileEntities.clear();
+    }
+
+    public static void resumeProjectilesInArea(ServerLevel level, Vec3 center, double radius) {
+        double rSq = radius * radius;
+        List<UUID> toResume = new ArrayList<>();
+        for (UUID uuid : projectileData.keySet()) {
+            java.lang.ref.WeakReference<Projectile> ref = projectileEntities.get(uuid);
+            Projectile p = ref != null ? ref.get() : null;
+            if (p == null || !p.isAlive()) {
+                Entity found = level.getEntity(uuid);
+                if (found instanceof Projectile proj) p = proj;
+            }
+            if (p != null && p.level() == level && p.distanceToSqr(center) <= rSq) {
+                toResume.add(uuid);
+            }
+        }
+        for (UUID uuid : toResume) {
+            java.lang.ref.WeakReference<Projectile> ref = projectileEntities.get(uuid);
+            Projectile p = ref != null ? ref.get() : null;
+            if (p == null || !p.isAlive()) {
+                Entity found = level.getEntity(uuid);
+                if (found instanceof Projectile proj) p = proj;
+            }
+            if (p != null && p.isAlive()) {
+                resumeSingleProjectile(level, p);
+            } else {
+                removeSuspendedProjectile(uuid);
+            }
+        }
     }
 
     public static int getRemainingTicks() {

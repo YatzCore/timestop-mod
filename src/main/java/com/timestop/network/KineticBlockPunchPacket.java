@@ -26,7 +26,14 @@ public class KineticBlockPunchPacket {
 
     public KineticBlockPunchPacket(FriendlyByteBuf buf) {
         this.entityId = buf.readVarInt();
-        this.lookDirection = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
+        double x = buf.readDouble();
+        double y = buf.readDouble();
+        double z = buf.readDouble();
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+            this.lookDirection = Vec3.ZERO;
+        } else {
+            this.lookDirection = new Vec3(x, y, z);
+        }
     }
 
     public void toBytes(FriendlyByteBuf buf) {
@@ -53,11 +60,18 @@ public class KineticBlockPunchPacket {
 
             Entity entity = level.getEntity(this.entityId);
             if (entity instanceof FallingBlockEntity || entity instanceof PrimedTnt) {
-                if (player.distanceToSqr(entity) > 64.0) {
+                if (player.distanceToSqr(entity) > 36.0) {
                     return; // Reject punch if beyond interaction reach
                 }
+
+                Vec3 dir = this.lookDirection;
+                if (!Double.isFinite(dir.x) || !Double.isFinite(dir.y) || !Double.isFinite(dir.z) || dir.lengthSqr() < 1e-4) {
+                    dir = player.getLookAngle();
+                }
+                dir = dir.normalize();
+
                 double power = player.getMainHandItem().isEmpty() ? 0.22 : 0.35;
-                Vec3 impulse = this.lookDirection.scale(power);
+                Vec3 impulse = dir.scale(power);
                 TemporalKineticBlockManager.recordHit(entity, impulse, player);
                 player.swing(InteractionHand.MAIN_HAND, true);
             }

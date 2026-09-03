@@ -88,6 +88,9 @@ public class TimeStopMod {
         public static void onPlayerLoggedOut(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 com.timestop.core.TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
+                TimeStopManager.removeMatrixAttributes(serverPlayer);
+                com.timestop.combat.RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
+                com.timestop.combat.TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
             }
         }
 
@@ -95,7 +98,16 @@ public class TimeStopMod {
         public static void onLivingDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event) {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 com.timestop.core.TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
+                TimeStopManager.removeMatrixAttributes(serverPlayer);
             }
+        }
+
+        @SubscribeEvent
+        public static void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent event) {
+            com.timestop.friend.FriendManager.resetCache();
+            com.timestop.combat.TemporalDamageBuffer.clearAll();
+            com.timestop.combat.RuneManager.clearAllCooldowns();
+            com.timestop.combat.TranspositionManager.clearAllCooldowns();
         }
     }
 }

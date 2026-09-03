@@ -54,15 +54,30 @@ public class RuneManager {
             if (event.getSource().is(DamageTypeTags.IS_PROJECTILE)) {
                 RuneType rune = getSocketedRuneType(player);
                 if (rune == RuneType.PHASING) {
-                    // Absolute projectile cancellation (like an Enderman!)
-                    event.setCanceled(true);
+                    long now = player.level().getGameTime();
+                    long intangibleUntil = INTANGIBILITY_UNTIL.getOrDefault(player.getUUID(), 0L);
+                    long nextReady = PHASE_COOLDOWNS.getOrDefault(player.getUUID(), 0L);
 
-                    Entity direct = event.getSource().getDirectEntity();
-                    if (direct instanceof Projectile proj) {
-                        proj.discard();
+                    if (now < intangibleUntil) {
+                        // Currently in brief intangibility grace window from previous evasion
+                        event.setCanceled(true);
+                        Entity direct = event.getSource().getDirectEntity();
+                        if (direct instanceof Projectile proj) {
+                            proj.discard();
+                        }
+                        return;
                     }
 
-                    triggerPhasingEvasion(null, player);
+                    if (now >= nextReady) {
+                        // Cooldown is ready: cancel damage and trigger evasion!
+                        event.setCanceled(true);
+                        Entity direct = event.getSource().getDirectEntity();
+                        if (direct instanceof Projectile proj) {
+                            proj.discard();
+                        }
+                        triggerPhasingEvasion(direct instanceof Projectile p ? p : null, player);
+                    }
+                    // If on cooldown: damage is NOT canceled, normal damage applies!
                 }
             }
         }
@@ -206,6 +221,16 @@ public class RuneManager {
         }
     }
 
+    public static void clearPlayerCooldowns(UUID uuid) {
+        PHASE_COOLDOWNS.remove(uuid);
+        INTANGIBILITY_UNTIL.remove(uuid);
+    }
+
+    public static void clearAllCooldowns() {
+        PHASE_COOLDOWNS.clear();
+        INTANGIBILITY_UNTIL.clear();
+    }
+
     /**
      * Teleports the player 4-7 blocks safely away, dispels incoming projectiles, and grants intangibility.
      */
@@ -213,9 +238,10 @@ public class RuneManager {
         Level level = player.level();
         long now = level.getGameTime();
         long nextReady = PHASE_COOLDOWNS.getOrDefault(player.getUUID(), 0L);
+        if (now < nextReady) return; // Prevent teleport spam within 15 ticks
 
-        // Grant 25 ticks of intangibility against projectile volleys
-        INTANGIBILITY_UNTIL.put(player.getUUID(), now + 25L);
+        PHASE_COOLDOWNS.put(player.getUUID(), now + 15L);
+        INTANGIBILITY_UNTIL.put(player.getUUID(), now + 12L); // 12-tick grace window against tight volleys
 
         // Dispel all hostile in-flight projectiles within 6 blocks of origin
         List<Projectile> volley = level.getEntitiesOfClass(Projectile.class, player.getBoundingBox().inflate(6.0),
@@ -226,9 +252,6 @@ public class RuneManager {
             }
             p.discard();
         }
-
-        if (now < nextReady) return; // Prevent teleport spam within 15 ticks
-        PHASE_COOLDOWNS.put(player.getUUID(), now + 15L);
 
         Vec3 evadeDir;
         if (projectile != null && projectile.getDeltaMovement().lengthSqr() > 1e-4) {

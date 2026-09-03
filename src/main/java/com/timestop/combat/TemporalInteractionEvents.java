@@ -112,8 +112,10 @@ public class TemporalInteractionEvents {
         ItemStack stackToGive = getDroppedItemForProjectile(projectile);
 
         if (!player.level().isClientSide) {
-            if (!player.getInventory().add(stackToGive)) {
-                player.drop(stackToGive, false);
+            if (!stackToGive.isEmpty()) {
+                if (!player.getInventory().add(stackToGive)) {
+                    player.drop(stackToGive, false);
+                }
             }
             TimeStopManager.removeSuspendedProjectile(projectile);
             projectile.discard();
@@ -123,8 +125,6 @@ public class TemporalInteractionEvents {
                         projectile.getX(), projectile.getY(), projectile.getZ(),
                         8, 0.1, 0.1, 0.1, 0.05);
             }
-        } else {
-            projectile.discard();
         }
 
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -138,12 +138,29 @@ public class TemporalInteractionEvents {
     private static ItemStack getDroppedItemForProjectile(Projectile projectile) {
         if (projectile instanceof Arrow arrow) {
             if (arrow.getColor() > 0) {
-                return new ItemStack(Items.TIPPED_ARROW);
+                ItemStack tipped = new ItemStack(Items.TIPPED_ARROW);
+                net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+                arrow.addAdditionalSaveData(tag);
+                if (tag.contains("Potion")) {
+                    tipped.getOrCreateTag().putString("Potion", tag.getString("Potion"));
+                }
+                if (tag.contains("CustomPotionEffects")) {
+                    tipped.getOrCreateTag().put("CustomPotionEffects", tag.getList("CustomPotionEffects", net.minecraft.nbt.Tag.TAG_COMPOUND));
+                }
+                if (tag.contains("CustomPotionColor")) {
+                    tipped.getOrCreateTag().putInt("CustomPotionColor", tag.getInt("CustomPotionColor"));
+                }
+                return tipped;
             }
             return new ItemStack(Items.ARROW);
         } else if (projectile instanceof SpectralArrow) {
             return new ItemStack(Items.SPECTRAL_ARROW);
-        } else if (projectile instanceof ThrownTrident) {
+        } else if (projectile instanceof ThrownTrident trident) {
+            net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+            trident.addAdditionalSaveData(tag);
+            if (tag.contains("Trident", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+                return ItemStack.of(tag.getCompound("Trident"));
+            }
             return new ItemStack(Items.TRIDENT);
         } else if (projectile instanceof Snowball) {
             return new ItemStack(Items.SNOWBALL);
@@ -155,20 +172,13 @@ public class TemporalInteractionEvents {
             return new ItemStack(Items.EXPERIENCE_BOTTLE);
         } else if (projectile instanceof ThrownPotion potion) {
             return potion.getItem().copy();
-        } else if (projectile instanceof DragonFireball) {
-            return new ItemStack(Items.DRAGON_BREATH);
-        } else if (projectile instanceof WitherSkull) {
-            return new ItemStack(Items.WITHER_SKELETON_SKULL);
         } else if (projectile instanceof LargeFireball || projectile instanceof SmallFireball || projectile instanceof Fireball) {
             return new ItemStack(Items.FIRE_CHARGE);
-        } else if (projectile instanceof ShulkerBullet) {
-            return new ItemStack(Items.SHULKER_SHELL);
-        } else if (projectile instanceof LlamaSpit) {
-            return new ItemStack(Items.SLIME_BALL);
         } else if (projectile instanceof FireworkRocketEntity) {
             return new ItemStack(Items.FIREWORK_ROCKET);
         } else {
-            return new ItemStack(Items.ARROW);
+            // Wither skulls, shulker bullets, dragon breath, and llama spit dissipate safely without duping end-game items
+            return ItemStack.EMPTY;
         }
     }
 }

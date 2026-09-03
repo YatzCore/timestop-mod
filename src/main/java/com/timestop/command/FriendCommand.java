@@ -33,9 +33,16 @@ public class FriendCommand {
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> declineRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("remove")
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> removeFriend(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))
                         .then(Commands.argument("name", StringArgumentType.word())
+                                .suggests((ctx, builder) -> {
+                                    ServerPlayer p = ctx.getSource().getPlayer();
+                                    if (p != null) {
+                                        for (UUID u : FriendManager.getFriends(p.getUUID())) {
+                                            builder.suggest(FriendManager.getPlayerName(u));
+                                        }
+                                    }
+                                    return builder.buildFuture();
+                                })
                                 .executes(ctx -> removeFriendByName(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("list")
                         .executes(ctx -> listFriends(ctx.getSource())))
@@ -60,9 +67,16 @@ public class FriendCommand {
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> declineRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("remove")
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> removeFriend(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))
                         .then(Commands.argument("name", StringArgumentType.word())
+                                .suggests((ctx, builder) -> {
+                                    ServerPlayer p = ctx.getSource().getPlayer();
+                                    if (p != null) {
+                                        for (UUID u : FriendManager.getFriends(p.getUUID())) {
+                                            builder.suggest(FriendManager.getPlayerName(u));
+                                        }
+                                    }
+                                    return builder.buildFuture();
+                                })
                                 .executes(ctx -> removeFriendByName(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("list")
                         .executes(ctx -> listFriends(ctx.getSource())))

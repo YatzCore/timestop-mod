@@ -211,11 +211,17 @@ public class TemporalBubbleManager {
         activeBubbles.remove(bubble.getBubbleId());
         playerToBubble.remove(bubble.getOwnerUuid());
 
-        // Discharge damage buffer, projectiles, and kinetic blocks
+        // Discharge damage buffer, projectiles, and kinetic blocks within this bubble's domain
         if (bubble.getMode() == TimeMode.TIME_STOP) {
-            TemporalDamageBuffer.dischargeAll(level);
-            TimeStopManager.resumeProjectiles(level);
-            TemporalKineticBlockManager.dischargeAll(level);
+            TemporalDamageBuffer.dischargeInArea(level, bubble.getCenter(), bubble.getRadius());
+            TimeStopManager.resumeProjectilesInArea(level, bubble.getCenter(), bubble.getRadius());
+            TemporalKineticBlockManager.dischargeInArea(level, bubble.getCenter(), bubble.getRadius());
+
+            if (activeBubbles.isEmpty() && !TimeStopManager.isGlobalTimeStopActive()) {
+                TemporalDamageBuffer.dischargeAll(level);
+                TimeStopManager.resumeProjectiles(level);
+                TemporalKineticBlockManager.dischargeAll(level);
+            }
         }
 
         ServerPlayer owner = level.getServer().getPlayerList().getPlayer(bubble.getOwnerUuid());
@@ -265,9 +271,30 @@ public class TemporalBubbleManager {
         return false;
     }
 
-    public static void serverTick() {
-        TemporalKineticBlockManager.serverTick();
+    public static boolean doesBubbleIntersectChunk(net.minecraft.resources.ResourceKey<Level> dim, int chunkX, int chunkZ, int minY, int maxY) {
+        if (activeBubbles.isEmpty()) return false;
+        double cxMin = chunkX << 4;
+        double cxMax = cxMin + 16;
+        double czMin = chunkZ << 4;
+        double czMax = czMin + 16;
+        for (TemporalBubble b : activeBubbles.values()) {
+            if (!b.getDimension().equals(dim) || b.getMode() != TimeMode.TIME_STOP) continue;
+            Vec3 c = b.getCenter();
+            double r = b.getRadius();
+            double closestX = Math.max(cxMin, Math.min(c.x, cxMax));
+            double closestY = Math.max((double) minY, Math.min(c.y, (double) maxY));
+            double closestZ = Math.max(czMin, Math.min(c.z, czMax));
+            double dx = c.x - closestX;
+            double dy = c.y - closestY;
+            double dz = c.z - closestZ;
+            if ((dx * dx + dy * dy + dz * dz) <= (r * r)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
+    public static void serverTick() {
         net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
 
@@ -331,7 +358,7 @@ public class TemporalBubbleManager {
                 } else if (p != null && p.level() instanceof ServerLevel sl) {
                     TimeStopManager.resumeSingleProjectile(sl, p);
                 } else {
-                    TimeStopManager.removeSuspendedProjectile(p != null ? p : null);
+                    TimeStopManager.removeSuspendedProjectile(pUuid);
                 }
             }
         }

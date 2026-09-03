@@ -37,13 +37,13 @@ public class TemporalDamageBuffer {
     }
 
     private static final Map<UUID, DamageRecord> records = new ConcurrentHashMap<>();
-    private static final Map<UUID, LivingEntity> victimEntities = new ConcurrentHashMap<>();
+    private static final Map<UUID, WeakReference<LivingEntity>> victimEntities = new ConcurrentHashMap<>();
     private static final Set<UUID> leechedMobsThisSession = ConcurrentHashMap.newKeySet();
     private static WeakReference<ServerLevel> lastKnownLevel = new WeakReference<>(null);
 
     public static void recordHit(LivingEntity victim, float amount, DamageSource source) {
         records.computeIfAbsent(victim.getUUID(), k -> new DamageRecord());
-        victimEntities.put(victim.getUUID(), victim);
+        victimEntities.put(victim.getUUID(), new WeakReference<>(victim));
 
         if (victim.level() instanceof ServerLevel serverLevel) {
             lastKnownLevel = new WeakReference<>(serverLevel);
@@ -123,12 +123,14 @@ public class TemporalDamageBuffer {
     }
 
     public static LivingEntity getVictim(UUID uuid) {
-        return victimEntities.get(uuid);
+        WeakReference<LivingEntity> ref = victimEntities.get(uuid);
+        return ref != null ? ref.get() : null;
     }
 
     public static void dischargeEntity(ServerLevel level, UUID victimUuid) {
         DamageRecord record = records.remove(victimUuid);
-        LivingEntity victim = victimEntities.remove(victimUuid);
+        WeakReference<LivingEntity> ref = victimEntities.remove(victimUuid);
+        LivingEntity victim = ref != null ? ref.get() : null;
         if (record == null) return;
         if (victim == null || !victim.isAlive()) {
             Entity entity = level.getEntity(victimUuid);
@@ -142,23 +144,66 @@ public class TemporalDamageBuffer {
     }
 
     public static void dischargeAll(ServerLevel level) {
-        for (Map.Entry<UUID, DamageRecord> entry : records.entrySet()) {
+        if (records.isEmpty()) {
+            victimEntities.clear();
+            leechedMobsThisSession.clear();
+            return;
+        }
+
+        net.minecraft.server.MinecraftServer server = level.getServer();
+        for (Map.Entry<UUID, DamageRecord> entry : new ArrayList<>(records.entrySet())) {
             UUID victimUuid = entry.getKey();
             DamageRecord record = entry.getValue();
-            LivingEntity victim = victimEntities.get(victimUuid);
+            WeakReference<LivingEntity> ref = victimEntities.remove(victimUuid);
+            LivingEntity victim = ref != null ? ref.get() : null;
+            ServerLevel targetLevel = level;
 
-            if (victim == null || !victim.isAlive()) {
-                Entity entity = level.getEntity(victimUuid);
-                if (entity instanceof LivingEntity living) {
-                    victim = living;
+            if (victim != null && victim.isAlive() && victim.level() instanceof ServerLevel sl) {
+                targetLevel = sl;
+            } else {
+                for (ServerLevel sl : server.getAllLevels()) {
+                    Entity entity = sl.getEntity(victimUuid);
+                    if (entity instanceof LivingEntity living && living.isAlive()) {
+                        victim = living;
+                        targetLevel = sl;
+                        break;
+                    }
                 }
             }
 
             if (victim != null && victim.isAlive()) {
-                applyDischarge(level, victim, record);
+                applyDischarge(targetLevel, victim, record);
             }
         }
 
+        records.clear();
+        victimEntities.clear();
+        leechedMobsThisSession.clear();
+    }
+
+    public static void dischargeInArea(ServerLevel level, Vec3 center, double radius) {
+        double rSq = radius * radius;
+        List<UUID> toDischarge = new ArrayList<>();
+        for (UUID uuid : records.keySet()) {
+            WeakReference<LivingEntity> ref = victimEntities.get(uuid);
+            LivingEntity victim = ref != null ? ref.get() : null;
+            if (victim == null || !victim.isAlive()) {
+                Entity entity = level.getEntity(uuid);
+                if (entity instanceof LivingEntity living) {
+                    victim = living;
+                }
+            }
+            if (victim != null && victim.level() == level && victim.distanceToSqr(center) <= rSq) {
+                toDischarge.add(uuid);
+            }
+        }
+
+        for (UUID uuid : toDischarge) {
+            dischargeEntity(level, uuid);
+        }
+    }
+
+    public static void clearAll() {
         records.clear();
         victimEntities.clear();
         leechedMobsThisSession.clear();
