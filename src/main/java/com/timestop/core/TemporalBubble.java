@@ -130,6 +130,10 @@ public class TemporalBubble {
         exemptPlayers.remove(uuid);
     }
 
+    public void clearExemptions() {
+        exemptPlayers.clear();
+    }
+
     @Nullable
     public Item getWatchItem() {
         return watchItem;
@@ -201,8 +205,8 @@ public class TemporalBubble {
         if (player.getUUID().equals(this.ownerUuid)) return true;
         if (exemptPlayers.contains(player.getUUID())) return true;
 
-        // Chrono-Allies (Fast In-Memory Cache)
-        if (this.ownerUuid != null && com.timestop.friend.FriendManager.isFriend(this.ownerUuid, player.getUUID())) {
+        // Time Sync Resonators (Fast In-Memory Cache)
+        if (this.ownerUuid != null && com.timestop.sync.SyncManager.isSynced(this.ownerUuid, player.getUUID())) {
             return true;
         }
 

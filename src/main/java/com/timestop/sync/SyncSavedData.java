@@ -1,4 +1,4 @@
-package com.timestop.friend;
+package com.timestop.sync;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -10,25 +10,29 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class FriendSavedData extends SavedData {
-    private static final String DATA_NAME = "timestop_friends";
+public class SyncSavedData extends SavedData {
+    private static final String DATA_NAME = "timestop_sync";
+    public static final String LEGACY_DATA_NAME = "timestop_friends";
 
-    private final Map<UUID, Set<UUID>> friends = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<UUID>> syncedPlayers = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastKnownNames = new ConcurrentHashMap<>();
 
-    public FriendSavedData() {
+    public SyncSavedData() {
     }
 
-    public static FriendSavedData load(CompoundTag tag) {
-        FriendSavedData data = new FriendSavedData();
-        ListTag list = tag.getList("FriendPairs", Tag.TAG_COMPOUND);
+    public static SyncSavedData load(CompoundTag tag) {
+        SyncSavedData data = new SyncSavedData();
+        ListTag list = tag.contains("SyncPairs", Tag.TAG_LIST)
+                ? tag.getList("SyncPairs", Tag.TAG_COMPOUND)
+                : tag.getList("FriendPairs", Tag.TAG_COMPOUND);
+
         for (int i = 0; i < list.size(); i++) {
             CompoundTag pairTag = list.getCompound(i);
             if (pairTag.hasUUID("PlayerA") && pairTag.hasUUID("PlayerB")) {
                 UUID a = pairTag.getUUID("PlayerA");
                 UUID b = pairTag.getUUID("PlayerB");
-                data.friends.computeIfAbsent(a, k -> ConcurrentHashMap.newKeySet()).add(b);
-                data.friends.computeIfAbsent(b, k -> ConcurrentHashMap.newKeySet()).add(a);
+                data.syncedPlayers.computeIfAbsent(a, k -> ConcurrentHashMap.newKeySet()).add(b);
+                data.syncedPlayers.computeIfAbsent(b, k -> ConcurrentHashMap.newKeySet()).add(a);
             }
         }
 
@@ -48,7 +52,7 @@ public class FriendSavedData extends SavedData {
         ListTag list = new ListTag();
         Set<String> processedPairs = ConcurrentHashMap.newKeySet();
 
-        for (Map.Entry<UUID, Set<UUID>> entry : friends.entrySet()) {
+        for (Map.Entry<UUID, Set<UUID>> entry : syncedPlayers.entrySet()) {
             UUID a = entry.getKey();
             for (UUID b : entry.getValue()) {
                 String pairKey = a.compareTo(b) < 0 ? a + "_" + b : b + "_" + a;
@@ -60,7 +64,7 @@ public class FriendSavedData extends SavedData {
                 }
             }
         }
-        tag.put("FriendPairs", list);
+        tag.put("SyncPairs", list);
 
         ListTag namesList = new ListTag();
         for (Map.Entry<UUID, String> entry : lastKnownNames.entrySet()) {
@@ -74,8 +78,8 @@ public class FriendSavedData extends SavedData {
         return tag;
     }
 
-    public Map<UUID, Set<UUID>> getFriends() {
-        return friends;
+    public Map<UUID, Set<UUID>> getSyncedPlayers() {
+        return syncedPlayers;
     }
 
     public Map<UUID, String> getLastKnownNames() {

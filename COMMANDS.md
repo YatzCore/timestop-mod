@@ -8,7 +8,7 @@ This document provides a comprehensive reference for all commands in the **Ultim
 
 The mod registers two primary command trees:
 1. **Administrative Engine Commands (`/timestop`)**: Require operator permissions (Permission Level 2). Used to manipulate world-level time dilation, configure server-wide watch policies, manage stasis exemptions, and inspect active engine states.
-2. **Chrono-Alliance & Party Commands (`/friend`, `/party`, or `/timestop friend`)**: Available to all players without operator permissions (Permission Level 0). Used in multiplayer to coordinate mutual stasis immunity within localized temporal fields.
+2. **Time Sync Commands (`/sync` or `/timesync`)**: Available to all players without operator permissions (Permission Level 0). Used in multiplayer to link players into a shared resonance network, granting mutual stasis immunity within localized temporal fields.
 
 ---
 
@@ -132,24 +132,24 @@ Outputs real-time diagnostics regarding the temporal engine state to chat.
 
 ---
 
-## 2. Chrono-Alliance & Party Commands (`/friend`, `/party`)
+## 2. Time Sync Commands (`/sync`, `/timesync`)
 
-These commands allow players in multiplayer survival to form alliances. Chrono-Allies and vanilla scoreboard teammates can freely move, attack, and shoot within each other's localized time spheres.
+These commands allow players in multiplayer survival to establish temporal resonance with each other. Active Resonators (and vanilla scoreboard teammates) can freely move, attack, and shoot within each other's localized time spheres without freezing.
 
-Available to all players (Permission Level 0). `/friend`, `/party`, and `/timestop friend` are functional aliases.
+Available to all players (Permission Level 0). `/sync`, `/timesync`, and `/timestop sync` are functional aliases.
 
 ### Command Reference Table
 
 | Syntax | Description |
 | :--- | :--- |
-| `/friend add <player>` | Sends an alliance invitation. Expires automatically after 60 seconds. |
-| `/friend <player>` | Shorthand alias for `/friend add <player>`. |
-| `/friend accept <player>` | Accepts a pending alliance invitation. Mutual immunity is established immediately. |
-| `/friend decline <player>` | Declines an incoming alliance invitation. |
-| `/friend remove <name>` | Removes an existing ally by username (supports tab-completion for online and offline players). |
-| `/friend list` | Displays active allies with online status and pending incoming requests with clickable action buttons. |
-| `/friend clear` | Dissolves all alliances for the executing player. |
-| `/friend help` | Displays the in-game command reference. |
+| `/sync add <player>` | Sends a Time Sync request. Expires automatically after 60 seconds. |
+| `/sync <player>` | Shorthand alias for `/sync add <player>`. |
+| `/sync accept <player>` | Accepts a pending Time Sync invitation. Mutual field resonance is established immediately. |
+| `/sync decline <player>` | Declines an incoming Time Sync invitation. |
+| `/sync remove <name>` | Disconnects an active Resonator by username (supports tab-completion for online and offline players). |
+| `/sync list` | Displays active Resonators with online status and pending incoming requests with clickable action buttons. |
+| `/sync clear` | Disconnects all active Resonators for the executing player. |
+| `/sync help` | Displays the in-game command reference. |
 
 ---
 
@@ -174,18 +174,18 @@ Available to all players (Permission Level 0). `/friend`, `/party`, and `/timest
 ### Tutorial 2: Cooperative Dungeon Raids & Boss Encounters
 **Goal**: Coordinate team combat during stasis without teammates freezing each other.
 
-1. Prior to entering the dungeon, party members establish mutual alliances:
+1. Prior to entering the dungeon, party members establish mutual resonance:
    ```mcfunction
-   /party add Teammate1
-   /party add Teammate2
+   /sync add Teammate1
+   /sync add Teammate2
    ```
 2. Teammate1 and Teammate2 accept via chat or by executing:
    ```mcfunction
-   /party accept LeaderName
+   /sync accept LeaderName
    ```
 3. When the party engages a dungeon boss, the leader activates `TIME_STOP`.
 4. Hostile mobs, falling hazards, and incoming projectiles freeze in mid-air.
-5. Because party members are registered Chrono-Allies, they remain fully mobile inside the sphere. Teammates can:
+5. Because party members are registered Resonators, they remain fully mobile inside the sphere. Teammates can:
    - Reposition behind vulnerable targets.
    - Left-click suspended arrows to redirect them back toward enemies.
    - Right-click suspended projectiles to pluck them into their inventory.

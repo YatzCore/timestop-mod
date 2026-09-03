@@ -62,10 +62,10 @@ The mod features a full command engine for both server administration and multip
 | `/timestop exempt <add\|remove> <players>` | Operator (Level 2) | Whitelists players from global time stop effects. |
 | `/timestop servermode <global\|bubble>` | Operator (Level 2) | Sets server policy for pocket watches (localized spheres vs server-wide). |
 | `/timestop status` | Operator (Level 2) | Outputs real-time temporal engine diagnostics and active bubble stats. |
-| `/friend add <player>` | All Players | Invites a player to become a Chrono-Ally (immune inside your time spheres). |
-| `/friend accept <player>` | All Players | Accepts an incoming alliance request. |
-| `/friend remove <name>` | All Players | Breaks an alliance with a player (online or offline). |
-| `/friend list` | All Players | Displays active Chrono-Allies and pending requests. |
+| `/sync add <player>` | All Players | Invites a player to establish Time Sync (immune inside your time spheres). |
+| `/sync accept <player>` | All Players | Accepts an incoming Time Sync invitation. |
+| `/sync remove <name>` | All Players | Disconnects an active Resonator (online or offline). |
+| `/sync list` | All Players | Displays active Resonators and pending invitations. |
 
 For full command documentation, subcommands, and tutorials, see [COMMANDS.md](COMMANDS.md).
 

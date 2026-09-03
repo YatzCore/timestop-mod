@@ -21,14 +21,14 @@ All notable changes to the **Ultimate Time Stop** mod are documented in this fil
 - **Memory Management & Lifecycle**:
   - Converted static entity registries (`TimeStopManager`, `TemporalDamageBuffer`, `TemporalKineticBlockManager`) to `WeakReference` with multi-dimension search.
   - Added disconnect and server stopping listeners to strip leftover Matrix speed modifiers, collapse abandoned bubbles, and clear static caches.
-  - Resolved Brigadier command collision on `/friend remove <name>` and enabled offline friend removal with tab-completion.
+  - **Time Sync & Resonators Overhaul**: Replaced the legacy friend/party system with the technical **Time Sync** system. Added `/sync` and `/timesync` commands with offline resonator disconnection and automatic migration of legacy saved data.
 
 ## [1.2.0] - 2026-09-01
 
 ### Added
 - **Localized Temporal Bubbles**: Pocket watches in survival now project localized spherical temporal fields scaled to their tier (Copper: 10m, Gilded: 16m, Diamond: 24m, Netherite: 32m, Creative: 100m or Server-wide).
 - **Multi-Bubble Concurrent Simulation**: Multiple players can independently activate and run temporal fields simultaneously across the server without performance degradation.
-- **Multiplayer Party and Chrono-Allies System**: Integrated `/friend` and `/party` commands with interactive chat invitations. Whitelisted allies and scoreboard teammates can freely move and act within active temporal fields.
+- **Multiplayer Time Sync and Resonators System**: Integrated `/sync` and `/timesync` commands with interactive chat invitations. Whitelisted Resonators and scoreboard teammates can freely move and act within active temporal fields.
 - **Citadel and Entity Animation Compatibility**: Full stasis compatibility with Citadel, Alex's Mobs, and Alex's Caves animated multipart entities.
 - **In-Game Settings Screen**: Added a configuration interface accessible via the watch menu to customize client and gameplay options.
 

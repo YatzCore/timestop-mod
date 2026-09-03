@@ -171,7 +171,7 @@ public class TemporalBubbleManager {
         UUID bubbleId = UUID.randomUUID();
         Vec3 center = player.position().add(0, player.getBbHeight() * 0.5, 0);
 
-        // Auto-whitelist teammates on vanilla scoreboard and Chrono-Allies
+        // Auto-whitelist teammates on vanilla scoreboard and Time Sync Resonators
         Set<UUID> exempt = new HashSet<>();
         if (player.getTeam() != null) {
             for (ServerPlayer other : level.getServer().getPlayerList().getPlayers()) {
@@ -180,7 +180,7 @@ public class TemporalBubbleManager {
                 }
             }
         }
-        exempt.addAll(com.timestop.friend.FriendManager.getFriends(player.getUUID()));
+        exempt.addAll(com.timestop.sync.SyncManager.getResonators(player.getUUID()));
 
         TemporalBubble bubble = new TemporalBubble(bubbleId, player.getUUID(), level.dimension(), center,
                 radius, mode, durationTicks, tier, watchItem, cooldown, exempt);

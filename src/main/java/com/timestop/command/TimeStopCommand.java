@@ -82,46 +82,44 @@ public class TimeStopCommand {
                 .then(Commands.literal("status")
                         .requires(source -> source.hasPermission(2))
                         .executes(ctx -> showStatus(ctx.getSource())))
-                // Chrono-Allies & Friends (Accessible to ALL players without OP)
-                .then(buildFriendSubtree("friend"))
-                .then(buildFriendSubtree("party"))
-                .then(buildFriendSubtree("ally"))
-                .then(buildFriendSubtree("allies"))
+                // Time Sync & Resonators (Accessible to ALL players without OP)
+                .then(buildSyncSubtree("sync"))
+                .then(buildSyncSubtree("timesync"))
         );
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> buildFriendSubtree(String name) {
+    private static LiteralArgumentBuilder<CommandSourceStack> buildSyncSubtree(String name) {
         return Commands.literal(name)
                 .then(Commands.literal("add")
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> FriendCommand.sendRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+                                .executes(ctx -> SyncCommand.sendRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("accept")
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> FriendCommand.acceptRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+                                .executes(ctx -> SyncCommand.acceptRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("decline")
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> FriendCommand.declineRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
+                                .executes(ctx -> SyncCommand.declineRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
                 .then(Commands.literal("remove")
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .suggests((ctx, builder) -> {
                                     ServerPlayer p = ctx.getSource().getPlayer();
                                     if (p != null) {
-                                        for (java.util.UUID u : com.timestop.friend.FriendManager.getFriends(p.getUUID())) {
-                                            builder.suggest(com.timestop.friend.FriendManager.getPlayerName(u));
+                                        for (java.util.UUID u : com.timestop.sync.SyncManager.getResonators(p.getUUID())) {
+                                            builder.suggest(com.timestop.sync.SyncManager.getPlayerName(u));
                                         }
                                     }
                                     return builder.buildFuture();
                                 })
-                                .executes(ctx -> FriendCommand.removeFriendByName(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                                .executes(ctx -> SyncCommand.removeSyncByName(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
                 .then(Commands.literal("list")
-                        .executes(ctx -> FriendCommand.listFriends(ctx.getSource())))
+                        .executes(ctx -> SyncCommand.listSync(ctx.getSource())))
                 .then(Commands.literal("clear")
-                        .executes(ctx -> FriendCommand.clearFriends(ctx.getSource())))
+                        .executes(ctx -> SyncCommand.clearSync(ctx.getSource())))
                 .then(Commands.literal("help")
-                        .executes(ctx -> FriendCommand.showHelp(ctx.getSource())))
+                        .executes(ctx -> SyncCommand.showHelp(ctx.getSource())))
                 .then(Commands.argument("player", EntityArgument.player())
-                        .executes(ctx -> FriendCommand.sendRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))
-                .executes(ctx -> FriendCommand.showHelp(ctx.getSource()));
+                        .executes(ctx -> SyncCommand.sendRequest(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))
+                .executes(ctx -> SyncCommand.showHelp(ctx.getSource()));
     }
 
     private static int startTimeStop(CommandSourceStack source, int durationTicks, com.timestop.core.TimeMode mode) {

@@ -309,8 +309,8 @@ public class TimeStopManager {
                 initiatorCooldownTicks = w.getTier().getCooldownTicks();
             }
 
-            // Whitelist teammates and Chrono-Allies
-            exemptPlayers.addAll(com.timestop.friend.FriendManager.getFriends(initiator.getUUID()));
+            // Whitelist teammates and Time Sync Resonators
+            exemptPlayers.addAll(com.timestop.sync.SyncManager.getResonators(initiator.getUUID()));
             if (initiator.getTeam() != null) {
                 for (ServerPlayer other : level.getServer().getPlayerList().getPlayers()) {
                     if (other.getTeam() != null && other.getTeam().isAlliedTo(initiator.getTeam())) {

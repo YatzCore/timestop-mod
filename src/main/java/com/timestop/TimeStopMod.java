@@ -73,13 +73,13 @@ public class TimeStopMod {
         @SubscribeEvent
         public static void onRegisterCommands(RegisterCommandsEvent event) {
             TimeStopCommand.register(event.getDispatcher());
-            com.timestop.command.FriendCommand.register(event.getDispatcher());
+            com.timestop.command.SyncCommand.register(event.getDispatcher());
         }
 
         @SubscribeEvent
         public static void onPlayerLoggedIn(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                com.timestop.friend.FriendManager.cachePlayerName(serverPlayer);
+                com.timestop.sync.SyncManager.cachePlayerName(serverPlayer);
                 com.timestop.core.TemporalBubbleManager.syncAllToPlayer(serverPlayer);
             }
         }
@@ -104,7 +104,7 @@ public class TimeStopMod {
 
         @SubscribeEvent
         public static void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent event) {
-            com.timestop.friend.FriendManager.resetCache();
+            com.timestop.sync.SyncManager.resetCache();
             com.timestop.combat.TemporalDamageBuffer.clearAll();
             com.timestop.combat.RuneManager.clearAllCooldowns();
             com.timestop.combat.TranspositionManager.clearAllCooldowns();
