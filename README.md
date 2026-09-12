@@ -35,10 +35,13 @@ Socketable into Tier 2–4 watches to grant unique powers:
 - **Rune of Chrono-Vampirism**: Siphons extra time from struck enemies, extending active duration.
 - **Rune of Volatile Stasis**: Infuses struck projectiles and falling blocks with delayed explosive blasts.
 - **Rune of the Tachyon**: Accelerates mining speed (3x) and attack recharge in Slow-Mo and Matrix.
-- **Rune of the Dead Eye**: Aim a bow or crossbow to paint up to 6 targets in slow motion, then release a supersonic arrow volley.
-- **Rune of Voltaic Ricochet**: Arrows fired in stasis ricochet between nearby targets like chain lightning.
+- **Rune of the Dead Eye**: Aim a bow, crossbow, or firearms to paint targets in slow motion, then release a supersonic volley.
+- **Rune of Voltaic Ricochet**: Arrows and bullets fired in stasis ricochet between nearby targets like chain lightning.
 - **Rune of Orbital Redirection**: Captures incoming projectiles into a spinning shield halo around you.
 - **Rune of Spatial Transposition**: Instantly swaps positions with any targeted entity or projectile.
+- **Rune of the Kinetic Barrier**: Hold Middle Click to freeze incoming bullets and projectiles in mid-air. Release to drop; attack to launch a return volley.
+- **Rune of Vector Control**: Dynamically redirects struck projectiles and kinetic barrier volleys along your crosshair aim.
+- **Rune of the Marksman (+RICOSHOT)** *(TACZ)*: Toss Chrono Coins into the air and shoot them with firearms to trigger lethal chained ricoshots. Earn coin charges via combat kills.
 
 ## Controls
 
@@ -48,6 +51,9 @@ Socketable into Tier 2–4 watches to grant unique powers:
 - **V**: Toggle the active mode on or off.
 - **R**: Release orbiting projectiles (with Orbital Rune).
 - **G**: Spatial Transposition swap (with Transposition Rune).
+- **Middle Click**: Hold Kinetic Barrier in mid-air (with Kinetic Barrier Rune).
+- **C**: Flip Chrono Coin into the air (with Marksman Rune & TACZ).
+- **K**: Toggle Projectile Flow / Suspended Stasis.
 
 ## Commands & Permissions
 
