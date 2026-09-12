@@ -102,16 +102,15 @@ public class TemporalBubbleManager {
     }
 
     public static boolean isPositionInStasis(ResourceKey<Level> dim, double px, double py, double pz) {
-        for (TemporalBubble b : activeBubbles.values()) {
-            if (b.getMode() == TimeMode.TIME_STOP && b.contains(dim, px, py, pz)) {
-                return true;
-            }
-        }
-        return false;
+        TemporalBubble dominant = getDominantBubble(dim, px, py, pz);
+        return dominant != null && dominant.getMode() == TimeMode.TIME_STOP;
     }
 
     public static boolean isEntityInStasis(Entity entity) {
         if (entity == null) return false;
+        if (entity instanceof net.minecraft.world.entity.projectile.Projectile p && TimeStopManager.isProjectileExempt(p)) {
+            return false;
+        }
         if (hasActiveBubbles()) {
             TemporalBubble dominant = getDominantBubble(entity.level().dimension(), entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
             if (dominant != null) {
@@ -152,13 +151,8 @@ public class TemporalBubbleManager {
         Item watchItem = null;
         int cooldown = 300;
 
-        ItemStack main = player.getMainHandItem();
-        ItemStack off = player.getOffhandItem();
-        if (main.getItem() instanceof AbstractWatchItem w) {
-            tier = w.getTier();
-            watchItem = w;
-            cooldown = w.getTier().getCooldownTicks();
-        } else if (off.getItem() instanceof AbstractWatchItem w) {
+        ItemStack watch = AbstractWatchItem.findActivationWatch(player);
+        if (watch.getItem() instanceof AbstractWatchItem w) {
             tier = w.getTier();
             watchItem = w;
             cooldown = w.getTier().getCooldownTicks();
@@ -208,7 +202,9 @@ public class TemporalBubbleManager {
     }
 
     public static void stopBubble(ServerLevel level, TemporalBubble bubble) {
-        activeBubbles.remove(bubble.getBubbleId());
+        if (activeBubbles.remove(bubble.getBubbleId()) == null) return;
+        ServerLevel bubbleLevel = level.getServer().getLevel(bubble.getDimension());
+        if (bubbleLevel != null) level = bubbleLevel;
         playerToBubble.remove(bubble.getOwnerUuid());
 
         // Discharge damage buffer, projectiles, and kinetic blocks within this bubble's domain
@@ -255,10 +251,34 @@ public class TemporalBubbleManager {
         return false;
     }
 
+    public static void changeBubbleMode(ServerLevel level, TemporalBubble bubble, TimeMode mode) {
+        TimeMode previous = bubble.getMode();
+        if (previous == mode) return;
+        bubble.setMode(mode);
+        ServerLevel bubbleLevel = level.getServer().getLevel(bubble.getDimension());
+        if (bubbleLevel != null) level = bubbleLevel;
+        if (previous == TimeMode.TIME_STOP) {
+            TemporalDamageBuffer.dischargeInArea(level, bubble.getCenter(), bubble.getRadius());
+            TimeStopManager.resumeProjectilesInArea(level, bubble.getCenter(), bubble.getRadius());
+            TemporalKineticBlockManager.dischargeInArea(level, bubble.getCenter(), bubble.getRadius());
+        }
+        ServerPlayer owner = level.getServer().getPlayerList().getPlayer(bubble.getOwnerUuid());
+        if (owner != null) {
+            if (previous == TimeMode.MATRIX) removeMatrixAttributes(owner);
+            if (mode == TimeMode.MATRIX) applyMatrixAttributes(owner);
+        }
+        syncBubbleToClients(bubble);
+    }
+
     public static void stopAllBubbles(ServerLevel level) {
         for (TemporalBubble b : new ArrayList<>(activeBubbles.values())) {
             stopBubble(level, b);
         }
+    }
+
+    public static void reset() {
+        activeBubbles.clear();
+        playerToBubble.clear();
     }
 
     public static boolean extendPlayerBubble(UUID playerUuid, int bonusTicks) {
@@ -351,8 +371,7 @@ public class TemporalBubbleManager {
                 UUID pUuid = entry.getKey();
                 net.minecraft.world.entity.projectile.Projectile p = entry.getValue();
                 if (p != null && p.isAlive() && p.level() instanceof ServerLevel sl) {
-                    TemporalBubble dominant = getDominantBubble(sl.dimension(), p.getX(), p.getY(), p.getZ());
-                    if (dominant == null || dominant.getMode() != TimeMode.TIME_STOP) {
+                    if (!isEntityInStasis(p)) {
                         TimeStopManager.resumeSingleProjectile(sl, p);
                     }
                 } else if (p != null && p.level() instanceof ServerLevel sl) {

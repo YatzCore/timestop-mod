@@ -83,26 +83,6 @@ public class ToggleTimeStopPacket {
     }
 
     private static ItemStack findBestWatch(ServerPlayer player) {
-        // Priority 1: Main Hand
-        if (player.getMainHandItem().getItem() instanceof AbstractWatchItem) {
-            return player.getMainHandItem();
-        }
-        // Priority 2: Off-Hand
-        if (player.getOffhandItem().getItem() instanceof AbstractWatchItem) {
-            return player.getOffhandItem();
-        }
-        // Priority 3: Search Inventory for highest tier watch
-        ItemStack best = ItemStack.EMPTY;
-        int bestTier = -1;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() instanceof AbstractWatchItem watch) {
-                if (watch.getTier().getTierLevel() > bestTier) {
-                    best = stack;
-                    bestTier = watch.getTier().getTierLevel();
-                }
-            }
-        }
-        return best;
+        return AbstractWatchItem.findActivationWatch(player);
     }
 }

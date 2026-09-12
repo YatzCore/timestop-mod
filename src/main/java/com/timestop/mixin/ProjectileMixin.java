@@ -25,6 +25,9 @@ public abstract class ProjectileMixin {
                 ci.cancel();
                 return;
             }
+            if (com.timestop.core.ClientTimeStopManager.isEntityExempt(projectile)) {
+                return;
+            }
             if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
                 if (com.timestop.core.ClientBubbleManager.isPositionInStasis(projectile.position())) {
                     ci.cancel();
@@ -40,6 +43,13 @@ public abstract class ProjectileMixin {
         // Complete suspended stasis while captured in orbit
         if (projectile.getPersistentData().getBoolean("InStasisOrbit")) {
             ci.cancel();
+            return;
+        }
+
+        if (TimeStopManager.isProjectileExempt(projectile)) {
+            if (TimeStopManager.isProjectileSuspended(projectile) && level instanceof net.minecraft.server.level.ServerLevel sl) {
+                TimeStopManager.resumeSingleProjectile(sl, projectile);
+            }
             return;
         }
 

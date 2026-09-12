@@ -29,8 +29,10 @@ public class TachyonRuneHandler {
             TimeMode mode = ClientTimeStopManager.getCurrentMode();
             return mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX;
         } else {
-            if (!TimeStopManager.isGlobalTimeStopped()) return false;
-            TimeMode mode = TimeStopManager.getCurrentMode();
+            com.timestop.core.TemporalBubble bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(
+                    player.level().dimension(), player.position());
+            if (!TimeStopManager.isGlobalTimeStopActive() && bubble == null) return false;
+            TimeMode mode = TimeStopManager.isGlobalTimeStopActive() ? TimeStopManager.getCurrentMode() : bubble.getMode();
             return mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX;
         }
     }

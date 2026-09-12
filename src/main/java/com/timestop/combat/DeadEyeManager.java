@@ -54,11 +54,16 @@ public class DeadEyeManager {
         public final ServerPlayer player;
         public final DeadEyeTag tag;
         public int delayTicks;
+        public int retries;
+        public final ItemStack weapon;
+        public final net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension;
 
         public ScheduledVolleyShot(ServerPlayer player, DeadEyeTag tag, int delayTicks) {
             this.player = player;
             this.tag = tag;
             this.delayTicks = delayTicks;
+            this.weapon = isRangedWeapon(player.getMainHandItem()) ? player.getMainHandItem() : player.getOffhandItem();
+            this.dimension = player.level().dimension();
         }
     }
 
@@ -70,7 +75,27 @@ public class DeadEyeManager {
     }
 
     public static boolean isRangedWeapon(ItemStack stack) {
-        return stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem;
+        if (stack.isEmpty()) return false;
+        if (stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem) {
+            return true;
+        }
+        return isGun(stack);
+    }
+
+    public static boolean isGun(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String name = stack.getItem().getClass().getName().toLowerCase();
+        if (name.startsWith("com.tacz.")) return TaczDeadEyeCompat.isGun(stack);
+        if (name.contains("gun") || name.contains("tacz") || name.contains("firearm")) {
+            return true;
+        }
+        var key = net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(stack.getItem());
+        if (key != null) {
+            String id = key.toString().toLowerCase();
+            return id.contains("gun") || id.contains("rifle") || id.contains("pistol")
+                    || id.contains("shotgun") || id.contains("smg") || id.contains("revolver") || id.contains("sniper");
+        }
+        return false;
     }
 
     // ==========================================
@@ -80,6 +105,7 @@ public class DeadEyeManager {
     public static final net.minecraft.resources.ResourceLocation SEPIA_SHADER = new net.minecraft.resources.ResourceLocation("timestop", "shaders/post/sepia.json");
     private static boolean deadEyeShaderActive = false;
 
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     public static void applyDeadEyeShader() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null && !deadEyeShaderActive) {
@@ -91,6 +117,7 @@ public class DeadEyeManager {
         }
     }
 
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     public static void removeDeadEyeShader() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null && deadEyeShaderActive) {
@@ -105,16 +132,22 @@ public class DeadEyeManager {
         }
     }
 
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     public static void clientTick(Minecraft mc) {
         if (mc.player == null || mc.level == null) {
             if (clientAiming) stopClientAiming(false);
             return;
         }
 
-        ItemStack useItem = mc.player.getUseItem();
-        boolean isDrawing = mc.player.isUsingItem() && isRangedWeapon(useItem) && hasDeadEyeRune(mc.player);
+        boolean isDrawing = isAimingRanged(mc);
 
         if (isDrawing) {
+            // If player pulls the trigger to shoot faster than slow-mo ends, execute tags immediately and exit!
+            if (clientAiming && mc.options.keyAttack.isDown()) {
+                stopClientAiming(true);
+                return;
+            }
+
             if (!clientAiming) {
                 // Enter Dead Eye
                 clientAiming = true;
@@ -146,6 +179,30 @@ public class DeadEyeManager {
         }
     }
 
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
+    private static boolean isAimingRanged(Minecraft mc) {
+        if (mc.player == null) return false;
+        if (!hasDeadEyeRune(mc.player)) return false;
+
+        // 1. Vanilla bow / crossbow item usage:
+        if (mc.player.isUsingItem()) {
+            ItemStack useItem = mc.player.getUseItem();
+            if (useItem.getItem() instanceof BowItem || useItem.getItem() instanceof CrossbowItem) {
+                return true;
+            }
+        }
+
+        // 2. Modern firearm / gun aiming (Right-Click held while holding gun in main or off hand):
+        ItemStack main = mc.player.getMainHandItem();
+        ItemStack off = mc.player.getOffhandItem();
+        if (isGun(main) || isGun(off)) {
+            return mc.options.keyUse.isDown();
+        }
+
+        return false;
+    }
+
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     private static void stopClientAiming(boolean executeIfTagged) {
         clientAiming = false;
         removeDeadEyeShader();
@@ -157,6 +214,7 @@ public class DeadEyeManager {
         clientTags.clear();
     }
 
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     private static void paintTargetUnderCrosshair(Minecraft mc, int maxAllowed) {
         if (clientTags.size() >= maxAllowed) return;
 
@@ -219,6 +277,8 @@ public class DeadEyeManager {
                 TimeStopManager.startTimeStop(level, player, 160, TimeMode.SLOW_MOTION);
             }
         } else {
+            // STOP SLOW MOTION: collapse localized bubble and resume global stasis immediately!
+            com.timestop.core.TemporalBubbleManager.stopPlayerBubble(level, player.getUUID());
             if (TimeStopManager.isTimeStopped(level) && TimeStopManager.getCurrentMode() == TimeMode.SLOW_MOTION) {
                 if (player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
                     TimeStopManager.resumeTime(level);
@@ -232,16 +292,19 @@ public class DeadEyeManager {
         if (!hasDeadEyeRune(player)) return;
         ServerLevel level = player.serverLevel();
 
-        // Resume normal time speed only if this player initiated slow motion
+        // Immediately collapse the slow-mo bubble and resume time as soon as you shoot!
+        com.timestop.core.TemporalBubbleManager.stopPlayerBubble(level, player.getUUID());
         if (TimeStopManager.isTimeStopped(level) && player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
             TimeStopManager.resumeTime(level);
         }
 
+        activeScheduledShots.removeIf(shot -> shot.player.getUUID().equals(player.getUUID()));
+        boolean isGunWeapon = isGun(player.getMainHandItem()) || isGun(player.getOffhandItem());
         int delay = 0;
         int count = Math.min(tags.size(), MAX_TAGS);
         for (int i = 0; i < count; i++) {
             activeScheduledShots.add(new ScheduledVolleyShot(player, tags.get(i), delay));
-            delay += 6; // 6 ticks = 300ms realistic rapid-fire bow cadence
+            delay += isGunWeapon ? 3 : 6; // 3 ticks (150ms) rapid fanning for guns; 6 ticks for bows
         }
     }
 
@@ -251,16 +314,27 @@ public class DeadEyeManager {
 
         // 1. Process queued volley shots
         if (!activeScheduledShots.isEmpty()) {
+            java.util.Set<java.util.UUID> waiting = new java.util.HashSet<>();
             Iterator<ScheduledVolleyShot> it = activeScheduledShots.iterator();
             while (it.hasNext()) {
                 ScheduledVolleyShot shot = it.next();
+                if (!shot.player.isAlive() || shot.player.hasDisconnected() || !hasDeadEyeRune(shot.player)
+                        || !shot.player.level().dimension().equals(shot.dimension)
+                        || (shot.weapon != shot.player.getMainHandItem() && shot.weapon != shot.player.getOffhandItem())) {
+                    activeScheduledShots.remove(shot);
+                    continue;
+                }
+                if (waiting.contains(shot.player.getUUID())) continue;
                 if (shot.delayTicks > 0) {
                     shot.delayTicks--;
                     continue;
                 }
 
-                fireVolleyArrow(shot.player, shot.tag);
-                activeScheduledShots.remove(shot);
+                if (fireVolleyShot(shot.player, shot.tag) && ++shot.retries < 100) {
+                    waiting.add(shot.player.getUUID());
+                } else {
+                    activeScheduledShots.remove(shot);
+                }
             }
         }
 
@@ -288,8 +362,9 @@ public class DeadEyeManager {
                         Vec3 toTarget = targetCoord.subtract(arrow.position()).normalize();
 
                         // Precision trajectory guidance
+                        double bulletSpeed = 3.8;
                         Vec3 currentVel = arrow.getDeltaMovement();
-                        Vec3 guidedVel = currentVel.normalize().scale(0.82).add(toTarget.scale(0.18)).normalize().scale(3.8);
+                        Vec3 guidedVel = currentVel.normalize().scale(0.78).add(toTarget.scale(0.22)).normalize().scale(bulletSpeed);
                         arrow.setDeltaMovement(guidedVel);
                         arrow.hasImpulse = true;
                         guided = true;
@@ -304,17 +379,20 @@ public class DeadEyeManager {
         }
     }
 
-    private static void fireVolleyArrow(ServerPlayer player, DeadEyeTag tag) {
-        if (!player.isAlive()) return;
+    private static boolean fireVolleyShot(ServerPlayer player, DeadEyeTag tag) {
+        if (!player.isAlive()) return false;
         ServerLevel level = player.serverLevel();
 
-        // Check arrow availability in inventory (bypassed if Infinity enchant or Creative)
-        boolean hasInfinity = hasInfinityOrCreative(player);
-        if (!hasInfinity) {
-            if (!consumeArrow(player)) {
-                return; // Out of ammo
-            }
+        boolean isGunWeapon = isGun(player.getMainHandItem()) || isGun(player.getOffhandItem());
+
+        if (isGunWeapon) {
+            Entity target = level.getEntity(tag.entityId);
+            if (!(target instanceof LivingEntity living) || !living.isAlive()
+                    || player.distanceToSqr(living) > 48 * 48) return false;
+            // Never substitute arrows for a gun, including when TACZ rejects firing.
+            return TaczDeadEyeCompat.fire(player, living, tag.isHead) == TaczDeadEyeCompat.Result.RETRY;
         }
+        if (!hasInfinityOrCreative(player) && !consumeArrow(player)) return false;
 
         Vec3 eyePos = player.getEyePosition();
         Vec3 targetPos = tag.targetPos;
@@ -337,10 +415,12 @@ public class DeadEyeManager {
 
         Arrow arrow = new Arrow(level, player);
         arrow.setPos(eyePos.x, eyePos.y - 0.05, eyePos.z);
-        arrow.shoot(dir.x, dir.y, dir.z, 3.8F, 0.0F); // Sets rotation, pitch/yaw, and exact velocity vector
+        float projectileSpeed = 3.8F;
+        arrow.shoot(dir.x, dir.y, dir.z, projectileSpeed, 0.0F); // Sets rotation, pitch/yaw, and exact velocity vector
         arrow.setNoGravity(true); // Zero gravity drop prevents arrows from sinking into dirt!
         arrow.setCritArrow(true);
-        arrow.setBaseDamage(arrow.getBaseDamage() + (tag.isHead ? 8.0 : 4.0));
+        double extraDmg = tag.isHead ? 8.0 : 4.0;
+        arrow.setBaseDamage(arrow.getBaseDamage() + extraDmg);
         arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
         arrow.getPersistentData().putBoolean("DeadEyeArrow", true);
 
@@ -367,6 +447,7 @@ public class DeadEyeManager {
                 10, dir.x * 0.4, dir.y * 0.4, dir.z * 0.4, 0.15);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, eyePos.x, eyePos.y, eyePos.z,
                 6, dir.x * 0.3, dir.y * 0.3, dir.z * 0.3, 0.1);
+        return false;
     }
 
     public static boolean hasInfinityOrCreative(Player player) {
@@ -390,6 +471,9 @@ public class DeadEyeManager {
 
     public static int getAvailableArrowCount(Player player) {
         if (player == null) return 0;
+        if (isGun(player.getMainHandItem()) || isGun(player.getOffhandItem())) {
+            return MAX_TAGS;
+        }
         if (hasInfinityOrCreative(player)) return MAX_TAGS;
 
         int totalArrows = 0;

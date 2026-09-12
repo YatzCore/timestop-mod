@@ -14,6 +14,25 @@ public abstract class ClientLevelMixin {
 
     @Inject(method = "tickNonPassenger", at = @At("HEAD"), cancellable = true)
     private void onTickNonPassenger(Entity entity, CallbackInfo ci) {
+        if (entity.getPersistentData().getBoolean("KineticPalmCaptured")) {
+            entity.setOldPosAndRot();
+            var data = entity.getPersistentData();
+            var target = new net.minecraft.world.phys.Vec3(data.getDouble("NeoTargetX"),
+                    data.getDouble("NeoTargetY"), data.getDouble("NeoTargetZ"));
+            entity.setPos(entity.position().lerp(target, 0.65));
+            entity.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            data.putInt("NeoWakeAge", data.getInt("NeoWakeAge") + 1);
+            ci.cancel();
+            return;
+        }
+        if (entity instanceof net.minecraft.world.entity.projectile.Projectile
+                && (entity.getPersistentData().getBoolean("KineticPalmCaptured")
+                    || com.timestop.client.ClientOrbitalHandler.isOrbiting(entity.getId()))) {
+            entity.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            entity.setOldPosAndRot();
+            ci.cancel();
+            return;
+        }
         if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
             com.timestop.core.ClientBubbleManager.ClientBubble bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
             if (bubble != null) {
@@ -69,14 +88,6 @@ public abstract class ClientLevelMixin {
             return;
         }
 
-        // In FAST_FORWARD (100 TPS), rate-limit daylight cycle to normal 20 TPS so the sun doesn't fly across the sky
-        if (ClientTimeStopManager.getClientTickMs() < 50.0F) {
-            int ratio = Math.max(1, Math.round(50.0F / ClientTimeStopManager.getClientTickMs()));
-            net.minecraft.client.multiplayer.ClientLevel level = (net.minecraft.client.multiplayer.ClientLevel) (Object) this;
-            if (level.getGameTime() % ratio != 0) {
-                ci.cancel();
-            }
-        }
     }
 
     @Inject(method = "animateTick", at = @At("HEAD"), cancellable = true)

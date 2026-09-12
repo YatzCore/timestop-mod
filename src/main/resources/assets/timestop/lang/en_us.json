@@ -16,9 +16,17 @@
   "item.timestop.rune_ricochet": "Rune of Voltaic Ricochet",
   "item.timestop.rune_orbital": "Rune of Orbital Redirection",
   "item.timestop.rune_transposition": "Rune of Spatial Transposition",
+  "item.timestop.rune_barrier": "Rune of the Kinetic Barrier",
+  "item.timestop.rune_coin": "Rune of the Marksman (+RICOSHOT)",
+  "item.timestop.chrono_coin": "Chrono Coin",
+  "entity.timestop.chrono_coin": "Chrono Coin",
   "itemGroup.timestop_tab": "Ultimate Time Stop",
   "key.timestop.toggle": "Toggle Time Stop",
   "key.timestop.release_projectiles": "Release Orbiting Projectiles",
   "key.timestop.transposition": "Spatial Transposition (Boogie Woogie)",
-  "key.categories.timestop": "Ultimate Time Stop"
+  "key.timestop.flip_coin": "Flip Chrono Coin (+RICOSHOT)",
+  "key.timestop.toggle_projectile_flow": "Toggle Projectile Flow / Suspended Stasis",
+  "key.timestop.kinetic_barrier": "Hold Kinetic Barrier (Neo's Palm)",
+  "key.categories.timestop": "Ultimate Time Stop",
+  "item.timestop.rune_vector": "Rune of Vector Control"
 }

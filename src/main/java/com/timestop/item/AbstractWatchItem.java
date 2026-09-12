@@ -32,6 +32,22 @@ public abstract class AbstractWatchItem extends Item {
         return tier;
     }
 
+    public static ItemStack findActivationWatch(@Nullable Player player) {
+        if (player == null) return ItemStack.EMPTY;
+        if (player.getMainHandItem().getItem() instanceof AbstractWatchItem) return player.getMainHandItem();
+        if (player.getOffhandItem().getItem() instanceof AbstractWatchItem) return player.getOffhandItem();
+        ItemStack best = ItemStack.EMPTY;
+        int bestTier = -1;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier().getTierLevel() > bestTier) {
+                best = stack;
+                bestTier = watch.getTier().getTierLevel();
+            }
+        }
+        return best;
+    }
+
     public static TimeMode getMode(ItemStack stack) {
         if (stack.getItem() instanceof AbstractWatchItem watch) {
             if (stack.hasTag() && stack.getTag().contains("TimeMode")) {

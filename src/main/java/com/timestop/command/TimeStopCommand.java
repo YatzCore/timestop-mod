@@ -71,10 +71,20 @@ public class TimeStopCommand {
                                 .executes(ctx -> setServerMode(ctx.getSource(), false))))
                 .then(Commands.literal("scope")
                         .requires(source -> source.hasPermission(2))
-                        .then(Commands.literal("global")
-                                .executes(ctx -> setServerMode(ctx.getSource(), true)))
-                        .then(Commands.literal("bubble")
-                                .executes(ctx -> setServerMode(ctx.getSource(), false))))
+                        .executes(ctx -> showStatus(ctx.getSource()))
+                        .then(Commands.literal("global").executes(ctx -> setServerMode(ctx.getSource(), true)))
+                        .then(Commands.literal("sphere").executes(ctx -> setServerMode(ctx.getSource(), false)))
+                        .then(Commands.literal("bubble").executes(ctx -> setServerMode(ctx.getSource(), false)))
+                        .then(Commands.literal("watch").executes(ctx -> {
+                            com.timestop.core.TimeStopSavedData.get().setWatchScope(com.timestop.core.TimeStopSavedData.WatchScope.WATCH);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Watch scope follows each watch's own setting on its next activation."), true);
+                            return 1;
+                        })))
+                .then(Commands.literal("redirect")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> showStatus(ctx.getSource()))
+                        .then(Commands.literal("look").executes(ctx -> setRedirection(ctx.getSource(), true)))
+                        .then(Commands.literal("return").executes(ctx -> setRedirection(ctx.getSource(), false))))
                 .then(Commands.literal("globalmode")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("enabled", com.mojang.brigadier.arguments.BoolArgumentType.bool())
@@ -189,15 +199,24 @@ public class TimeStopCommand {
     private static int setServerMode(CommandSourceStack source, boolean global) {
         TimeStopManager.setServerForceGlobalMode(global);
         if (global) {
-            source.sendSuccess(() -> Component.literal("§6[TimeStop] Server-wide mode updated: §aGLOBAL (Full Server)§6. All Chronos Watches will now affect the entire server!"), true);
+            source.sendSuccess(() -> Component.literal("§6[TimeStop] Server-wide mode updated: §aGLOBAL (Full Server)§6. All watches affect the entire server on their next activation!"), true);
         } else {
-            source.sendSuccess(() -> Component.literal("§6[TimeStop] Server-wide mode updated: §bBUBBLE (Localized)§6. Chronos Watches will produce localized temporal spheres."), true);
+            source.sendSuccess(() -> Component.literal("§6[TimeStop] Server-wide mode updated: §bBUBBLE (Localized)§6. All watches produce localized spheres on their next activation, including watches set to global."), true);
         }
         return 1;
     }
 
+    private static int setRedirection(CommandSourceStack source, boolean look) {
+        com.timestop.core.TimeStopSavedData.get().setRedirectToLook(look);
+        source.sendSuccess(() -> Component.literal(look
+                ? "Projectile redirection: LOOK. New deflections and shield volleys follow your aim."
+                : "Projectile redirection: RETURN. Shots return to the sender; Vector Control runes override this."), true);
+        return 1;
+    }
+
     private static int showStatus(CommandSourceStack source) {
-        source.sendSuccess(() -> Component.literal("§6Server Watch Mode: " + (TimeStopManager.isServerForceGlobalMode() ? "§aGLOBAL (Full Server)" : "§bBUBBLE (Localized Spheres)")), false);
+        source.sendSuccess(() -> Component.literal("Watch scope: " + com.timestop.core.TimeStopSavedData.get().getWatchScope()
+                + "; projectile redirection: " + (com.timestop.core.TimeStopSavedData.get().isRedirectToLook() ? "LOOK" : "RETURN")), false);
 
         if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
             int count = com.timestop.core.TemporalBubbleManager.getActiveBubbles().size();

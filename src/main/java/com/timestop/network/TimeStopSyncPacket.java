@@ -19,13 +19,17 @@ public class TimeStopSyncPacket {
     private final UUID initiator;
     private final TimeMode mode;
     private final Set<UUID> exemptPlayers;
+    private final com.timestop.core.TimeStopManager.ProjectileStasisMode projectileMode;
+    private final boolean allowPlayerProjectiles;
 
     public TimeStopSyncPacket(boolean active, int duration, @Nullable UUID initiator, TimeMode mode, Set<UUID> exemptPlayers) {
         this.active = active;
         this.duration = duration;
         this.initiator = initiator;
         this.mode = mode;
-        this.exemptPlayers = exemptPlayers != null ? exemptPlayers : Collections.emptySet();
+        this.exemptPlayers = exemptPlayers != null ? new HashSet<>(exemptPlayers) : Collections.emptySet();
+        this.projectileMode = com.timestop.core.TimeStopManager.getProjectileStasisMode();
+        this.allowPlayerProjectiles = com.timestop.config.TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get();
     }
 
     public TimeStopSyncPacket(boolean active, int duration, @Nullable UUID initiator, TimeMode mode) {
@@ -47,6 +51,8 @@ public class TimeStopSyncPacket {
             exempt.add(buf.readUUID());
         }
         this.exemptPlayers = exempt;
+        this.projectileMode = buf.readEnum(com.timestop.core.TimeStopManager.ProjectileStasisMode.class);
+        this.allowPlayerProjectiles = buf.readBoolean();
     }
 
     public void toBytes(FriendlyByteBuf buf) {
@@ -61,12 +67,15 @@ public class TimeStopSyncPacket {
         for (UUID uuid : exemptPlayers) {
             buf.writeUUID(uuid);
         }
+        buf.writeEnum(projectileMode);
+        buf.writeBoolean(allowPlayerProjectiles);
     }
 
     public boolean handle(Supplier<NetworkEvent.Context> supplier) {
         NetworkEvent.Context context = supplier.get();
         context.enqueueWork(() -> {
             ClientTimeStopManager.handleSync(active, duration, initiator, mode, exemptPlayers);
+            ClientTimeStopManager.setProjectileFlow(projectileMode, allowPlayerProjectiles);
         });
         return true;
     }

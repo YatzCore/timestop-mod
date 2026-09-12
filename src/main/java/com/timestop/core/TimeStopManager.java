@@ -52,6 +52,7 @@ public class TimeStopManager {
         public Vec3 direction = Vec3.ZERO;
         public int hitCount = 0;
         public double totalDamageBonus = 0.0;
+        public boolean originalNoGravity;
         @Nullable
         public UUID originalShooterUuid = null;
         @Nullable
@@ -70,7 +71,9 @@ public class TimeStopManager {
         }
 
         public void addPunch(Projectile projectile, Player player) {
-            if (this.hitCount == 0) {
+            if (com.timestop.combat.ProjectileRedirection.usesLook(player)) {
+                this.direction = player.getLookAngle().normalize();
+            } else if (this.hitCount == 0) {
                 // 1st time hit: lock return trajectory towards original shooter!
                 Level level = projectile.level();
                 Entity shooter = null;
@@ -100,6 +103,7 @@ public class TimeStopManager {
         }
 
         public Vec3 getDischargeVelocity() {
+            if (hitCount == 0) return originalVelocity;
             double initialSpeed = Math.max(1.8, this.originalVelocity.length());
             // Each punch increases exit speed by +40%
             double multiplier = 1.0 + (this.hitCount * 0.40);
@@ -150,7 +154,7 @@ public class TimeStopManager {
     }
 
     public static void setSuperhotTickMs(long ms) {
-        superhotTickMs = Math.max(50L, Math.min(500L, ms));
+        superhotTickMs = Math.max(50L, Math.min(1200L, ms));
     }
 
     /**
@@ -175,7 +179,53 @@ public class TimeStopManager {
         return 50L;
     }
 
+    public enum ProjectileStasisMode {
+        FLOWING,
+        SUSPENDED
+    }
+
+    private static ProjectileStasisMode projectileStasisMode = ProjectileStasisMode.FLOWING;
+
+    public static ProjectileStasisMode getProjectileStasisMode() {
+        net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            return TimeStopSavedData.get().getProjectileStasisMode();
+        }
+        return ClientTimeStopManager.getProjectileMode();
+    }
+
+    public static void setProjectileStasisMode(ProjectileStasisMode mode) {
+        projectileStasisMode = mode;
+        net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            TimeStopSavedData.get().setProjectileStasisMode(mode);
+        }
+        syncLegacyState();
+    }
+
+    public static boolean isProjectileExempt(Projectile projectile) {
+        if (!com.timestop.config.TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get()) {
+            return false;
+        }
+        if (getProjectileStasisMode() != ProjectileStasisMode.FLOWING) {
+            return false;
+        }
+        if (!timeStopped && TemporalBubbleManager.hasActiveBubbles()) {
+            TemporalBubble bubble = TemporalBubbleManager.getDominantBubble(projectile.level().dimension(),
+                    projectile.getX(), projectile.getY() + projectile.getBbHeight() * 0.5, projectile.getZ());
+            return bubble == null || bubble.canEntityAct(projectile);
+        }
+        Entity owner = projectile.getOwner();
+        if (owner instanceof Player player) {
+            return isEntityExempt(player);
+        }
+        return false;
+    }
+
     public static boolean isEntityExempt(Entity entity) {
+        if (entity instanceof Projectile p && isProjectileExempt(p)) {
+            return true;
+        }
         if (timeStopped) {
             // Global time stop is active across the server!
             if (entity instanceof Player player) {
@@ -212,7 +262,22 @@ public class TimeStopManager {
     }
 
     public static void setMode(TimeMode mode) {
+        TimeMode previous = currentMode;
         currentMode = mode;
+        ServerLevel level = activeServerLevel.get();
+        if (timeStopped && level != null && previous != mode) {
+            if (previous == TimeMode.TIME_STOP) {
+                TemporalDamageBuffer.dischargeAll(level);
+                resumeProjectiles(level);
+                TemporalKineticBlockManager.dischargeAll(level);
+            }
+            ServerPlayer initiator = initiatorUuid == null ? null : level.getServer().getPlayerList().getPlayer(initiatorUuid);
+            if (initiator != null) {
+                if (previous == TimeMode.MATRIX) removeMatrixAttributes(initiator);
+                if (mode == TimeMode.MATRIX) applyMatrixAttributes(initiator);
+            }
+            superhotTickMs = 500L;
+        }
         syncLegacyState();
     }
 
@@ -245,16 +310,16 @@ public class TimeStopManager {
     }
 
     public static boolean isWatchConfiguredGlobal(@Nullable Player player) {
-        if (player == null) return false;
-        net.minecraft.world.item.ItemStack main = player.getMainHandItem();
-        net.minecraft.world.item.ItemStack off = player.getOffhandItem();
-        if (main.getItem() instanceof com.timestop.item.AbstractWatchItem) {
-            return com.timestop.item.AbstractWatchItem.isGlobalScope(main);
-        }
-        if (off.getItem() instanceof com.timestop.item.AbstractWatchItem) {
-            return com.timestop.item.AbstractWatchItem.isGlobalScope(off);
-        }
-        return false;
+        return com.timestop.item.AbstractWatchItem.isGlobalScope(
+                com.timestop.item.AbstractWatchItem.findActivationWatch(player));
+    }
+
+    public static boolean usesGlobalWatchScope(Player player) {
+        return switch (TimeStopSavedData.get().getWatchScope()) {
+            case GLOBAL -> true;
+            case SPHERE -> false;
+            case WATCH -> isWatchConfiguredGlobal(player);
+        };
     }
 
     public static void startTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks, TimeMode mode) {
@@ -265,7 +330,7 @@ public class TimeStopManager {
             }
         }
 
-        if (initiator != null && !isServerForceGlobalMode() && !isWatchConfiguredGlobal(initiator)) {
+        if (initiator != null && !usesGlobalWatchScope(initiator)) {
             if (timeStopped) {
                 initiator.displayClientMessage(Component.literal("Cannot spawn localized bubbles while global server stasis is active!").withStyle(ChatFormatting.RED), true);
                 return;
@@ -282,6 +347,7 @@ public class TimeStopManager {
             if (initiator != null && !initiator.isCreative() && !initiator.hasPermissions(2) && (initiatorUuid == null || !initiatorUuid.equals(initiator.getUUID()))) {
                 return;
             }
+            resumeTime(level);
         }
 
         // Collapse all localized bubbles because global server time stop takes absolute precedence!
@@ -299,12 +365,8 @@ public class TimeStopManager {
         exemptPlayers.clear();
 
         if (initiator != null) {
-            net.minecraft.world.item.ItemStack main = initiator.getMainHandItem();
-            net.minecraft.world.item.ItemStack off = initiator.getOffhandItem();
-            if (main.getItem() instanceof com.timestop.item.AbstractWatchItem w) {
-                initiatorWatchItem = w;
-                initiatorCooldownTicks = w.getTier().getCooldownTicks();
-            } else if (off.getItem() instanceof com.timestop.item.AbstractWatchItem w) {
+            net.minecraft.world.item.ItemStack watch = com.timestop.item.AbstractWatchItem.findActivationWatch(initiator);
+            if (watch.getItem() instanceof com.timestop.item.AbstractWatchItem w) {
                 initiatorWatchItem = w;
                 initiatorCooldownTicks = w.getTier().getCooldownTicks();
             }
@@ -450,6 +512,8 @@ public class TimeStopManager {
 
         initiatorUuid = null;
         currentMode = TimeMode.TIME_STOP;
+        initiatorWatchItem = null;
+        exemptPlayers.clear();
 
         // Broadcast to all clients
         ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP, Collections.emptySet()));
@@ -495,6 +559,23 @@ public class TimeStopManager {
         }
     }
 
+    public static void reset() {
+        timeStopped = false;
+        remainingTicks = 0;
+        totalDuration = 0;
+        accumulatedVampirismBonus = 0;
+        initiatorUuid = null;
+        initiatorWatchItem = null;
+        initiatorCooldownTicks = 300;
+        currentMode = TimeMode.TIME_STOP;
+        superhotTickMs = 500L;
+        projectileStasisMode = ProjectileStasisMode.FLOWING;
+        exemptPlayers.clear();
+        projectileData.clear();
+        projectileEntities.clear();
+        activeServerLevel = new java.lang.ref.WeakReference<>(null);
+    }
+
     private static void applyMatrixAttributes(Player player) {
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null && !speed.hasModifier(MATRIX_SPEED_MOD)) {
@@ -529,8 +610,9 @@ public class TimeStopManager {
 
     public static int punchSuspendedProjectile(Projectile projectile, Player player) {
         ProjectileKineticData data = projectileData.computeIfAbsent(projectile.getUUID(),
-                k -> new ProjectileKineticData(projectile.getDeltaMovement(), projectile.getOwner()));
+                k -> createProjectileData(projectile, projectile.getDeltaMovement()));
         data.addPunch(projectile, player);
+        com.timestop.combat.ProjectileRedirection.clearGuidance(projectile);
         projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
 
         com.timestop.item.rune.RuneType rune = com.timestop.combat.RuneManager.getSocketedRuneType(player);
@@ -610,15 +692,9 @@ public class TimeStopManager {
     }
 
     public static void deflectDynamicProjectile(Projectile projectile, Player player) {
-        Entity shooter = projectile.getOwner();
-        Vec3 returnDir;
-        if (shooter != null && shooter.isAlive()) {
-            returnDir = shooter.getEyePosition().subtract(projectile.position()).normalize();
-        } else if (projectile.getDeltaMovement().lengthSqr() > 1e-5) {
-            returnDir = projectile.getDeltaMovement().reverse().normalize();
-        } else {
-            returnDir = player.getLookAngle().normalize();
-        }
+        Vec3 returnDir = com.timestop.combat.ProjectileRedirection.direction(projectile, player,
+                projectile.getOwner(), projectile.getDeltaMovement());
+        com.timestop.combat.ProjectileRedirection.clearGuidance(projectile);
 
         double speed = Math.max(1.8, projectile.getDeltaMovement().length() * 1.35);
         projectile.setDeltaMovement(returnDir.scale(speed));
@@ -658,7 +734,8 @@ public class TimeStopManager {
 
     public static void redirectProjectile(Projectile projectile, Vec3 newVelocity, @Nullable Player player) {
         ProjectileKineticData data = projectileData.computeIfAbsent(projectile.getUUID(),
-                k -> new ProjectileKineticData(newVelocity, player));
+                k -> createProjectileData(projectile, newVelocity));
+        data.originalVelocity = newVelocity;
         data.direction = newVelocity.lengthSqr() > 1e-5 ? newVelocity.normalize() : data.direction;
         projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
         projectile.setDeltaMovement(Vec3.ZERO);
@@ -687,6 +764,8 @@ public class TimeStopManager {
             Projectile p = entry.getValue() != null ? entry.getValue().get() : null;
             if (p != null && p.isAlive()) {
                 map.put(entry.getKey(), p);
+            } else {
+                removeSuspendedProjectile(entry.getKey());
             }
         }
         return Collections.unmodifiableMap(map);
@@ -704,7 +783,7 @@ public class TimeStopManager {
         }
 
         if (!isStasis) return;
-        projectileData.putIfAbsent(projectile.getUUID(), new ProjectileKineticData(originalVelocity, projectile.getOwner()));
+        projectileData.computeIfAbsent(projectile.getUUID(), k -> createProjectileData(projectile, originalVelocity));
         projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
 
         // Lock in place
@@ -722,7 +801,7 @@ public class TimeStopManager {
         if (projectile.isAlive()) {
             Vec3 velocity = data.getDischargeVelocity();
 
-            projectile.setNoGravity(false);
+            projectile.setNoGravity(data.originalNoGravity);
             projectile.setDeltaMovement(velocity);
 
             double horiz = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
@@ -744,7 +823,7 @@ public class TimeStopManager {
                 }
             }
 
-            if (projectile instanceof AbstractHurtingProjectile hurting) {
+            if (data.hitCount > 0 && projectile instanceof AbstractHurtingProjectile hurting) {
                 Vec3 norm = velocity.normalize();
                 hurting.xPower = norm.x * 0.1D;
                 hurting.yPower = norm.y * 0.1D;
@@ -814,7 +893,8 @@ public class TimeStopManager {
                 Entity found = level.getEntity(uuid);
                 if (found instanceof Projectile proj) p = proj;
             }
-            if (p != null && p.level() == level && p.distanceToSqr(center) <= rSq) {
+            if (p != null && p.level() == level && p.distanceToSqr(center) <= rSq
+                    && !TemporalBubbleManager.isEntityInStasis(p)) {
                 toResume.add(uuid);
             }
         }
@@ -835,6 +915,12 @@ public class TimeStopManager {
 
     public static int getRemainingTicks() {
         return remainingTicks;
+    }
+
+    private static ProjectileKineticData createProjectileData(Projectile projectile, Vec3 velocity) {
+        ProjectileKineticData data = new ProjectileKineticData(velocity, projectile.getOwner());
+        data.originalNoGravity = projectile.isNoGravity();
+        return data;
     }
 
     public static int getTotalDuration() {

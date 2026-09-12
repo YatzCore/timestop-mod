@@ -81,11 +81,22 @@ public class ClientBubbleManager {
         }
 
         public boolean canEntityAct(Entity entity) {
+            if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile) {
+                if (ClientTimeStopManager.arePlayerProjectilesFlowing()) {
+                    Entity owner = projectile.getOwner();
+                    if (owner instanceof Player player) {
+                        return canEntityAct(player);
+                    }
+                }
+                return false;
+            }
+
             if (!(entity instanceof Player player)) {
                 return false;
             }
 
             if (player.isCreative() || player.isSpectator()) return true;
+            if (mode == TimeMode.SUPERHOT) return true;
             if (ownerUuid != null && ownerUuid.equals(player.getUUID())) return true;
             if (exemptPlayers.contains(player.getUUID())) return true;
 
@@ -124,7 +135,7 @@ public class ClientBubbleManager {
                 case FAST_FORWARD:
                     return 5.0F;
                 case SUPERHOT:
-                    return 0.20F;
+                    return 0.05F + getSuperhotActivity(bubbleId) * 0.95F;
                 default:
                     return 1.0F;
             }
@@ -132,6 +143,11 @@ public class ClientBubbleManager {
     }
 
     private static final Map<UUID, ClientBubble> clientBubbles = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> superhotActivities = new ConcurrentHashMap<>();
+    public static void setSuperhotActivity(UUID id, float value) {
+        superhotActivities.put(id, Float.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0);
+    }
+    public static float getSuperhotActivity(UUID id) { return superhotActivities.getOrDefault(id, 0f); }
     private static boolean wasInsideBubble = false;
 
     public static Collection<ClientBubble> getActiveBubbles() {
@@ -146,20 +162,13 @@ public class ClientBubbleManager {
                                         double x, double y, double z, double radius, TimeMode mode,
                                         int remainingTicks, int totalDuration, WatchTier tier, Set<UUID> exempt) {
         Vec3 center = new Vec3(x, y, z);
-        ClientBubble existing = clientBubbles.get(bubbleId);
-        if (existing != null) {
-            existing.center = center;
-            existing.remainingTicks = remainingTicks;
-            existing.exemptPlayers.clear();
-            existing.exemptPlayers.addAll(exempt);
-        } else {
-            clientBubbles.put(bubbleId, new ClientBubble(bubbleId, ownerUuid, dimensionId, center,
-                    radius, mode, remainingTicks, totalDuration, tier, exempt));
-        }
+        clientBubbles.put(bubbleId, new ClientBubble(bubbleId, ownerUuid, dimensionId, center,
+                radius, mode, remainingTicks, totalDuration, tier, exempt));
     }
 
     public static void handleRemoveBubble(UUID bubbleId) {
         clientBubbles.remove(bubbleId);
+        superhotActivities.remove(bubbleId);
         if (clientBubbles.isEmpty()) {
             wasInsideBubble = false;
             if (!ClientTimeStopManager.isGlobalTimeStopActive()) {
@@ -169,6 +178,7 @@ public class ClientBubbleManager {
     }
 
     public static void reset() {
+        superhotActivities.clear();
         clientBubbles.clear();
         wasInsideBubble = false;
         if (!ClientTimeStopManager.isGlobalTimeStopActive()) {
@@ -203,12 +213,8 @@ public class ClientBubbleManager {
     }
 
     public static boolean isPositionInStasis(double px, double py, double pz) {
-        for (ClientBubble b : clientBubbles.values()) {
-            if (b.mode == TimeMode.TIME_STOP && b.contains(px, py, pz)) {
-                return true;
-            }
-        }
-        return false;
+        ClientBubble dominant = getDominantBubble(px, py, pz);
+        return dominant != null && dominant.mode == TimeMode.TIME_STOP;
     }
 
     public static boolean isCameraInsideStasis() {

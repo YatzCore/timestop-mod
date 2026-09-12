@@ -15,6 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -40,11 +41,12 @@ public class VoltaicRicochetHandler {
     public static final int MAX_CHAIN_COUNT = 6;
     public static final double CHAIN_RADIUS = 9.0;
     public static final double CHAIN_RADIUS_SQR = 81.0;
-    private static final List<WeakReference<AbstractArrow>> activeRicochetArrows = new CopyOnWriteArrayList<>();
+    private static final List<WeakReference<Projectile>> activeRicochetArrows = new CopyOnWriteArrayList<>();
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onProjectileImpact(ProjectileImpactEvent event) {
-        if (!(event.getProjectile() instanceof AbstractArrow arrow)) return;
+        Projectile arrow = event.getProjectile();
+        if (!(arrow instanceof AbstractArrow) && !TaczProjectileCompat.isBullet(arrow)) return;
         if (!(arrow.level() instanceof ServerLevel level)) return;
 
         Entity shooter = arrow.getOwner();
@@ -63,7 +65,8 @@ public class VoltaicRicochetHandler {
         if (!filter.matches(victim)) return;
 
         // Damage the victim with electrical kinetic impact
-        victim.hurt(level.damageSources().arrow(arrow, player), 10.0F);
+        victim.hurt(arrow instanceof AbstractArrow vanilla ? level.damageSources().arrow(vanilla, player)
+                : level.damageSources().thrown(arrow, player), 10.0F);
         victim.invulnerableTime = 0; // Clear immunity frames so ping-pong damage registers immediately
         victim.hurtTime = 0;
         victim.hurtDuration = 0;
@@ -102,8 +105,11 @@ public class VoltaicRicochetHandler {
 
                 arrow.shoot(dir.x, dir.y, dir.z, 3.6F, 0.0F);
                 arrow.setNoGravity(true);
-                arrow.setCritArrow(true);
-                arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
+                ProjectileRedirection.clearGuidance(arrow);
+                if (arrow instanceof AbstractArrow vanilla) {
+                    vanilla.setCritArrow(true);
+                    vanilla.pickup = AbstractArrow.Pickup.DISALLOWED;
+                }
                 arrow.hasImpulse = true;
 
                 tag.putInt("RicochetTargetId", nextTarget.getId());
@@ -192,10 +198,10 @@ public class VoltaicRicochetHandler {
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || activeRicochetArrows.isEmpty()) return;
 
-        Iterator<WeakReference<AbstractArrow>> it = activeRicochetArrows.iterator();
+        Iterator<WeakReference<Projectile>> it = activeRicochetArrows.iterator();
         while (it.hasNext()) {
-            WeakReference<AbstractArrow> ref = it.next();
-            AbstractArrow arrow = ref.get();
+            WeakReference<Projectile> ref = it.next();
+            Projectile arrow = ref.get();
             if (arrow == null || !arrow.isAlive() || arrow.onGround()) {
                 if (arrow != null) {
                     arrow.setNoGravity(false);

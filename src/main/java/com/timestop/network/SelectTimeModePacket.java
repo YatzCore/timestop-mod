@@ -50,8 +50,7 @@ public class SelectTimeModePacket {
                         // If this player currently has an active bubble, dynamically update mode!
                         com.timestop.core.TemporalBubble bubble = com.timestop.core.TemporalBubbleManager.getPlayerBubble(player.getUUID());
                         if (bubble != null) {
-                            bubble.setMode(this.mode);
-                            com.timestop.core.TemporalBubbleManager.syncBubbleToClients(bubble);
+                            com.timestop.core.TemporalBubbleManager.changeBubbleMode(player.serverLevel(), bubble, this.mode);
                         }
 
                         player.level().playSound(null, player.getX(), player.getY(), player.getZ(),

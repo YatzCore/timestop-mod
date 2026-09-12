@@ -44,39 +44,13 @@ public class SlapProjectilePacket {
             ServerPlayer player = context.getSender();
             if (player == null) return;
 
-            ServerLevel level = player.serverLevel();
-            boolean fieldActive = com.timestop.combat.DecelerationFieldManager.hasDecelerationField(player);
-            boolean timeActive = TimeStopManager.isGlobalTimeStopped();
-
-            if (!timeActive && !fieldActive) {
-                return;
-            }
-
-            TimeMode mode = timeActive ? TimeStopManager.getCurrentMode() : TimeMode.DECELERATION_FIELD;
-            if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT && mode != TimeMode.DECELERATION_FIELD) {
-                return;
-            }
-
-            if (timeActive && !TimeStopManager.isEntityExempt(player)) {
-                return;
-            }
-
-            Entity entity = level.getEntity(this.entityId);
-            if (entity instanceof Projectile projectile && com.timestop.combat.ProjectileCombatHelper.isActiveInFlight(projectile)) {
-                if (player.distanceToSqr(projectile) > 64.0) {
-                    return; // Reject slap if beyond interaction reach
-                }
-
-                if (mode == TimeMode.TIME_STOP) {
-                    TimeStopManager.punchSuspendedProjectile(projectile, player);
-                    player.swing(InteractionHand.MAIN_HAND, true);
-                } else {
-                    // Slow Motion, Matrix, SUPERHOT, or Deceleration Field: immediate live deflection!
-                    TimeStopManager.deflectDynamicProjectile(projectile, player);
-                    player.swing(InteractionHand.MAIN_HAND, true);
-                }
+            Entity entity = player.serverLevel().getEntity(this.entityId);
+            if (entity instanceof Projectile projectile
+                    && com.timestop.combat.ProjectileInteraction.redirect(player, projectile)) {
+                player.swing(InteractionHand.MAIN_HAND, true);
             }
         });
+        context.setPacketHandled(true);
         return true;
     }
 }

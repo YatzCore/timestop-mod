@@ -36,21 +36,7 @@ public class TranspositionManager {
 
     public static boolean hasTranspositionRune(Player player) {
         if (player == null || !player.isAlive()) return false;
-
-        // 1. Check socketed watch via RuneManager
-        if (RuneManager.getSocketedRuneType(player) == RuneType.TRANSPOSITION) {
-            return true;
-        }
-
-        // 2. Check direct hand holding
-        if (player.getMainHandItem().getItem() instanceof TemporalRuneItem r1 && r1.getType() == RuneType.TRANSPOSITION) {
-            return true;
-        }
-        if (player.getOffhandItem().getItem() instanceof TemporalRuneItem r2 && r2.getType() == RuneType.TRANSPOSITION) {
-            return true;
-        }
-
-        return false;
+        return RuneManager.getSocketedRuneType(player) == RuneType.TRANSPOSITION;
     }
 
     private static List<Entity> cachedClientCandidates = Collections.emptyList();

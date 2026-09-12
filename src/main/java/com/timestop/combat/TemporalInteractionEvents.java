@@ -33,6 +33,15 @@ public class TemporalInteractionEvents {
         Player player = event.getEntity();
         Entity target = event.getTarget();
 
+        if (target instanceof Projectile projectile) {
+            if (player.level().isClientSide) return;
+            if (ProjectileInteraction.redirect(player, projectile)) {
+                event.setCanceled(true);
+                player.swing(InteractionHand.MAIN_HAND, true);
+            }
+            return;
+        }
+
         TimeMode mode;
         if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
             com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
@@ -46,22 +55,6 @@ public class TemporalInteractionEvents {
         }
 
         if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT) {
-            return;
-        }
-
-        // Cancel vanilla attack to prevent damage & server-side invalid entity kick
-        if (target instanceof Projectile projectile) {
-            event.setCanceled(true);
-
-            if (!player.level().isClientSide && player.level() instanceof ServerLevel serverLevel) {
-                if (mode == TimeMode.TIME_STOP) {
-                    TimeStopManager.punchSuspendedProjectile(projectile, player);
-                } else {
-                    TimeStopManager.deflectDynamicProjectile(projectile, player);
-                }
-
-                player.swing(InteractionHand.MAIN_HAND, true);
-            }
             return;
         }
 
@@ -136,6 +129,7 @@ public class TemporalInteractionEvents {
     }
 
     private static ItemStack getDroppedItemForProjectile(Projectile projectile) {
+        if (TaczProjectileCompat.isBullet(projectile)) return TaczProjectileCompat.ammunition(projectile);
         if (projectile instanceof Arrow arrow) {
             if (arrow.getColor() > 0) {
                 ItemStack tipped = new ItemStack(Items.TIPPED_ARROW);

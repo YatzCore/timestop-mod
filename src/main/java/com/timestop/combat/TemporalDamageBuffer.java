@@ -52,11 +52,25 @@ public class TemporalDamageBuffer {
         // Calculate knockback direction from attacker
         Vec3 knockback = Vec3.ZERO;
         Entity attacker = source.getEntity();
-        if (attacker != null) {
-            Vec3 diff = victim.position().subtract(attacker.position()).normalize();
-            knockback = new Vec3(diff.x * 0.6, 0.4, diff.z * 0.6);
+        boolean isProjectile = source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)
+                || source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile;
+
+        if (isProjectile) {
+            // Projectiles/bullets must NEVER accumulate vertical kinetic energy!
+            // Give only subtle horizontal flinch force, zero vertical launch.
+            if (attacker != null) {
+                Vec3 diff = victim.position().subtract(attacker.position()).normalize();
+                knockback = new Vec3(diff.x * 0.05, 0.0, diff.z * 0.05);
+            } else {
+                knockback = Vec3.ZERO;
+            }
         } else {
-            knockback = new Vec3(0, 0.3, 0);
+            if (attacker != null) {
+                Vec3 diff = victim.position().subtract(attacker.position()).normalize();
+                knockback = new Vec3(diff.x * 0.6, 0.3, diff.z * 0.6);
+            } else {
+                knockback = new Vec3(0, 0.2, 0);
+            }
         }
 
         DamageRecord record = records.get(victim.getUUID());
@@ -193,7 +207,8 @@ public class TemporalDamageBuffer {
                     victim = living;
                 }
             }
-            if (victim != null && victim.level() == level && victim.distanceToSqr(center) <= rSq) {
+            if (victim != null && victim.level() == level && victim.distanceToSqr(center) <= rSq
+                    && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(victim)) {
                 toDischarge.add(uuid);
             }
         }
@@ -207,6 +222,7 @@ public class TemporalDamageBuffer {
         records.clear();
         victimEntities.clear();
         leechedMobsThisSession.clear();
+        lastKnownLevel = new WeakReference<>(null);
     }
 
     private static void applyDischarge(ServerLevel level, LivingEntity victim, DamageRecord record) {
@@ -220,9 +236,13 @@ public class TemporalDamageBuffer {
         // Apply accumulated knockback vector
         Vec3 finalKb = record.totalKnockback;
         // Cap knockback to avoid launching entities into unloaded chunks
-        double maxSpeed = record.isSuperchargedKinetic ? 8.0 : 4.0;
+        double maxSpeed = record.isSuperchargedKinetic ? 6.0 : 2.5;
         if (finalKb.length() > maxSpeed) {
             finalKb = finalKb.normalize().scale(maxSpeed);
+        }
+        // Strict clamp on vertical lift: NEVER launch mobs into the stratosphere!
+        if (finalKb.y > 0.25) {
+            finalKb = new Vec3(finalKb.x, 0.15, finalKb.z);
         }
         victim.setDeltaMovement(victim.getDeltaMovement().add(finalKb));
         victim.hurtMarked = true;

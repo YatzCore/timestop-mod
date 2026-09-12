@@ -35,6 +35,13 @@ public class ClientInteractionHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
+        if (event.isAttack() && com.timestop.combat.KineticPalmManager.isGuarding(mc.player)) {
+            // The barrier input handler launches the volley; do not also slap a captured bullet.
+            event.setCanceled(true);
+            event.setSwingHand(true);
+            return;
+        }
+
         // 0. LEFT-CLICK (Empty hand or Watch): Fire 1 orbiting projectile at crosshair!
         if (event.isAttack() && canSingleFireWithItem(mc.player.getMainHandItem()) && CapturedProjectilesOverlay.getOrbitCount() > 0) {
             if (trySingleFire(mc.player)) {
@@ -80,33 +87,7 @@ public class ClientInteractionHandler {
                 ModMessages.sendToServer(new SlapProjectilePacket(targetedProjectile.getId(), mc.player.getLookAngle()));
                 mc.player.swing(InteractionHand.MAIN_HAND);
 
-                // Immediate client visual rotation back toward origin/shooter with vanilla formula
-                Entity owner = targetedProjectile.getOwner();
-                Vec3 returnDir;
-                if (owner != null && owner.isAlive()) {
-                    returnDir = owner.getEyePosition().subtract(targetedProjectile.position()).normalize();
-                } else if (targetedProjectile.getDeltaMovement().lengthSqr() > 1e-5) {
-                    returnDir = targetedProjectile.getDeltaMovement().reverse().normalize();
-                } else {
-                    returnDir = mc.player.getLookAngle().normalize();
-                }
-
-                double horiz = Math.sqrt(returnDir.x * returnDir.x + returnDir.z * returnDir.z);
-                float yRot = (float) (net.minecraft.util.Mth.atan2(returnDir.x, returnDir.z) * (180.0D / Math.PI));
-                float xRot = (float) (net.minecraft.util.Mth.atan2(returnDir.y, horiz) * (180.0D / Math.PI));
-                targetedProjectile.setYRot(yRot);
-                targetedProjectile.setXRot(xRot);
-                targetedProjectile.yRotO = yRot;
-                targetedProjectile.xRotO = xRot;
-
-                if (mode == TimeMode.TIME_STOP) {
-                    targetedProjectile.setDeltaMovement(Vec3.ZERO);
-                    targetedProjectile.setNoGravity(true);
-                } else {
-                    double speed = Math.max(1.8, targetedProjectile.getDeltaMovement().length() * 1.35);
-                    targetedProjectile.setDeltaMovement(returnDir.scale(speed));
-                    targetedProjectile.hasImpulse = true;
-                }
+                // The server resolves the saved redirection policy and equipped modifier rune.
                 return;
             }
 

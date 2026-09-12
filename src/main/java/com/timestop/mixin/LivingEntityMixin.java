@@ -43,4 +43,29 @@ public abstract class LivingEntityMixin {
             entity.hurtDuration = 0;
         }
     }
+
+    @Inject(method = "hurt", at = @At("TAIL"))
+    private void onHurtPost(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity entity = (LivingEntity) (Object) this;
+        boolean isProj = source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)
+                || (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile);
+
+        if (isProj) {
+            // Remove vertical kinetic energy accumulation from bullet impacts so mobs never launch into stratosphere
+            net.minecraft.world.phys.Vec3 vel = entity.getDeltaMovement();
+            double clampedY = Math.min(vel.y, 0.08); // Stay grounded / slight flinch, never launch upward
+
+            // Also clamp excessive horizontal bullet knockback if multiple rapid shots hit
+            double horizLen = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+            double maxHoriz = 0.45;
+            double clampedX = vel.x;
+            double clampedZ = vel.z;
+            if (horizLen > maxHoriz) {
+                clampedX = (vel.x / horizLen) * maxHoriz;
+                clampedZ = (vel.z / horizLen) * maxHoriz;
+            }
+
+            entity.setDeltaMovement(clampedX, clampedY, clampedZ);
+        }
+    }
 }

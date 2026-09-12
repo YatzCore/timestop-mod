@@ -8,7 +8,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public class ModMessages {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "6";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TimeStopMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -148,6 +148,41 @@ public class ModMessages {
                 .encoder(SetWatchScopePacket::toBytes)
                 .consumerMainThread(SetWatchScopePacket::handle)
                 .add();
+
+        INSTANCE.messageBuilder(KineticPalmActionPacket.class, nextId(), NetworkDirection.PLAY_TO_SERVER)
+                .decoder(KineticPalmActionPacket::new)
+                .encoder(KineticPalmActionPacket::toBytes)
+                .consumerMainThread(KineticPalmActionPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(FlipCoinPacket.class, nextId(), NetworkDirection.PLAY_TO_SERVER)
+                .decoder(FlipCoinPacket::new)
+                .encoder(FlipCoinPacket::toBytes)
+                .consumerMainThread(FlipCoinPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(ToggleProjectileFlowPacket.class, nextId(), NetworkDirection.PLAY_TO_SERVER)
+                .decoder(ToggleProjectileFlowPacket::new)
+                .encoder(ToggleProjectileFlowPacket::toBytes)
+                .consumerMainThread(ToggleProjectileFlowPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(SyncCoinChargesPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(SyncCoinChargesPacket::new)
+                .encoder(SyncCoinChargesPacket::toBytes)
+                .consumerMainThread(SyncCoinChargesPacket::handle)
+                .add();
+
+        INSTANCE.messageBuilder(KineticCaptureSyncPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(KineticCaptureSyncPacket::new)
+                .encoder(KineticCaptureSyncPacket::toBytes)
+                .consumerMainThread(KineticCaptureSyncPacket::handle)
+                .add();
+        INSTANCE.messageBuilder(DeadEyeGunFeedbackPacket.class, nextId(), NetworkDirection.PLAY_TO_CLIENT)
+                .decoder(DeadEyeGunFeedbackPacket::new)
+                .encoder(DeadEyeGunFeedbackPacket::toBytes)
+                .consumerMainThread(DeadEyeGunFeedbackPacket::handle)
+                .add();
     }
 
     public static <MSG> void sendToServer(MSG message) {
@@ -156,5 +191,9 @@ public class ModMessages {
 
     public static <MSG> void sendToClients(MSG message) {
         INSTANCE.send(PacketDistributor.ALL.noArg(), message);
+    }
+
+    public static <MSG> void sendToPlayer(MSG message, net.minecraft.server.level.ServerPlayer player) {
+        INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), message);
     }
 }

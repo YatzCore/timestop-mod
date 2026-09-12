@@ -63,6 +63,53 @@ public class OrbitalProjectileManager {
         });
     }
 
+    private static boolean canAutoCapture(Player player, Projectile projectile) {
+        if (ProjectileCombatHelper.wasReleasedBy(projectile, player)) return false;
+        // Wearing the rune must not intercept each shot as it leaves the player's weapon.
+        // Own rounds become collectible once time stop has actually suspended them.
+        return projectile.getOwner() != player
+                || com.timestop.core.TimeStopManager.isProjectileSuspended(projectile);
+    }
+
+    /** Shared swept interception runs before either vanilla or TacZ movement/stasis handling. */
+    public static void interceptIncoming(Projectile projectile) {
+        if (!(projectile.level() instanceof ServerLevel level) || !ProjectileCombatHelper.isActiveInFlight(projectile)
+                || projectile.getPersistentData().getBoolean("InStasisOrbit")
+                || projectile.getPersistentData().getBoolean("KineticPalmCaptured")
+                || projectile.getPersistentData().getBoolean("KineticPalmDropped")) return;
+        Vec3 start = projectile.position();
+        Vec3 velocity = ProjectileCombatHelper.incomingVelocity(projectile);
+        Vec3 nearest = null;
+        Player defender = null;
+        for (ServerPlayer player : level.players()) {
+            if (!player.isAlive() || player.isSpectator() || RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL
+                    || !canAutoCapture(player, projectile)) continue;
+            Vec3 relative = start.subtract(player.position().add(0, player.getEyeHeight() * 0.5, 0));
+            double t = 0;
+            double c = relative.lengthSqr() - CATCH_RADIUS * CATCH_RADIUS;
+            if (c > 0) {
+                double a = velocity.lengthSqr();
+                double b = relative.dot(velocity);
+                double discriminant = b * b - a * c;
+                if (a < 1e-8 || discriminant < 0) continue;
+                t = (-b - Math.sqrt(discriminant)) / a;
+                if (t < 0 || t > 1) continue;
+            }
+            Vec3 entry = start.add(velocity.scale(t));
+            if (level.clip(new net.minecraft.world.level.ClipContext(start, entry,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, projectile)).getType() != HitResult.Type.MISS) continue;
+            if (nearest == null || start.distanceToSqr(entry) < start.distanceToSqr(nearest)) {
+                nearest = entry;
+                defender = player;
+            }
+        }
+        if (defender != null) {
+            projectile.setPos(nearest);
+            captureProjectile(defender, projectile, level);
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onProjectileImpact(ProjectileImpactEvent event) {
         Projectile projectile = event.getProjectile();
@@ -95,7 +142,8 @@ public class OrbitalProjectileManager {
         if (!(hitEntity instanceof Player player)) return;
 
         // Verify player has the Orbital Redirection rune equipped
-        if (RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL) return;
+        if (RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL
+                || !canAutoCapture(player, projectile)) return;
 
         // Catch the projectile directly upon imminent impact!
         event.setCanceled(true);
@@ -115,15 +163,11 @@ public class OrbitalProjectileManager {
 
                     AABB catchBox = player.getBoundingBox().inflate(CATCH_RADIUS);
                     List<Projectile> incoming = sl.getEntitiesOfClass(Projectile.class, catchBox,
-                            p -> p.isAlive() && !p.onGround() && p.getOwner() != player
+                            p -> p.isAlive() && !p.onGround()
                                     && !p.getPersistentData().contains("OrbitedPlayerUuid"));
 
                     for (Projectile p : incoming) {
-                        Vec3 toPlayer = player.position().subtract(p.position());
-                        Vec3 vel = p.getDeltaMovement();
-                        if (vel.dot(toPlayer) > -0.3 || toPlayer.lengthSqr() < 4.0) {
-                            captureProjectile(player, p, sl);
-                        }
+                        interceptIncoming(p);
                     }
                 }
             }
@@ -268,6 +312,9 @@ public class OrbitalProjectileManager {
                             Vec3 guided = cur.normalize().scale(0.80).add(toTarget.scale(0.20)).normalize().scale(3.6D);
                             arrow.setDeltaMovement(guided);
                             arrow.hasImpulse = true;
+                        } else {
+                            proj.setDeltaMovement(toTarget.scale(Math.max(3.6, proj.getPersistentData().getDouble("OrbitalNativeSpeed"))));
+                            proj.hasImpulse = true;
                         }
 
                         Vec3 moveVec = proj.getDeltaMovement();
@@ -302,6 +349,9 @@ public class OrbitalProjectileManager {
             list = playerOrbits.computeIfAbsent(player.getUUID(), k -> new CopyOnWriteArrayList<>());
         }
 
+        projectile.getPersistentData().putDouble("OrbitalNativeSpeed", ProjectileCombatHelper.incomingVelocity(projectile).length());
+        com.timestop.core.TimeStopManager.removeSuspendedProjectile(projectile);
+        ProjectileRedirection.clearGuidance(projectile);
         // Lock projectile into stasis
         projectile.setNoGravity(true);
         projectile.setDeltaMovement(Vec3.ZERO);
@@ -371,6 +421,7 @@ public class OrbitalProjectileManager {
             proj.getPersistentData().remove("OrbitIndex");
             proj.getPersistentData().remove("OrbitTotal");
             proj.getPersistentData().putBoolean("WasOrbitalLaunched", true);
+            ProjectileCombatHelper.markReleased(proj, player);
             ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> proj),
                     new SyncOrbitalEntityPacket(proj.getId(), player.getUUID(), -1, -1, false));
 
@@ -427,7 +478,7 @@ public class OrbitalProjectileManager {
                         10, dir.x * 0.2, dir.y * 0.2, dir.z * 0.2, 0.08);
             } else {
                 proj.setNoGravity(false);
-                proj.shoot(dir.x, dir.y, dir.z, 3.0F, 0.0F);
+                proj.shoot(dir.x, dir.y, dir.z, (float) Math.max(3.0, proj.getPersistentData().getDouble("OrbitalNativeSpeed")), 0.0F);
             }
 
             proj.hasImpulse = true;
@@ -532,6 +583,7 @@ public class OrbitalProjectileManager {
         proj.getPersistentData().remove("OrbitIndex");
         proj.getPersistentData().remove("OrbitTotal");
         proj.getPersistentData().putBoolean("WasOrbitalLaunched", true);
+        ProjectileCombatHelper.markReleased(proj, player);
         proj.setOwner(player);
         ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> toLaunch),
                 new SyncOrbitalEntityPacket(toLaunch.getId(), player.getUUID(), -1, -1, false));
@@ -590,7 +642,7 @@ public class OrbitalProjectileManager {
                     12, fireDir.x * 0.2, fireDir.y * 0.2, fireDir.z * 0.2, 0.08);
         } else {
             proj.setNoGravity(false);
-            proj.shoot(fireDir.x, fireDir.y, fireDir.z, 3.2F, 0.0F);
+            proj.shoot(fireDir.x, fireDir.y, fireDir.z, (float) Math.max(3.2, proj.getPersistentData().getDouble("OrbitalNativeSpeed")), 0.0F);
 
             level.playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.ARROW_SHOOT, SoundSource.PLAYERS, 1.2F, 1.5F);

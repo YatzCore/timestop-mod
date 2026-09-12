@@ -140,7 +140,8 @@ public class TemporalKineticBlockManager {
             if (entity == null || !entity.isAlive()) {
                 entity = level.getEntity(uuid);
             }
-            if (entity != null && entity.level() == level && entity.distanceToSqr(center) <= rSq) {
+            if (entity != null && entity.level() == level && entity.distanceToSqr(center) <= rSq
+                    && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(entity)) {
                 toDischarge.add(uuid);
             }
         }
@@ -210,12 +211,24 @@ public class TemporalKineticBlockManager {
     }
 
     public static void serverTick() {
+        // A moving bubble can leave a punched block behind before the bubble expires.
+        for (Map.Entry<UUID, KineticRecord> entry : new ArrayList<>(records.entrySet())) {
+            Entity entity = entry.getValue().entityRef.get();
+            if (entity == null || !entity.isAlive()) {
+                records.remove(entry.getKey());
+            } else if (entity.level() instanceof ServerLevel level
+                    && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(entity)) {
+                records.remove(entry.getKey());
+                applyDischargeSingle(level, entity, entry.getValue());
+            }
+        }
         if (activeKineticBlocks.isEmpty()) return;
 
         Iterator<WeakReference<FallingBlockEntity>> it = activeKineticBlocks.iterator();
         while (it.hasNext()) {
             WeakReference<FallingBlockEntity> ref = it.next();
             FallingBlockEntity block = ref.get();
+            if (block != null && block.isAlive() && com.timestop.core.TemporalBubbleManager.isEntityInStasis(block)) continue;
             if (block == null || !block.isAlive() || block.onGround() || block.getDeltaMovement().lengthSqr() < 0.04) {
                 if (block != null && block.getPersistentData().getBoolean("VolatileStasis")) {
                     detonateVolatileBlast(block);
@@ -272,5 +285,10 @@ public class TemporalKineticBlockManager {
             level.sendParticles(ParticleTypes.FLAME, entity.getX(), entity.getY() + 0.5, entity.getZ(), 20, 0.4, 0.4, 0.4, 0.15);
             level.playSound(null, entity.getX(), entity.getY(), entity.getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2F, 1.4F);
         }
+    }
+
+    public static void clearAll() {
+        records.clear();
+        activeKineticBlocks.clear();
     }
 }

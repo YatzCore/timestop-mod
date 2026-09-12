@@ -2,6 +2,19 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.3.12] - 2026-09-11
+
+### Added
+- **Timeless and Classics Zero (TACZ) Compatibility**: Full soft-dependency integration for firearms, kinetic bullets, and heavy ordnance across time stop, localized bubbles, and deceleration fields.
+- **Rune of the Marksman & Chrono Coins**: Toss coins and shoot them with firearms to trigger lethal chained ricoshots (+RICOSHOT). Earn coin charges through combat kills.
+- **Rune of the Kinetic Barrier**: Stop incoming bullets and projectiles in mid-air; release to drop or attack to launch a return volley.
+- **Rune of Vector Control**: Dynamically steer deflected bullets and barrier volleys along crosshair aim.
+- **Dead Eye Native Firearm Integration**: Lock-on aiming, burst-fire tracking, and native audio/visual feedback for TACZ guns.
+
+### Changed
+- **Soft-Dependency UI Isolation**: Marksman rune, Chrono Coins, crafting recipes, charge HUD overlay, and the coin flip keybind automatically hide when TACZ is not installed.
+- **Projectile Stasis Flow**: Added projectile flow stasis mode toggleable in temporal settings.
+
 ## [1.2.1] - 2026-09-02
 
 ### Fixed

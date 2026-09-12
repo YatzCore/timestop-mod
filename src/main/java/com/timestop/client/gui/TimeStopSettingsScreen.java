@@ -2,6 +2,9 @@ package com.timestop.client.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.timestop.config.TimeStopConfig;
+import com.timestop.core.TimeStopManager;
+import com.timestop.network.ModMessages;
+import com.timestop.network.ToggleProjectileFlowPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -42,7 +45,7 @@ public class TimeStopSettingsScreen extends Screen {
         renderBackground(guiGraphics);
 
         int modalWidth = 320;
-        int modalHeight = 250;
+        int modalHeight = 270;
         int modalX = (this.width - modalWidth) / 2;
         int modalY = (this.height - modalHeight) / 2;
 
@@ -85,8 +88,12 @@ public class TimeStopSettingsScreen extends Screen {
         renderToggleRow(guiGraphics, modalX, startY + rowH * 6, modalWidth, "Floating Timer HUD",
                 TimeStopConfig.CLIENT.enableTimerHud.get(), mouseX, mouseY);
 
-        // 8. Opacity Slider
-        int sliderY = startY + rowH * 7;
+        // 8. Projectile Stasis Mode Toggle
+        renderToggleRow(guiGraphics, modalX, startY + rowH * 7, modalWidth, "Projectiles Flow in Stasis",
+                com.timestop.core.ClientTimeStopManager.getProjectileMode() == TimeStopManager.ProjectileStasisMode.FLOWING, mouseX, mouseY);
+
+        // 9. Opacity Slider
+        int sliderY = startY + rowH * 8;
         renderOpacitySlider(guiGraphics, modalX, sliderY, modalWidth, mouseX, mouseY);
 
         // Bottom Done / Back Button
@@ -154,7 +161,7 @@ public class TimeStopSettingsScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
             int modalWidth = 320;
-            int modalHeight = 250;
+            int modalHeight = 270;
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
             int startY = modalY + 36;
@@ -216,8 +223,20 @@ public class TimeStopSettingsScreen extends Screen {
                 return true;
             }
 
-            // 8. Opacity Slider
-            int sliderY = startY + rowH * 7;
+            // 8. Projectile Stasis Mode
+            if (isInside(mouseX, mouseY, btnX, startY + rowH * 7, btnW, btnH)) {
+                TimeStopManager.ProjectileStasisMode current = com.timestop.core.ClientTimeStopManager.getProjectileMode();
+                TimeStopManager.ProjectileStasisMode next = (current == TimeStopManager.ProjectileStasisMode.FLOWING)
+                        ? TimeStopManager.ProjectileStasisMode.SUSPENDED
+                        : TimeStopManager.ProjectileStasisMode.FLOWING;
+                com.timestop.core.ClientTimeStopManager.setProjectileFlow(next, TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get());
+                ModMessages.sendToServer(new ToggleProjectileFlowPacket(next));
+                saveAndPlaySound();
+                return true;
+            }
+
+            // 9. Opacity Slider
+            int sliderY = startY + rowH * 8;
             int trackW = 100;
             int trackH = 14;
             int trackX = modalX + modalWidth - 16 - trackW;

@@ -25,7 +25,7 @@ import java.util.List;
 
 /**
  * Calm, minimalist, tier-tailored control interface for temporal pocket watches.
- * Features real-time optimistic updates and authoritative server sync for tactical runes.
+ * Rune transfers wait for authoritative server inventory updates.
  */
 public class TimeModeSelectionScreen extends Screen {
     private final InteractionHand hand;
@@ -33,6 +33,7 @@ public class TimeModeSelectionScreen extends Screen {
     private WatchTier currentTier = WatchTier.COPPER;
     private ItemStack watchStack = ItemStack.EMPTY;
     private ItemStack socketedRune = ItemStack.EMPTY;
+    private boolean runeRequestPending;
 
     public static class InventoryRuneEntry {
         public final int slotIndex;
@@ -87,6 +88,7 @@ public class TimeModeSelectionScreen extends Screen {
     }
 
     public void onServerSync(ItemStack newSocketedRune) {
+        runeRequestPending = false;
         this.socketedRune = newSocketedRune != null ? newSocketedRune.copy() : ItemStack.EMPTY;
         refreshState();
     }
@@ -110,6 +112,9 @@ public class TimeModeSelectionScreen extends Screen {
                     if (i == watchSlot) continue; // Never scan the watch itself
                     ItemStack invStack = player.getInventory().getItem(i);
                     if (!invStack.isEmpty() && invStack.getCount() > 0 && invStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
+                        if (runeItem.getType() == RuneType.RICOSHOT && !net.minecraftforge.fml.ModList.get().isLoaded("tacz")) {
+                            continue;
+                        }
                         this.availableRunes.add(new InventoryRuneEntry(i, invStack, runeItem.getType()));
                     }
                 }
@@ -419,6 +424,7 @@ public class TimeModeSelectionScreen extends Screen {
 
     private static String getCleanRuneTag(RuneType type) {
         return switch (type) {
+            case VECTOR -> "Direct struck shots and barrier volleys where you look";
             case DEFLECTION -> "Auto-parries incoming projectiles";
             case SNATCHING -> "Auto-collects incoming projectiles into inventory";
             case PHASING -> "Auto-teleports away on imminent hit";
@@ -586,47 +592,15 @@ public class TimeModeSelectionScreen extends Screen {
     }
 
     private void ejectRune() {
+        if (runeRequestPending || socketedRune.isEmpty()) return;
+        runeRequestPending = true;
         ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, -1, RuneType.BLANK));
-        Player player = Minecraft.getInstance().player;
-        if (player != null && !this.socketedRune.isEmpty()) {
-            ItemStack stack = player.getItemInHand(this.hand);
-            ItemStack toReturn = this.socketedRune.copy();
-            AbstractWatchItem.setSocketedRune(stack, ItemStack.EMPTY);
-            this.socketedRune = ItemStack.EMPTY;
-
-            // Optimistically return rune to client player inventory immediately
-            player.getInventory().add(toReturn);
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.ITEM_PICKUP, 0.8F));
-        }
-        refreshState();
     }
 
     private void socketSpecificRune(InventoryRuneEntry entry) {
+        if (runeRequestPending) return;
+        runeRequestPending = true;
         ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, entry.slotIndex, entry.type));
-        Player player = Minecraft.getInstance().player;
-        if (player != null) {
-            ItemStack stack = player.getItemInHand(this.hand);
-
-            // If there was a previously socketed rune, optimistically return it to inventory
-            if (!this.socketedRune.isEmpty()) {
-                player.getInventory().add(this.socketedRune.copy());
-            }
-
-            // Socket 1 item from clicked stack
-            ItemStack copy = entry.stack.copy();
-            copy.setCount(1);
-            AbstractWatchItem.setSocketedRune(stack, copy);
-            this.socketedRune = copy;
-
-            // Shrink client inventory stack optimistically
-            entry.stack.shrink(1);
-            if (entry.stack.isEmpty()) {
-                player.getInventory().setItem(entry.slotIndex, ItemStack.EMPTY);
-            }
-
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.ARMOR_EQUIP_NETHERITE, 1.2F));
-        }
-        refreshState();
     }
 
     @Override

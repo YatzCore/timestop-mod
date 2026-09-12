@@ -75,6 +75,24 @@ public enum RuneType {
             "Rune of Spatial Transposition",
             "Instantly swaps positions with any entity or projectile in sight with a percussive clap.",
             ChatFormatting.LIGHT_PURPLE
+    ),
+    KINETIC_BARRIER(
+            "rune_barrier",
+            "Rune of the Kinetic Barrier",
+            "Hold Middle Click to slow incoming projectiles to a standstill in midair. Release to let them fall; attack to send them back.",
+            ChatFormatting.DARK_AQUA
+    ),
+    RICOSHOT(
+            "rune_coin",
+            "Rune of the Marksman (+RICOSHOT)",
+            "Unlocks Chrono Coin toss. Shoot airborne coins with firearms to deflect lethal headshots. Earn coin charges via combat kills.",
+            ChatFormatting.GOLD
+    ),
+    VECTOR(
+            "rune_vector",
+            "Rune of Vector Control",
+            "Redirect struck projectiles and kinetic barrier volleys along your look direction. Works with native gun bullets.",
+            ChatFormatting.GREEN
     );
 
     private final String id;

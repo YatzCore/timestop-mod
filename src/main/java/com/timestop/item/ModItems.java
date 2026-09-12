@@ -73,6 +73,18 @@ public class ModItems {
     public static final RegistryObject<Item> RUNE_TRANSPOSITION = ITEMS.register("rune_transposition",
             () -> new TemporalRuneItem(new Item.Properties().stacksTo(1), RuneType.TRANSPOSITION));
 
+    public static final RegistryObject<Item> RUNE_VECTOR = ITEMS.register("rune_vector",
+            () -> new TemporalRuneItem(new Item.Properties().stacksTo(1), RuneType.VECTOR));
+
+    public static final RegistryObject<Item> RUNE_BARRIER = ITEMS.register("rune_barrier",
+            () -> new TemporalRuneItem(new Item.Properties().stacksTo(1), RuneType.KINETIC_BARRIER));
+
+    public static final RegistryObject<Item> RUNE_COIN = ITEMS.register("rune_coin",
+            () -> new TemporalRuneItem(new Item.Properties().stacksTo(1), RuneType.RICOSHOT));
+
+    public static final RegistryObject<Item> CHRONO_COIN = ITEMS.register("chrono_coin",
+            () -> new ChronoCoinItem(new Item.Properties().stacksTo(64)));
+
     public static final RegistryObject<CreativeModeTab> TIME_STOP_TAB = CREATIVE_MODE_TABS.register("timestop_tab",
             () -> CreativeModeTab.builder()
                     .icon(() -> new ItemStack(CHRONOS_WATCH.get()))
@@ -95,6 +107,12 @@ public class ModItems {
                         output.accept(RUNE_RICOCHET.get());
                         output.accept(RUNE_ORBITAL.get());
                         output.accept(RUNE_TRANSPOSITION.get());
+                        output.accept(RUNE_BARRIER.get());
+                        output.accept(RUNE_VECTOR.get());
+                        if (net.minecraftforge.fml.ModList.get().isLoaded("tacz")) {
+                            output.accept(RUNE_COIN.get());
+                            output.accept(CHRONO_COIN.get());
+                        }
                     })
                     .build()
     );

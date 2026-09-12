@@ -37,27 +37,64 @@ public class ClientSetup {
             "key.categories.timestop"
     );
 
+    public static final KeyMapping FLIP_COIN_KEY = net.minecraftforge.fml.ModList.get().isLoaded("tacz")
+            ? new KeyMapping(
+                    "key.timestop.flip_coin",
+                    InputConstants.Type.KEYSYM,
+                    GLFW.GLFW_KEY_C,
+                    "key.categories.timestop"
+            )
+            : null;
+
+    public static final KeyMapping PROJECTILE_FLOW_TOGGLE_KEY = new KeyMapping(
+            "key.timestop.toggle_projectile_flow",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_K,
+            "key.categories.timestop"
+    );
+
+    public static final KeyMapping KINETIC_BARRIER_KEY = new KeyMapping(
+            "key.timestop.kinetic_barrier",
+            InputConstants.Type.MOUSE,
+            GLFW.GLFW_MOUSE_BUTTON_MIDDLE,
+            "key.categories.timestop"
+    );
+
     public static void init(IEventBus modEventBus) {
         modEventBus.addListener(ClientSetup::registerKeys);
         modEventBus.addListener(ClientSetup::registerOverlays);
+        modEventBus.addListener(ClientSetup::registerEntityRenderers);
         MinecraftForge.EVENT_BUS.register(new ClientForgeEvents());
         MinecraftForge.EVENT_BUS.register(new ChronoAudioHandler());
         MinecraftForge.EVENT_BUS.register(new ClientInteractionHandler());
         MinecraftForge.EVENT_BUS.register(new DeadEyeRenderer());
         MinecraftForge.EVENT_BUS.register(new ClientOrbitalHandler());
         MinecraftForge.EVENT_BUS.register(new com.timestop.client.renderer.TemporalBubbleRenderer());
+        MinecraftForge.EVENT_BUS.register(new com.timestop.client.renderer.KineticPalmRenderer());
+    }
+
+    public static void registerEntityRenderers(net.minecraftforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(com.timestop.entity.ModEntities.CHRONO_COIN.get(), com.timestop.client.renderer.ChronoCoinRenderer::new);
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(TIME_STOP_KEY);
         event.register(RELEASE_PROJECTILES_KEY);
         event.register(TRANSPOSITION_KEY);
+        if (FLIP_COIN_KEY != null) {
+            event.register(FLIP_COIN_KEY);
+        }
+        event.register(PROJECTILE_FLOW_TOGGLE_KEY);
+        event.register(KINETIC_BARRIER_KEY);
     }
 
     public static void registerOverlays(RegisterGuiOverlaysEvent event) {
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "chrono_meter", ChronoOverlay.HUD_CHRONO);
         event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "captured_projectiles_hud", CapturedProjectilesOverlay.HUD_ORBIT);
         event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "transposition_hud", TranspositionRenderer.HUD_TRANSPOSITION);
+        if (net.minecraftforge.fml.ModList.get().isLoaded("tacz")) {
+            event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "chrono_coin_hud", com.timestop.client.renderer.ChronoCoinOverlay.HUD_CHRONO_COIN);
+        }
         event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "dead_eye_hud", DeadEyeRenderer.HUD_DEAD_EYE);
         event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "superhot_hud", SuperhotRenderer.HUD_SUPERHOT);
     }
@@ -80,9 +117,24 @@ public class ClientSetup {
 
                 while (TRANSPOSITION_KEY.consumeClick()) {
                     Minecraft mc = Minecraft.getInstance();
+                    if (!com.timestop.combat.TranspositionManager.hasTranspositionRune(mc.player)
+                            || com.timestop.combat.TranspositionManager.findSwapTargetClient(mc.player) == null) continue;
                     boolean isSneak = mc.player != null && mc.player.isCrouching();
                     ModMessages.sendToServer(new com.timestop.network.TranspositionSwapPacket(isSneak));
                     TranspositionRenderer.triggerSwapFlash();
+                }
+
+                if (FLIP_COIN_KEY != null) {
+                    while (FLIP_COIN_KEY.consumeClick()) {
+                        var player = Minecraft.getInstance().player;
+                        if (player != null && com.timestop.combat.CoinManager.hasCharge(player)) {
+                            ModMessages.sendToServer(new com.timestop.network.FlipCoinPacket());
+                        }
+                    }
+                }
+
+                while (PROJECTILE_FLOW_TOGGLE_KEY.consumeClick()) {
+                    ModMessages.sendToServer(new com.timestop.network.ToggleProjectileFlowPacket());
                 }
             }
         }

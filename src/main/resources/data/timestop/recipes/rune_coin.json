@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "tacz"
+    }
+  ],
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "CBC",
+    " G "
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_ingot"
+    },
+    "C": {
+      "item": "timestop:chrono_coin"
+    },
+    "B": {
+      "item": "timestop:blank_rune"
+    }
+  },
+  "result": {
+    "item": "timestop:rune_coin",
+    "count": 1
+  }
+}

@@ -29,6 +29,7 @@ public class TimeStopMod {
 
         ModItems.ITEMS.register(modEventBus);
         ModItems.CREATIVE_MODE_TABS.register(modEventBus);
+        com.timestop.entity.ModEntities.ENTITIES.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
@@ -81,6 +82,10 @@ public class TimeStopMod {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 com.timestop.sync.SyncManager.cachePlayerName(serverPlayer);
                 com.timestop.core.TemporalBubbleManager.syncAllToPlayer(serverPlayer);
+                ModMessages.sendToPlayer(new com.timestop.network.TimeStopSyncPacket(
+                        TimeStopManager.isGlobalTimeStopActive(), TimeStopManager.getRemainingTicks(),
+                        TimeStopManager.getInitiatorUuid(), TimeStopManager.getCurrentMode(),
+                        TimeStopManager.getExemptPlayers()), serverPlayer);
             }
         }
 
@@ -88,6 +93,11 @@ public class TimeStopMod {
         public static void onPlayerLoggedOut(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 com.timestop.core.TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
+                if (serverPlayer.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
+                    TimeStopManager.resumeTime(serverPlayer.serverLevel());
+                }
+                com.timestop.combat.KineticPalmManager.setGuarding(serverPlayer, false);
+                com.timestop.combat.KineticPalmManager.dischargeDrop(serverPlayer);
                 TimeStopManager.removeMatrixAttributes(serverPlayer);
                 com.timestop.combat.RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
                 com.timestop.combat.TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
@@ -98,12 +108,28 @@ public class TimeStopMod {
         public static void onLivingDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event) {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 com.timestop.core.TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
+                if (serverPlayer.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
+                    TimeStopManager.resumeTime(serverPlayer.serverLevel());
+                }
+                com.timestop.combat.KineticPalmManager.setGuarding(serverPlayer, false);
+                com.timestop.combat.KineticPalmManager.dischargeDrop(serverPlayer);
                 TimeStopManager.removeMatrixAttributes(serverPlayer);
             }
         }
 
         @SubscribeEvent
         public static void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent event) {
+            net.minecraft.server.level.ServerLevel level = event.getServer().overworld();
+            com.timestop.core.TemporalBubbleManager.stopAllBubbles(level);
+            TimeStopManager.resumeTime(level);
+            for (net.minecraft.server.level.ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
+                com.timestop.combat.KineticPalmManager.setGuarding(player, false);
+                com.timestop.combat.KineticPalmManager.dischargeDrop(player);
+            }
+            TimeStopManager.reset();
+            com.timestop.combat.KineticPalmManager.clearAll();
+            com.timestop.core.TemporalBubbleManager.reset();
+            com.timestop.combat.TemporalKineticBlockManager.clearAll();
             com.timestop.sync.SyncManager.resetCache();
             com.timestop.combat.TemporalDamageBuffer.clearAll();
             com.timestop.combat.RuneManager.clearAllCooldowns();

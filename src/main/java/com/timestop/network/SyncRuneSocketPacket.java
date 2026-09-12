@@ -1,11 +1,7 @@
 package com.timestop.network;
 
-import com.timestop.client.gui.TimeModeSelectionScreen;
-import com.timestop.item.AbstractWatchItem;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -20,7 +16,7 @@ public class SyncRuneSocketPacket {
 
     public SyncRuneSocketPacket(InteractionHand hand, ItemStack socketedRune) {
         this.hand = hand;
-        this.socketedRune = socketedRune;
+        this.socketedRune = socketedRune.copy();
     }
 
     public SyncRuneSocketPacket(FriendlyByteBuf buf) {
@@ -35,19 +31,7 @@ public class SyncRuneSocketPacket {
 
     public boolean handle(Supplier<NetworkEvent.Context> supplier) {
         NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
-            Player player = Minecraft.getInstance().player;
-            if (player != null) {
-                ItemStack watchStack = player.getItemInHand(this.hand);
-                if (watchStack.getItem() instanceof AbstractWatchItem) {
-                    AbstractWatchItem.setSocketedRune(watchStack, this.socketedRune);
-                }
-
-                if (Minecraft.getInstance().screen instanceof TimeModeSelectionScreen screen) {
-                    screen.onServerSync(this.socketedRune);
-                }
-            }
-        });
+        context.enqueueWork(() -> com.timestop.client.ClientPacketHandlers.syncRune(hand, socketedRune));
         return true;
     }
 }

@@ -91,26 +91,22 @@ public class RuneManager {
     public static RuneType getSocketedRuneType(@Nullable Player player) {
         if (player == null || !player.isAlive()) return null;
 
-        // 1. Off-hand Watch or Rune check
+        // 1. Off-hand Watch check
         ItemStack offhand = player.getOffhandItem();
         if (offhand.getItem() instanceof AbstractWatchItem) {
             RuneType rune = AbstractWatchItem.getSocketedRuneType(offhand);
-            if (rune != null && rune != RuneType.BLANK) {
+            if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                 return rune;
             }
-        } else if (offhand.getItem() instanceof TemporalRuneItem runeItem) {
-            return runeItem.getType();
         }
 
-        // 2. Main-hand Watch or Rune check
+        // 2. Main-hand Watch check
         ItemStack mainhand = player.getMainHandItem();
         if (mainhand.getItem() instanceof AbstractWatchItem) {
             RuneType rune = AbstractWatchItem.getSocketedRuneType(mainhand);
-            if (rune != null && rune != RuneType.BLANK) {
+            if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                 return rune;
             }
-        } else if (mainhand.getItem() instanceof TemporalRuneItem runeItem) {
-            return runeItem.getType();
         }
 
         // 3. Check inventory for socketed watch
@@ -118,7 +114,7 @@ public class RuneManager {
             ItemStack stack = player.getInventory().getItem(i);
             if (stack.getItem() instanceof AbstractWatchItem) {
                 RuneType rune = AbstractWatchItem.getSocketedRuneType(stack);
-                if (rune != null && rune != RuneType.BLANK) {
+                if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                     return rune;
                 }
             }
@@ -127,30 +123,31 @@ public class RuneManager {
         return null;
     }
 
+    public static boolean hasRune(@Nullable Player player, RuneType type) {
+        if (player == null || type == null) return false;
+        return getSocketedRuneType(player) == type;
+    }
+
     public static ItemStack getSocketedRuneStack(@Nullable Player player) {
         if (player == null || !player.isAlive()) return ItemStack.EMPTY;
 
         ItemStack offhand = player.getOffhandItem();
         if (offhand.getItem() instanceof AbstractWatchItem) {
             ItemStack rune = AbstractWatchItem.getSocketedRune(offhand);
-            if (!rune.isEmpty()) return rune;
-        } else if (offhand.getItem() instanceof TemporalRuneItem) {
-            return offhand;
+            if (isActiveRune(rune)) return rune;
         }
 
         ItemStack mainhand = player.getMainHandItem();
         if (mainhand.getItem() instanceof AbstractWatchItem) {
             ItemStack rune = AbstractWatchItem.getSocketedRune(mainhand);
-            if (!rune.isEmpty()) return rune;
-        } else if (mainhand.getItem() instanceof TemporalRuneItem) {
-            return mainhand;
+            if (isActiveRune(rune)) return rune;
         }
 
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
             if (stack.getItem() instanceof AbstractWatchItem) {
                 ItemStack rune = AbstractWatchItem.getSocketedRune(stack);
-                if (!rune.isEmpty()) return rune;
+                if (isActiveRune(rune)) return rune;
             }
         }
 
@@ -163,6 +160,10 @@ public class RuneManager {
             return TemporalRuneItem.getTargetFilter(runeStack);
         }
         return ChainTargetFilter.HOSTILE;
+    }
+
+    private static boolean isActiveRune(ItemStack stack) {
+        return stack.getItem() instanceof TemporalRuneItem rune && rune.getType() != RuneType.BLANK && rune.getType() != RuneType.VECTOR;
     }
 
     /**

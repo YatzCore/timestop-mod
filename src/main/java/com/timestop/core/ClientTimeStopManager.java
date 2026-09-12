@@ -21,10 +21,26 @@ public class ClientTimeStopManager {
     private static UUID clientInitiatorUuid = null;
     private static TimeMode clientMode = TimeMode.TIME_STOP;
     private static boolean shaderActive = false;
+    private static TimeStopManager.ProjectileStasisMode projectileMode = TimeStopManager.ProjectileStasisMode.FLOWING;
+    private static boolean allowPlayerProjectiles = true;
+
+    public static void setProjectileFlow(TimeStopManager.ProjectileStasisMode mode, boolean allowed) {
+        projectileMode = mode;
+        allowPlayerProjectiles = allowed;
+    }
+
+    public static TimeStopManager.ProjectileStasisMode getProjectileMode() {
+        return projectileMode;
+    }
+
+    public static boolean arePlayerProjectilesFlowing() {
+        return allowPlayerProjectiles && projectileMode == TimeStopManager.ProjectileStasisMode.FLOWING;
+    }
 
     // SUPERHOT dynamic motion tracking
     private static float superhotActivity = 0.0F;
     private static volatile float serverSyncedSuperhotActivity = 0.0F;
+    private static long lastSuperhotReport;
     private static double prevMouseX = 0.0;
     private static double prevMouseY = 0.0;
     private static boolean wasFastLastFrame = false;
@@ -82,13 +98,15 @@ public class ClientTimeStopManager {
             case MATRIX:
                 return 200.0F; // 200ms = 5 TPS (0.25x speed)
             case SUPERHOT:
-                return 500.0F - (superhotActivity * 450.0F); // 500ms (idle extreme slow-mo) down to 50ms (moving)
+                // Match the server: five percent speed while idle and normal speed while active.
+                return 50.0F / (0.05F + superhotActivity * 0.95F);
             default:
                 return 50.0F;
         }
     }
 
     public static void setServerSyncedSuperhotActivity(float activity) {
+        serverSyncedSuperhotActivity = Float.isFinite(activity) ? Math.max(0, Math.min(1, activity)) : 0;
         if (activity > 0.15F) {
             superhotActivity = Math.max(superhotActivity, activity);
         }
@@ -104,6 +122,16 @@ public class ClientTimeStopManager {
         }
 
         if (!clientTimeStopped) return true;
+
+        if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile) {
+            if (arePlayerProjectilesFlowing()) {
+                Entity owner = projectile.getOwner();
+                if (owner instanceof Player player) {
+                    return isEntityExempt(player);
+                }
+            }
+            return false;
+        }
 
         if (entity instanceof Player player) {
             if (player.isCreative() || player.isSpectator()) {
@@ -130,6 +158,7 @@ public class ClientTimeStopManager {
         superhotActivity = 0.0F;
         serverSyncedSuperhotActivity = 0.0F;
         wasFastLastFrame = false;
+        setProjectileFlow(TimeStopManager.ProjectileStasisMode.FLOWING, true);
         removeShader();
     }
 
@@ -176,6 +205,7 @@ public class ClientTimeStopManager {
             ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
             if (b != null && b.mode == TimeMode.SUPERHOT) {
                 isSuperhot = true;
+                serverSyncedSuperhotActivity = ClientBubbleManager.getSuperhotActivity(b.bubbleId);
             }
         } else if (clientTimeStopped && clientMode == TimeMode.SUPERHOT) {
             isSuperhot = true;
@@ -189,7 +219,7 @@ public class ClientTimeStopManager {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.isPaused() || mc.screen != null) {
+        if (mc.player == null || mc.isPaused()) {
             return;
         }
 
@@ -198,17 +228,17 @@ public class ClientTimeStopManager {
                 || mc.options.keyDown.isDown()
                 || mc.options.keyLeft.isDown()
                 || mc.options.keyRight.isDown()
-                || mc.options.keyJump.isDown()
-                || mc.options.keyShift.isDown()
-                || mc.options.keySprint.isDown();
+                || mc.options.keyJump.isDown();
 
         boolean hasAction = mc.options.keyAttack.isDown()
                 || mc.options.keyUse.isDown()
                 || mc.player.swinging
                 || mc.player.isUsingItem();
 
-        boolean myLocalFast = hasMovementKey || hasAction;
-        if (myLocalFast != wasFastLastFrame) {
+        boolean myLocalFast = mc.screen == null && (hasMovementKey || hasAction);
+        long now = System.currentTimeMillis();
+        if (myLocalFast != wasFastLastFrame || now - lastSuperhotReport >= 250) {
+            lastSuperhotReport = now;
             wasFastLastFrame = myLocalFast;
             ModMessages.sendToServer(new SuperhotSyncPacket(myLocalFast ? 1.0F : 0.0F));
         }

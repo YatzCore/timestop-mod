@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "tacz"
+    }
+  ],
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "GAG",
+    " G "
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_nugget"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    }
+  },
+  "result": {
+    "item": "timestop:chrono_coin",
+    "count": 4
+  }
+}

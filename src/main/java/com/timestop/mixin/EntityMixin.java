@@ -60,30 +60,4 @@ public abstract class EntityMixin {
         }
     }
 
-    @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true)
-    private void onIsCurrentlyGlowing(CallbackInfoReturnable<Boolean> cir) {
-        Entity entity = (Entity) (Object) this;
-        if (entity.level().isClientSide()) {
-            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-            if (mc.player != null && com.timestop.combat.TranspositionManager.hasTranspositionRune(mc.player)) {
-                if (com.timestop.client.TranspositionRenderer.isTargetOutlined(entity)) {
-                    cir.setReturnValue(true);
-                }
-            }
-        }
-    }
-
-    @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true)
-    private void onGetTeamColor(CallbackInfoReturnable<Integer> cir) {
-        Entity entity = (Entity) (Object) this;
-        if (entity.level().isClientSide()) {
-            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-            if (mc.player != null && com.timestop.combat.TranspositionManager.hasTranspositionRune(mc.player)) {
-                int color = com.timestop.client.TranspositionRenderer.getTargetOutlineColor(entity);
-                if (color != -1) {
-                    cir.setReturnValue(color);
-                }
-            }
-        }
-    }
 }

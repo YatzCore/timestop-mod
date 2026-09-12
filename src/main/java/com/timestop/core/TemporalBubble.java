@@ -178,7 +178,11 @@ public class TemporalBubble {
     }
 
     public void setPlayerActivity(UUID playerUuid, float activity) {
-        playerActivities.put(playerUuid, activity);
+        playerActivities.put(playerUuid, Float.isFinite(activity) ? Math.max(0, Math.min(1, activity)) : 0);
+    }
+
+    public void retainActivePlayers(Set<UUID> players) {
+        playerActivities.keySet().retainAll(players);
     }
 
     public void setSuperhotActivity(float superhotActivity) {
@@ -197,11 +201,23 @@ public class TemporalBubble {
      * Resolves whether an entity can act freely inside this temporal bubble without time distortion.
      */
     public boolean canEntityAct(Entity entity) {
+        if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile) {
+            if (com.timestop.config.TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get()
+                    && TimeStopManager.getProjectileStasisMode() == TimeStopManager.ProjectileStasisMode.FLOWING) {
+                Entity owner = projectile.getOwner();
+                if (owner instanceof Player player) {
+                    return canEntityAct(player);
+                }
+            }
+            return false;
+        }
+
         if (!(entity instanceof Player player)) {
             return false;
         }
 
         if (player.isCreative() || player.isSpectator()) return true;
+        if (mode == TimeMode.SUPERHOT) return true;
         if (player.getUUID().equals(this.ownerUuid)) return true;
         if (exemptPlayers.contains(player.getUUID())) return true;
 
@@ -256,7 +272,7 @@ public class TemporalBubble {
             case FAST_FORWARD:
                 return 5.0F;
             case SUPERHOT:
-                return 0.20F;
+                return 0.05F + net.minecraft.util.Mth.clamp(getSuperhotActivity(), 0.0F, 1.0F) * 0.95F;
             default:
                 return 1.0F;
         }

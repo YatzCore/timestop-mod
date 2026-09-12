@@ -17,9 +17,12 @@
     "AbstractArrowMixin",
     "AbstractArrowAccessor",
     "ProjectileDecelerationMixin",
-    "ItemEntityMixin"
+    "ItemEntityMixin",
+    "TaczDeadEyeShotMixin",
+    "TaczDeadEyeBulletMixin"
   ],
   "client": [
+    "EntityOutlineMixin",
     "ClientLevelMixin",
     "EntityRenderDispatcherMixin",
     "LevelRendererMixin",
@@ -27,7 +30,8 @@
     "SingleQuadParticleMixin",
     "LivingEntityRendererMixin",
     "TimerMixin",
-    "TextureAtlasMixin"
+    "TextureAtlasMixin",
+    "PlayerModelMixin"
   ],
   "injectors": {
     "defaultRequire": 1

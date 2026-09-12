@@ -79,6 +79,7 @@ public class TimeStopConfig {
 
         public final ForgeConfigSpec.BooleanValue enableWaterWalkingInStasis;
         public final ForgeConfigSpec.IntValue friendRequestExpirySeconds;
+        public final ForgeConfigSpec.BooleanValue allowPlayerProjectilesInStasis;
 
         public Common(ForgeConfigSpec.Builder builder) {
             builder.push("watch_radii");
@@ -108,6 +109,9 @@ public class TimeStopConfig {
             builder.push("mechanics");
             enableWaterWalkingInStasis = builder.define("enableWaterWalkingInStasis", true);
             friendRequestExpirySeconds = builder.defineInRange("friendRequestExpirySeconds", 60, 10, 600);
+            allowPlayerProjectilesInStasis = builder
+                    .comment("If true, projectiles fired by players exempt from time stop (e.g. the caster or allies) travel forward freely in stasis. Fully compatible with TACZ guns and vanilla bows.")
+                    .define("allowPlayerProjectilesInStasis", true);
             builder.pop();
         }
     }

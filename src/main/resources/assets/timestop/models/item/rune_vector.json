@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "timestop:item/blank_rune",
+    "layer1": "minecraft:item/arrow"
+  }
+}
