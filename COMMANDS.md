@@ -96,13 +96,54 @@ Manages the server-wide player exemption whitelist for global time stops.
 
 ---
 
+### `scope`
+Configures server-wide temporal sphere scoping policies across all pocket watches.
+
+```
+/timestop scope <global|sphere|watch>
+```
+*(Aliases: `/timestop servermode <global|bubble>`, `/timestop scope bubble`, `/timestop globalmode <true|false>`)*
+
+- **Options**:
+  - `watch` *(Default)*: Each pocket watch respects its own internal configuration. Creative Watches can toggle between Global and Sphere via Shift+Right-Click, while survival watches project localized spheres.
+  - `sphere` (or `bubble`): Overrides all watches to project localized temporal spheres scaled to their tier, preventing global freezes even from Creative Watches.
+  - `global`: Forces all watches of every tier to trigger server-wide global time distortion.
+- **Querying State**:
+  Running `/timestop scope` without arguments outputs the current scope policy.
+- **Example**:
+  ```mcfunction
+  /timestop scope sphere
+  /timestop scope watch
+  ```
+
+---
+
+### `redirect`
+Controls the server-wide projectile redirection policy for slapped projectiles and kinetic barrier volleys.
+
+```
+/timestop redirect <look|return>
+```
+
+- **Options**:
+  - `look`: Struck projectiles and kinetic barrier volleys follow the player's crosshair aim direction. Seamlessly compatible with vanilla arrows/fireballs and native TACZ bullets/rockets.
+  - `return` *(Default)*: Struck projectiles reflect back toward their original sender. (Note: Players equipping the *Rune of Vector Control* always redirect along their look aim regardless of this server setting).
+- **Querying State**:
+  Running `/timestop redirect` without arguments outputs the active redirection policy.
+- **Example**:
+  ```mcfunction
+  /timestop redirect look
+  /timestop redirect return
+  ```
+
+---
+
 ### `servermode`
-Sets the server-wide operational policy for survival pocket watches.
+Legacy alias for `/timestop scope`. Sets the server-wide operational policy for survival pocket watches.
 
 ```
 /timestop servermode <global|bubble>
 ```
-*(Aliases: `/timestop scope <global|bubble>`, `/timestop globalmode <true|false>`)*
 
 - **Options**:
   - `bubble` *(Default)*: Survival pocket watches produce localized spherical bubbles scaled to their tier (Copper: 10m, Gilded: 16m, Diamond: 24m, Netherite: 32m). Dedicated server tick rate remains at 20 TPS for all players outside the sphere.
@@ -122,7 +163,8 @@ Outputs real-time diagnostics regarding the temporal engine state to chat.
 ```
 
 - **Output Data**:
-  - Current server watch policy (`GLOBAL` vs `BUBBLE`).
+  - Active watch scope policy (`GLOBAL`, `SPHERE`, or `WATCH`).
+  - Active projectile redirection policy (`LOOK` vs `RETURN`).
   - Active localized bubbles (owner, watch tier, radius in meters, time mode, and remaining duration).
   - Global time stop status and remaining duration ticks.
 - **Example**:
@@ -249,3 +291,39 @@ Available to all players (Permission Level 0). `/sync`, `/timesync`, and `/times
    ```mcfunction
    /timestop stop
    ```
+
+---
+
+## 4. Item Identifier Reference (`/give`)
+
+For testing, server shops, or map-making, all temporal pocket watches, runes, and ammunition can be acquired via standard `/give` commands.
+
+### Pocket Watches
+| Item Name | Item Identifier | Command Example |
+| :--- | :--- | :--- |
+| **Copper Chronometer** (Tier 1) | `timestop:copper_watch` | `/give @s timestop:copper_watch` |
+| **Gilded Chronos Watch** (Tier 2) | `timestop:chronos_watch` | `/give @s timestop:chronos_watch` |
+| **Diamond Chronos Watch** (Tier 3) | `timestop:diamond_watch` | `/give @s timestop:diamond_watch` |
+| **Netherite Chronos Sovereign** (Tier 4) | `timestop:netherite_watch` | `/give @s timestop:netherite_watch` |
+| **Creative Watch** (Tier 5) | `timestop:creative_watch` | `/give @s timestop:creative_watch` |
+
+### Temporal Runes
+| Rune Name | Item Identifier | Command Example |
+| :--- | :--- | :--- |
+| **Blank Temporal Rune** | `timestop:blank_rune` | `/give @s timestop:blank_rune` |
+| **Rune of Redirection** | `timestop:rune_deflection` | `/give @s timestop:rune_deflection` |
+| **Rune of Snatching** | `timestop:rune_snatching` | `/give @s timestop:rune_snatching` |
+| **Rune of Phasing** | `timestop:rune_phasing` | `/give @s timestop:rune_phasing` |
+| **Rune of Kinetic Amplification** | `timestop:rune_kinetic` | `/give @s timestop:rune_kinetic` |
+| **Rune of Chrono-Vampirism** | `timestop:rune_vampirism` | `/give @s timestop:rune_vampirism` |
+| **Rune of Volatile Stasis** | `timestop:rune_volatile` | `/give @s timestop:rune_volatile` |
+| **Rune of the Tachyon** | `timestop:rune_tachyon` | `/give @s timestop:rune_tachyon` |
+| **Rune of the Dead Eye** | `timestop:rune_deadeye` | `/give @s timestop:rune_deadeye` |
+| **Rune of Voltaic Ricochet** | `timestop:rune_ricochet` | `/give @s timestop:rune_ricochet` |
+| **Rune of Orbital Redirection** | `timestop:rune_orbital` | `/give @s timestop:rune_orbital` |
+| **Rune of Spatial Transposition** | `timestop:rune_transposition` | `/give @s timestop:rune_transposition` |
+| **Rune of the Kinetic Barrier** | `timestop:rune_barrier` | `/give @s timestop:rune_barrier` |
+| **Rune of Vector Control** | `timestop:rune_vector` | `/give @s timestop:rune_vector` |
+| **Rune of the Marksman (+RICOSHOT)** *(TACZ)* | `timestop:rune_coin` | `/give @s timestop:rune_coin` |
+| **Chrono Coin** *(TACZ)* | `timestop:chrono_coin` | `/give @s timestop:chrono_coin` |
+

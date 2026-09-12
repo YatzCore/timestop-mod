@@ -60,8 +60,9 @@ The mod features a full command engine for both server administration and multip
 | `/timestop stop` | Operator (Level 2) | Immediately dissolves all active temporal bubbles and resumes time. |
 | `/timestop toggle [seconds]` | Operator (Level 2) | Toggles time stop on or off. |
 | `/timestop exempt <add\|remove> <players>` | Operator (Level 2) | Whitelists players from global time stop effects. |
-| `/timestop servermode <global\|bubble>` | Operator (Level 2) | Sets server policy for pocket watches (localized spheres vs server-wide). |
-| `/timestop status` | Operator (Level 2) | Outputs real-time temporal engine diagnostics and active bubble stats. |
+| `/timestop scope <global\|sphere\|watch>` | Operator (Level 2) | Configures watch sphere policy (localized spheres, global, or per-watch). |
+| `/timestop redirect <look\|return>` | Operator (Level 2) | Sets projectile redirection (aim crosshair vs return-to-sender). |
+| `/timestop status` | Operator (Level 2) | Outputs real-time temporal diagnostics, active bubbles, and engine state. |
 | `/sync add <player>` | All Players | Invites a player to establish Time Sync (immune inside your time spheres). |
 | `/sync accept <player>` | All Players | Accepts an incoming Time Sync invitation. |
 | `/sync remove <name>` | All Players | Disconnects an active Resonator (online or offline). |
@@ -80,7 +81,7 @@ For full command documentation, subcommands, and tutorials, see [COMMANDS.md](CO
 ## Installation
 
 1. Install **Minecraft 1.20.1** with **Forge** or **NeoForge** (47.1.0 or higher).
-2. Download `timestop-1.20.1-1.2.1.jar` from [Releases](https://github.com/YatzCore/timestop-mod/releases).
+2. Download `timestop-1.20.1-1.3.12.jar` from [Releases](https://github.com/YatzCore/timestop-mod/releases).
 3. Place the `.jar` into your `.minecraft/mods` folder.
 
 ## License
