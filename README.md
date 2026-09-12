@@ -1,95 +1,139 @@
 # Ultimate Time Stop
 
 <p align="center">
-  <img src="logo.png" alt="Ultimate Time Stop" width="220" />
+  <img src="logo.png" alt="Ultimate Time Stop" width="240" />
 </p>
 
-A Minecraft mod for 1.20.1 that allows you to freeze, slow down, and manipulate time using pocket watches and temporal runes.
+<p align="center">
+  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.3.12-blue?style=flat-square&logo=github" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/Minecraft-1.20.1-brightgreen?style=flat-square" alt="Minecraft 1.20.1" />
+  <img src="https://img.shields.io/badge/Forge-47.3.0%2B-orange?style=flat-square" alt="Forge" />
+  <img src="https://img.shields.io/badge/TACZ-Compatible%20(Optional)-purple?style=flat-square" alt="TACZ Compatible" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" /></a>
+</p>
 
-## Features
+---
 
-### Temporal Modes
-- **Time Stop**: Freezes all mobs, projectiles, fluids, and world time. You can walk on water and lava. Damage dealt to mobs accumulates and discharges simultaneously when time resumes.
-  - **Bullet Slapping**: Left-click suspended projectiles in mid-air to punch and redirect their trajectory.
-  - **Bullet Snatching**: Right-click suspended projectiles to pluck them directly into your inventory.
-  - **Kinetic Momentum**: Strike falling blocks (anvils, sand, gravel) or primed TNT in stasis to launch them as high-velocity missiles upon resumption.
-- **Slow Motion**: Slows down the entire world to 25% speed for a smooth bullet-time effect.
-- **Matrix**: The world runs in slow motion, but you move, attack, and use items at normal speed.
-- **SUPERHOT**: Time moves only when you move. Stand still to freeze the world, or move/attack to let time flow.
-- **Deceleration Field**: A passive temporal bubble that slows down incoming projectiles by 80%.
-- **Fast Forward**: Speeds up the entire world (movement, smelting, day/night cycle) by 5x.
+A true engine-level temporal manipulation mod for **Minecraft Forge 1.20.1**. Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, and optional deep ballistic integration with **Timeless and Classics Zero (TACZ)**.
 
-### Tiered Pocket Watches
-- **Copper Chronometer (Tier 1)**: 6s duration, 25s cooldown. Unlocks Slow Motion and Fast Forward.
-- **Gilded Chronos Watch (Tier 2)**: 10s duration, 18s cooldown. 3.5m bullet-dodge passive, 1 Rune Socket. Unlocks Deceleration Field and SUPERHOT.
-- **Diamond Chronos Watch (Tier 3)**: 14s duration, 12s cooldown. 4.5m bullet-dodge passive, 1 Rune Socket. Unlocks Matrix and Time Stop.
-- **Netherite Chronos Sovereign (Tier 4)**: 20s duration, rapid 6s cooldown, fire-resistant. 5.5m bullet-dodge passive, 1 Rune Socket. All modes unlocked.
-- **Infinite Chronos Watch (Tier 5 - Creative)**: Unlimited duration, zero cooldown, all modes unlocked.
+---
 
-### Temporal Runes
-Socketable into Tier 2–4 watches to grant unique powers:
-- **Rune of Redirection**: Automatically parries incoming projectiles back at attackers.
-- **Rune of Snatching**: Automatically intercepts incoming projectiles into your inventory.
-- **Rune of Phasing**: Teleports you out of danger right before a projectile hits you.
-- **Rune of Kinetic Amplification**: Supercharges melee strikes during stasis with 2.5x launch force.
-- **Rune of Chrono-Vampirism**: Siphons extra time from struck enemies, extending active duration.
-- **Rune of Volatile Stasis**: Infuses struck projectiles and falling blocks with delayed explosive blasts.
-- **Rune of the Tachyon**: Accelerates mining speed (3x) and attack recharge in Slow-Mo and Matrix.
-- **Rune of the Dead Eye**: Aim a bow, crossbow, or firearms to paint targets in slow motion, then release a supersonic volley.
-- **Rune of Voltaic Ricochet**: Arrows and bullets fired in stasis ricochet between nearby targets like chain lightning.
-- **Rune of Orbital Redirection**: Captures incoming projectiles into a spinning shield halo around you.
-- **Rune of Spatial Transposition**: Instantly swaps positions with any targeted entity or projectile.
-- **Rune of the Kinetic Barrier**: Hold Middle Click to freeze incoming bullets and projectiles in mid-air. Release to drop; attack to launch a return volley.
-- **Rune of Vector Control**: Dynamically redirects struck projectiles and kinetic barrier volleys along your crosshair aim.
-- **Rune of the Marksman (+RICOSHOT)** *(TACZ)*: Toss Chrono Coins into the air and shoot them with firearms to trigger lethal chained ricoshots. Earn coin charges via combat kills.
+## Temporal Modes
 
-## Controls
+Each mode alters the flow of time through custom server-tick modulation, client prediction, and entity mixins:
 
-- **Right-Click** (holding watch): Start or stop the selected mode.
-- **Shift + Right-Click** (holding watch): Open the Time Mode Selection Screen or cycle modes.
-- **Sneak + Right-Click with Rune** (holding watch): Socket a rune into your watch.
-- **V**: Toggle the active mode on or off.
-- **R**: Release orbiting projectiles (with Orbital Rune).
-- **G**: Spatial Transposition swap (with Transposition Rune).
-- **Middle Click**: Hold Kinetic Barrier in mid-air (with Kinetic Barrier Rune).
-- **C**: Flip Chrono Coin into the air (with Marksman Rune & TACZ).
-- **K**: Toggle Projectile Flow / Suspended Stasis.
+- **Time Stop**: Freezes all mobs, projectiles, weather cycles, daylight, and falling blocks. Living entity damage accumulates in a kinetic buffer and detonates upon resumption. Enables walking across fluid surfaces (water and lava).
+  - **Projectile Slapping**: Left-click suspended projectiles in mid-air to punch and redirect their trajectory.
+  - **Projectile Snatching**: Right-click suspended projectiles to pluck arrows, tridents, and fireballs directly into inventory.
+  - **Kinetic Stasis**: Strike falling blocks (anvils, sand, gravel) or primed TNT in stasis to launch them as high-velocity missiles when time resumes.
+- **Slow Motion**: Modulates world simulation down to 25% speed (5 TPS) for fluid bullet-time evasion.
+- **Matrix**: World speed drops to 25%, but the wearer retains standard 100% movement and attack speed.
+- **SUPERHOT**: Movement-driven time progression. Standing still pauses entity simulation; walking, sprinting, jumping, and attacking progress time proportionally.
+- **Deceleration Field**: A localized defense field that slows incoming hostile projectiles by 80%, providing a reliable evasion window.
+- **Fast Forward**: Accelerates server-side world simulation to 500% speed (100 TPS) for accelerated smelting, crop growth, and testing.
 
-## Commands & Permissions
+---
 
-The mod features a full command engine for both server administration and multiplayer party coordination:
+## Tiered Pocket Watches
 
-### Quick Reference
-| Command | Permission | Description |
+Craft and upgrade pocket watches through survival tiers. Higher tiers expand active duration, reduce cooldowns, enlarge the localized temporal bubble radius, and unlock additional modes and rune sockets.
+
+| Icon | Watch Tier | Duration | Cooldown | Field Radius | Passive Effect | Unlocked Modes |
+| :---: | :--- | :---: | :---: | :---: | :---: | :--- |
+| <img src="src/main/resources/assets/timestop/textures/item/copper_watch.png" width="24" height="24" /> | **Copper Chronometer** | 6s | 25s | 10m | None | Slow Motion, Fast Forward |
+| <img src="src/main/resources/assets/timestop/textures/item/chronos_watch.png" width="24" height="24" /> | **Gilded Chronos Watch** | 10s | 18s | 16m | 3.5m Bullet Dodge | Deceleration Field, SUPERHOT |
+| <img src="src/main/resources/assets/timestop/textures/item/diamond_watch.png" width="24" height="24" /> | **Diamond Chronos Watch** | 14s | 12s | 24m | 4.5m Bullet Dodge | Matrix, Time Stop |
+| <img src="src/main/resources/assets/timestop/textures/item/netherite_watch.png" width="24" height="24" /> | **Netherite Sovereign** | 20s | 6s | 32m | 5.5m Bullet Dodge | All Modes (Fire-Resistant) |
+| <img src="src/main/resources/assets/timestop/textures/item/creative_watch.png" width="24" height="24" /> | **Creative Watch** | Infinite | None | 100m / Global | 8.0m Bullet Dodge | All Modes (Configurable Scope) |
+
+> [!NOTE]
+> Pocket watches in survival generate localized spherical bubbles by default. Dedicated server tickrates remain at a stable 20 TPS outside active spheres, allowing multiple players to independently control time without interfering with global server performance.
+
+---
+
+## Temporal Runes
+
+Socketable into Tier 2–4 pocket watches via the watch interface (**Shift + Right-Click**) to bestow active and passive combat abilities:
+
+| Icon | Rune Name | Ability & Combat Function | Integration |
+| :---: | :--- | :--- | :---: |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_deflection.png" width="24" height="24" /> | **Rune of Redirection** | Automatically parries incoming projectiles back toward attackers. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_snatching.png" width="24" height="24" /> | **Rune of Snatching** | Automatically intercepts incoming projectiles straight into inventory. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_phasing.png" width="24" height="24" /> | **Rune of Phasing** | Teleports you out of harm's way right before an unavoidable projectile impact. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_kinetic.png" width="24" height="24" /> | **Rune of Kinetic Amplification** | Multiplies melee strikes during stasis with 2.5x accumulated launch force. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_vampirism.png" width="24" height="24" /> | **Rune of Chrono-Vampirism** | Siphons temporal energy from struck enemies, extending active duration. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_volatile.png" width="24" height="24" /> | **Rune of Volatile Stasis** | Imbues struck projectiles and falling blocks with delayed concussive blasts. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_tachyon.png" width="24" height="24" /> | **Rune of the Tachyon** | Accelerates mining speed (3x) and attack recharge in Slow-Mo and Matrix. | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_deadeye.png" width="24" height="24" /> | **Rune of the Dead Eye** | Paint multiple targets in slow motion, releasing a guided projectile volley. | Core / TACZ |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_ricochet.png" width="24" height="24" /> | **Rune of Voltaic Ricochet** | Projectiles fired in stasis chain between nearby hostiles like lightning. | Core / TACZ |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_orbital.png" width="24" height="24" /> | **Rune of Orbital Redirection** | Intercepts projectiles into a spinning halo; press **R** to launch. | Core / TACZ |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_transposition.png" width="24" height="24" /> | **Rune of Spatial Transposition** | Instantly swaps positions with any targeted entity or projectile (**G**). | Core |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_barrier.png" width="24" height="24" /> | **Rune of the Kinetic Barrier** | Hold **Middle Click** to freeze bullets in mid-air. Attack to fire back. | Core / TACZ |
+| <img src="src/main/resources/assets/timestop/textures/item/blank_rune.png" width="24" height="24" /> | **Rune of Vector Control** | Directs struck projectiles and barrier volleys toward crosshair aim. | Core / TACZ |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | Toss coins into mid-air (**C**) and shoot them to deflect lethal critical shots. | TACZ Required |
+
+---
+
+## Timeless and Classics Zero (TACZ) Integration
+
+Ultimate Time Stop features dedicated soft-dependency support for **Timeless and Classics Zero (1.1.8-hotfix+)**:
+
+- **Native Ballistics in Stasis**: Kinetic bullets, shotgun buckshot, 40mm grenades, and RPG-7 rockets are treated as native physical projectiles. They freeze in mid-air, maintain ballistic velocity on resumption, and correctly interact with temporal fields.
+- **Rune of the Kinetic Barrier (Neo's Palm)**: Hold **Middle Click** to freeze incoming gunfire and explosive ordnance directly in front of you. Release the barrier to let spent rounds drop, or attack to redirect the entire volley forward.
+- **Chrono Coins & +RICOSHOT**: Equip the Marksman rune, tap **C** to flick a Chrono Coin into the air, and shoot it with any firearm. Bullets automatically ricochet toward the nearest enemy's head with amplified critical damage. Chain coins together for compounding multipliers.
+- **Dead Eye Firearm Guidance**: Marking targets while wielding TACZ weapons preserves native gun sounds, animations, suppressor effects, and ammo consumption while stripping recoil spread for guaranteed precision hits.
+- **Clean Soft-Dependency Architecture**: When TACZ is not installed, the Marksman rune, Chrono Coins, crafting recipes, charge HUD, and coin flip keybindings automatically hide from all menus, creative tabs, and options screens.
+
+> [!TIP]
+> TACZ is completely optional. The mod runs identically in pure vanilla environments without requiring any external gun libraries or dependencies.
+
+---
+
+## Controls & Keybinds
+
+| Input | Action | Requirements |
 | :--- | :--- | :--- |
-| `/timestop start <mode> [seconds]` | Operator (Level 2) | Activates server-wide time distortion in the specified mode. |
-| `/timestop stop` | Operator (Level 2) | Immediately dissolves all active temporal bubbles and resumes time. |
-| `/timestop toggle [seconds]` | Operator (Level 2) | Toggles time stop on or off. |
-| `/timestop exempt <add\|remove> <players>` | Operator (Level 2) | Whitelists players from global time stop effects. |
-| `/timestop scope <global\|sphere\|watch>` | Operator (Level 2) | Configures watch sphere policy (localized spheres, global, or per-watch). |
-| `/timestop redirect <look\|return>` | Operator (Level 2) | Sets projectile redirection (aim crosshair vs return-to-sender). |
-| `/timestop status` | Operator (Level 2) | Outputs real-time temporal diagnostics, active bubbles, and engine state. |
-| `/sync add <player>` | All Players | Invites a player to establish Time Sync (immune inside your time spheres). |
-| `/sync accept <player>` | All Players | Accepts an incoming Time Sync invitation. |
-| `/sync remove <name>` | All Players | Disconnects an active Resonator (online or offline). |
-| `/sync list` | All Players | Displays active Resonators and pending invitations. |
+| **Right-Click** | Activate / Stop selected temporal mode | Pocket Watch in hand |
+| **Shift + Right-Click** | Open Watch Management GUI & Rune Socket Tray | Pocket Watch in hand |
+| **V** | Toggle active time mode | Any equipped Pocket Watch |
+| **R** | Release orbiting projectile shield | Rune of Orbital Redirection |
+| **G** | Trigger Spatial Transposition swap | Rune of Spatial Transposition |
+| **Middle Click** (Hold) | Deploy Kinetic Barrier (Neo's Palm) | Rune of the Kinetic Barrier |
+| **C** | Flip Chrono Coin into mid-air | Rune of the Marksman & TACZ installed |
+| **K** | Toggle projectile flow (suspended vs flowing stasis) | Any active stasis field |
 
-For full command documentation, subcommands, and tutorials, see [COMMANDS.md](COMMANDS.md).
+---
+
+## Commands & Multiplayer
+
+The mod provides two full command trees for administration and cooperative multiplayer:
+
+- **Administration (`/timestop`)**: Operator permission level 2. Control world time dilation, configure sphere scoping policies (`/timestop scope <global|sphere|watch>`), set projectile deflection rules (`/timestop redirect <look|return>`), manage exemption whitelists (`/timestop exempt`), and monitor engine diagnostics (`/timestop status`).
+- **Multiplayer Time Sync (`/sync`, `/timesync`)**: Available to all players without operator status. Link players into a shared resonance network so teammates can freely move, attack, and shoot inside each other's localized time bubbles.
+
+For detailed command breakdowns, syntax, permissions, and tutorials, see [COMMANDS.md](COMMANDS.md).
+
+---
 
 ## Crafting Progression
 
-- **Copper Chronometer**: Crafted with 4 Copper Ingots and 1 Clock.
-- **Gilded Chronos Watch**: Upgrade Copper Watch with Gold Ingots, Lapis Lazuli, and Quartz.
-- **Diamond Chronos Watch**: Upgrade Gilded Watch with Diamonds, Obsidian, and an Echo Shard.
-- **Netherite Chronos Sovereign**: Upgrade Diamond Watch with a Netherite Ingot at a Smithing Table.
-- **Blank Temporal Rune**: Crafted with Stone, Amethyst Shards, and Gold. Combine with materials to create specialized runes.
+1. **Copper Chronometer**: 4 Copper Ingots + 1 Clock.
+2. **Gilded Chronos Watch**: Copper Watch + 4 Gold Ingots + 2 Lapis Lazuli + 2 Nether Quartz.
+3. **Diamond Chronos Watch**: Gilded Watch + 4 Diamonds + 3 Obsidian + 1 Echo Shard.
+4. **Netherite Chronos Sovereign**: Diamond Watch + 1 Netherite Ingot at a Smithing Table.
+5. **Blank Temporal Rune**: 4 Stone + 4 Amethyst Shards + 1 Gold Ingot. Combine with catalysts at a crafting table to carve specialized combat runes.
+
+---
 
 ## Installation
 
-1. Install **Minecraft 1.20.1** with **Forge** or **NeoForge** (47.1.0 or higher).
-2. Download `timestop-1.20.1-1.3.12.jar` from [Releases](https://github.com/YatzCore/timestop-mod/releases).
-3. Place the `.jar` into your `.minecraft/mods` folder.
+1. Install **Minecraft 1.20.1** using **Minecraft Forge** or **NeoForge** (version 47.3.0 or higher).
+2. Download the latest release (`timestop-1.20.1-1.3.12.jar`) from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
+3. Place the `.jar` into your `.minecraft/mods` directory.
+4. *(Optional)* Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
+
+---
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
