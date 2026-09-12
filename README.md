@@ -40,10 +40,10 @@ Craft and upgrade pocket watches through survival tiers. Higher tiers expand act
 
 | Icon | Watch Tier | Duration | Cooldown | Field Radius | Passive Effect | Unlocked Modes |
 | :---: | :--- | :---: | :---: | :---: | :---: | :--- |
-| <img src="src/main/resources/assets/timestop/textures/item/copper_watch.png" width="24" height="24" /> | **Copper Chronometer** | 6s | 25s | 10m | None | Slow Motion, Fast Forward |
-| <img src="src/main/resources/assets/timestop/textures/item/chronos_watch.png" width="24" height="24" /> | **Gilded Chronos Watch** | 10s | 18s | 16m | 3.5m Bullet Dodge | Deceleration Field, SUPERHOT |
-| <img src="src/main/resources/assets/timestop/textures/item/diamond_watch.png" width="24" height="24" /> | **Diamond Chronos Watch** | 14s | 12s | 24m | 4.5m Bullet Dodge | Matrix, Time Stop |
-| <img src="src/main/resources/assets/timestop/textures/item/netherite_watch.png" width="24" height="24" /> | **Netherite Sovereign** | 20s | 6s | 32m | 5.5m Bullet Dodge | All Modes (Fire-Resistant) |
+| <img src="src/main/resources/assets/timestop/textures/item/copper_watch.png" width="24" height="24" /> | **Copper Watch** | 6s | 25s | 10m | None | Slow Motion, Fast Forward |
+| <img src="src/main/resources/assets/timestop/textures/item/chronos_watch.png" width="24" height="24" /> | **Golden Watch** | 10s | 18s | 16m | 3.5m Bullet Dodge | Deceleration Field, SUPERHOT |
+| <img src="src/main/resources/assets/timestop/textures/item/diamond_watch.png" width="24" height="24" /> | **Diamond Watch** | 14s | 12s | 24m | 4.5m Bullet Dodge | Matrix, Time Stop |
+| <img src="src/main/resources/assets/timestop/textures/item/netherite_watch.png" width="24" height="24" /> | **Netherite Watch** | 20s | 6s | 32m | 5.5m Bullet Dodge | All Modes (Fire-Resistant) |
 | <img src="src/main/resources/assets/timestop/textures/item/creative_watch.png" width="24" height="24" /> | **Creative Watch** | Infinite | None | 100m / Global | 8.0m Bullet Dodge | All Modes (Configurable Scope) |
 
 > [!NOTE]
@@ -117,10 +117,10 @@ For detailed command breakdowns, syntax, permissions, and tutorials, see [COMMAN
 
 ## Crafting Progression
 
-1. **Copper Chronometer**: 4 Copper Ingots + 1 Clock.
-2. **Gilded Chronos Watch**: Copper Watch + 4 Gold Ingots + 2 Lapis Lazuli + 2 Nether Quartz.
-3. **Diamond Chronos Watch**: Gilded Watch + 4 Diamonds + 3 Obsidian + 1 Echo Shard.
-4. **Netherite Chronos Sovereign**: Diamond Watch + 1 Netherite Ingot at a Smithing Table.
+1. **Copper Watch**: 4 Copper Ingots + 1 Clock.
+2. **Golden Watch**: Copper Watch + 4 Gold Ingots + 2 Lapis Lazuli + 2 Nether Quartz.
+3. **Diamond Watch**: Golden Watch + 4 Diamonds + 3 Obsidian + 1 Echo Shard.
+4. **Netherite Watch**: Diamond Watch + 1 Netherite Ingot at a Smithing Table.
 5. **Blank Temporal Rune**: 4 Stone + 4 Amethyst Shards + 1 Gold Ingot. Combine with catalysts at a crafting table to carve specialized combat runes.
 
 ---

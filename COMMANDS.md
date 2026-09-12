@@ -301,10 +301,10 @@ For testing, server shops, or map-making, all temporal pocket watches, runes, an
 ### Pocket Watches
 | Item Name | Item Identifier | Command Example |
 | :--- | :--- | :--- |
-| **Copper Chronometer** (Tier 1) | `timestop:copper_watch` | `/give @s timestop:copper_watch` |
-| **Gilded Chronos Watch** (Tier 2) | `timestop:chronos_watch` | `/give @s timestop:chronos_watch` |
-| **Diamond Chronos Watch** (Tier 3) | `timestop:diamond_watch` | `/give @s timestop:diamond_watch` |
-| **Netherite Chronos Sovereign** (Tier 4) | `timestop:netherite_watch` | `/give @s timestop:netherite_watch` |
+| **Copper Watch** (Tier 1) | `timestop:copper_watch` | `/give @s timestop:copper_watch` |
+| **Golden Watch** (Tier 2) | `timestop:chronos_watch` | `/give @s timestop:chronos_watch` |
+| **Diamond Watch** (Tier 3) | `timestop:diamond_watch` | `/give @s timestop:diamond_watch` |
+| **Netherite Watch** (Tier 4) | `timestop:netherite_watch` | `/give @s timestop:netherite_watch` |
 | **Creative Watch** (Tier 5) | `timestop:creative_watch` | `/give @s timestop:creative_watch` |
 
 ### Temporal Runes
