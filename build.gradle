@@ -1,123 +1,29 @@
 plugins {
-    id 'java'
-    id 'net.neoforged.moddev.legacyforge' version '2.0.78'
+    id 'fabric-loom' version '1.8-SNAPSHOT' apply false
+    id 'net.neoforged.moddev.legacyforge' version '2.0.78' apply false
 }
 
-version = '1.3.12'
-group = 'com.timestop'
+subprojects {
+    apply plugin: 'java'
 
-base {
-    archivesName = 'timestop-1.20.1'
-}
+    version = project.mod_version
+    group = 'com.timestop'
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+    repositories {
+        mavenCentral()
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://maven.minecraftforge.net/' }
     }
-}
 
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
 
-// Opt-in server tests stay out of normal release artifacts.
-if (providers.gradleProperty('gameTests').isPresent()) {
-    sourceSets.main.java.srcDir 'src/gameTest/java'
-    sourceSets.main.resources.srcDir 'src/gameTest/resources'
-}
-
-legacyForge {
-    version = '1.20.1-47.3.0'
-    validateAccessTransformers = true
-
-    runs {
-        gameTestServer {
-            type = 'gameTestServer'
-            gameDirectory = file(providers.gradleProperty('testDirectory').getOrElse('build/gametest'))
-            systemProperty 'forge.enabledGameTestNamespaces', 'timestop'
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
         }
     }
-
-    mods {
-        timestop {
-            sourceSet sourceSets.main
-        }
-    }
-}
-
-mixin {
-    add sourceSets.main, 'timestop.refmap.json'
-    config 'timestop.mixins.json'
-}
-
-dependencies {
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    if (providers.gradleProperty('taczTests').isPresent()) {
-        def taczJar = fileTree('../mods') { include 'tacz-1.20.1-1.1.8-hotfix*.jar' }.singleFile
-        copy { from taczJar; into layout.buildDirectory.dir('taczDependency'); rename { 'tacz-1.20.1-1.1.8-hotfix.jar' } }
-        repositories { flatDir { dirs layout.buildDirectory.dir('taczDependency') } }
-        modImplementation 'local.tacz:tacz-1.20.1:1.1.8-hotfix'
-        sourceSets.main.java.srcDir 'src/taczTest/java'
-    }
-}
-
-tasks.register('validateResources') {
-    inputs.dir('src/main/resources')
-    doLast {
-        def assets = file('src/main/resources/assets')
-        def parser = new groovy.json.JsonSlurper()
-        fileTree('src/main/resources').matching { include '**/*.json' }.each { resource ->
-            def json = parser.parse(resource, 'UTF-8')
-            if (resource.path.replace('\\', '/').contains('/models/')) {
-                json.textures?.values()?.each { texture ->
-                    if (texture.startsWith('timestop:')) {
-                        def target = new File(assets, 'timestop/textures/' + texture.substring(9) + '.png')
-                        if (!target.isFile()) throw new GradleException("Missing texture ${texture} in ${resource}")
-                        if (javax.imageio.ImageIO.read(target) == null) throw new GradleException("Invalid PNG: ${target}")
-                    }
-                }
-            }
-        }
-    }
-}
-
-tasks.named('check') { dependsOn 'validateResources' }
-
-tasks.named('runGameTestServer') {
-    doFirst {
-        if (!providers.gradleProperty('gameTests').isPresent()) {
-            throw new GradleException('Run server regression tests with -PgameTests.')
-        }
-    }
-    doLast {
-        // Forge can exit successfully after a mod-loading failure without running tests.
-        def testLog = file(providers.gradleProperty('testDirectory').getOrElse('build/gametest') + '/logs/latest.log')
-        if (!testLog.isFile() || !(testLog.getText('UTF-8') =~ /All [1-9][0-9]* required tests passed/)) {
-            throw new GradleException('Game tests did not report success; inspect build/gametest/logs/latest.log.')
-        }
-    }
-}
-
-tasks.named('jar', Jar) {
-    exclude 'com/timestop/TimeStopRegressionTests*.class'
-    exclude 'com/timestop/TimeStopTaczTests*.class'
-    exclude 'data/timestop/structures/empty.nbt'
-    manifest {
-        attributes([
-            'Specification-Title': 'timestop',
-            'Specification-Vendor': 'timestop',
-            'Specification-Version': '1',
-            'Implementation-Title': project.name,
-            'Implementation-Version': project.version,
-            'Implementation-Vendor': 'timestop',
-            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-            'MixinConfigs': 'timestop.mixins.json'
-        ])
-    }
-}
-
-tasks.register('deployToMods', Copy) {
-    dependsOn 'reobfJar'
-    from tasks.named('reobfJar').flatMap { it.archiveFile }
-    into file('../mods')
 }

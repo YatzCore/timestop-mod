@@ -1,0 +1,61 @@
+plugins {
+    id 'net.neoforged.moddev.legacyforge'
+}
+
+base {
+    archivesName = "${project.archives_name}-forge-${project.minecraft_version}"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += project(':common').file('src/main/java')
+        }
+        resources {
+            srcDirs += project(':common').file('src/main/resources')
+        }
+    }
+}
+
+legacyForge {
+    version = "${project.forge_version}"
+    validateAccessTransformers = true
+
+    mods {
+        timestop {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, 'timestop.refmap.json'
+    config 'timestop-common.mixins.json'
+    config 'timestop-forge.mixins.json'
+}
+
+dependencies {
+    compileOnly project(':common')
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes([
+            'Specification-Title': 'timestop',
+            'Specification-Vendor': 'timestop',
+            'Specification-Version': '1',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'timestop',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            'MixinConfigs': 'timestop-common.mixins.json,timestop-forge.mixins.json'
+        ])
+    }
+}
+
+tasks.register('deployToMods', Copy) {
+    dependsOn 'reobfJar'
+    from tasks.named('reobfJar').flatMap { it.archiveFile }
+    into file('../../mods')
+}

@@ -1,0 +1,43 @@
+plugins {
+    id 'fabric-loom'
+}
+
+base {
+    archivesName = "${project.archives_name}-fabric-${project.minecraft_version}"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += project(':common').file('src/main/java')
+        }
+        resources {
+            srcDirs += project(':common').file('src/main/resources')
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    compileOnly project(':common')
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+afterEvaluate {
+    tasks.named('remapJar') {
+        actions.removeIf { it.displayName.contains('copy') }
+    }
+}

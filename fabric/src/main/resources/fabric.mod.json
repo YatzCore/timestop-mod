@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "timestop",
+  "version": "${version}",
+  "name": "Time Stop",
+  "description": "Master the flow of time! Freeze entities, deflect projectiles, and manipulate temporal physics in Minecraft.",
+  "authors": [
+    "timestop"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/timestop/textures/item/chronos_watch.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.timestop.fabric.TimeStopFabricMod"
+    ],
+    "client": [
+      "com.timestop.fabric.client.TimeStopFabricClient"
+    ]
+  },
+  "mixins": [
+    "timestop-common.mixins.json",
+    "timestop-fabric.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.11",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

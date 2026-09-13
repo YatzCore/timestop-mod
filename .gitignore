@@ -1,6 +1,10 @@
 # Gradle and Build Files
 .gradle/
+**/.gradle/
 build/
+**/build/
+.flattened/
+**/.flattened/
 out/
 bin/
 
