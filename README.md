@@ -25,10 +25,7 @@ A true engine-level temporal manipulation mod ported to **Minecraft Forge 1.21.1
 
 > [!IMPORTANT]
 > **TACZ (Timeless and Classics Zero) Compatibility on 1.21.1**:
-> Upstream TACZ is currently available exclusively for Minecraft 1.20.1 and has not yet published an official 1.21.1 build.
-> - **Zero Crashes / Clean Fallback**: The 1.21.1 codebase maintains full reflection-guarded hooks (`TaczDeadEyeCompat`). If TACZ is not present, all gun hooks and custom runes gracefully hide from creative tabs, recipes, and overlays without errors.
-> - **Future-Proof**: Once TACZ releases for 1.21.1, compatibility will activate automatically with no mod update needed!
-> - **Need full TACZ firearm gameplay now?** Please use our **[1.20.1 branch (main)](https://github.com/YatzCore/timestop-mod/tree/main)** and releases (`v1.3.12`).
+> Upstream TACZ is currently available exclusively for Minecraft 1.20.1 and has not yet published an official 1.21.1 build. For full TACZ firearm gameplay, please use the **[1.20.1 branch (main)](https://github.com/YatzCore/timestop-mod/tree/main)** and releases (`v1.3.12`).
 
 ---
 
@@ -91,7 +88,7 @@ Socketable into Tier 2–4 pocket watches via the watch interface (**Shift + Rig
 ## Timeless and Classics Zero (TACZ) Integration
 
 > [!NOTE]
-> *Status in 1.21.1*: Upstream TACZ is currently available for Minecraft 1.20.1 only. In 1.21.1, all TACZ integration logic remains dormant and safely isolated via runtime reflection. The features below are active in the [1.20.1 release](https://github.com/YatzCore/timestop-mod/tree/main) and will automatically activate in 1.21.1 as soon as upstream TACZ updates.
+> *Status in 1.21.1*: Upstream TACZ is currently available for Minecraft 1.20.1 only. The features below are active in the [1.20.1 release](https://github.com/YatzCore/timestop-mod/tree/main).
 
 Ultimate Time Stop features dedicated soft-dependency support for **Timeless and Classics Zero**:
 
