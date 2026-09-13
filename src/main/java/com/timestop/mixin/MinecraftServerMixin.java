@@ -11,8 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
 
-    @Shadow private long nextTickTime;
-    @Shadow private long delayedTasksMaxNextTickTime;
+    @Shadow private long nextTickTimeNanos;
+    @Shadow private long delayedTasksMaxNextTickTimeNanos;
 
     @Inject(
         method = "runServer",
@@ -25,9 +25,10 @@ public abstract class MinecraftServerMixin {
         long targetTickMs = TimeStopManager.getServerTickMs();
         if (targetTickMs != 50L) {
             long delta = targetTickMs - 50L;
-            if (delta > 0L) {
-                this.nextTickTime += delta;
-                this.delayedTasksMaxNextTickTime = this.nextTickTime;
+            if (delta != 0L) {
+                long deltaNanos = delta * 1_000_000L;
+                this.nextTickTimeNanos += deltaNanos;
+                this.delayedTasksMaxNextTickTimeNanos = this.nextTickTimeNanos;
             }
         }
     }

@@ -31,16 +31,16 @@ public class SyncManager {
         if (server == null) return new SyncSavedData();
         ServerLevel overworld = server.overworld();
 
-        SyncSavedData data = overworld.getDataStorage().get(SyncSavedData::load, SyncSavedData.getDataName());
+        SyncSavedData data = overworld.getDataStorage().get(SyncSavedData.FACTORY, SyncSavedData.getDataName());
         if (data == null) {
             // Check legacy timestop_friends for seamless world migration
-            SyncSavedData legacyData = overworld.getDataStorage().get(SyncSavedData::load, SyncSavedData.LEGACY_DATA_NAME);
+            SyncSavedData legacyData = overworld.getDataStorage().get(SyncSavedData.FACTORY, SyncSavedData.LEGACY_DATA_NAME);
             if (legacyData != null) {
                 data = legacyData;
                 data.setDirty();
                 overworld.getDataStorage().set(SyncSavedData.getDataName(), data);
             } else {
-                data = overworld.getDataStorage().computeIfAbsent(SyncSavedData::load, SyncSavedData::new, SyncSavedData.getDataName());
+                data = overworld.getDataStorage().computeIfAbsent(SyncSavedData.FACTORY, SyncSavedData.getDataName());
             }
         }
 

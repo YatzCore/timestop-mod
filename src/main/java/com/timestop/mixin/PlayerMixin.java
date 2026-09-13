@@ -12,12 +12,18 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Player.class)
 public abstract class PlayerMixin extends LivingEntity {
 
     protected PlayerMixin(EntityType<? extends LivingEntity> type, Level level) {
         super(type, level);
+    }
+
+    @Inject(method = {"getSpeed", "getFlyingSpeed"}, at = @At("RETURN"), cancellable = true)
+    private void timestop$fastMovement(CallbackInfoReturnable<Float> cir) {
+        cir.setReturnValue(cir.getReturnValueF() * com.timestop.core.FastForwardManager.localPlayerRate((Player) (Object) this));
     }
 
     @Inject(method = "aiStep", at = @At("HEAD"), cancellable = true)
@@ -56,16 +62,17 @@ public abstract class PlayerMixin extends LivingEntity {
         Player player = (Player) (Object) this;
         TimeMode mode = player.level().isClientSide ? ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
 
-        if (isAcceleratedExempt(player)) {
+        int fastForwardTicks = (int) com.timestop.core.FastForwardManager.localPlayerRate(player) - 1;
+        if (fastForwardTicks > 0 || isAcceleratedExempt(player)) {
             // Dynamic compensation: only add extra ticks if the engine is running slower than 20 TPS!
             // At 50ms (20 TPS), extraTicks is 0. At 200ms (5 TPS), extraTicks is 3 (total 4 per tick = 20/sec).
             float tickMs = player.level().isClientSide ? ClientTimeStopManager.getClientTickMs() : TimeStopManager.getServerTickMs();
-            int extraTicks = Math.max(0, Math.round((tickMs - 50.0F) / 50.0F));
+            int extraTicks = Math.max(fastForwardTicks, Math.max(0, Math.round((tickMs - 50.0F) / 50.0F)));
 
             if (extraTicks > 0) {
                 // In MATRIX mode, MATRIX_ATTACK_MOD already provides +300% attack speed attribute.
                 // Do not duplicate with attackStrengthTicker advance.
-                if (mode != TimeMode.MATRIX) {
+                if (fastForwardTicks > 0 || mode != TimeMode.MATRIX) {
                     this.attackStrengthTicker += extraTicks;
                 }
 

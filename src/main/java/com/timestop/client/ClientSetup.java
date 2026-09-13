@@ -6,13 +6,14 @@ import com.timestop.network.ModMessages;
 import com.timestop.network.ToggleTimeStopPacket;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
+import net.minecraftforge.client.event.AddGuiOverlayLayersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
+import net.minecraftforge.client.gui.overlay.ForgeLayeredDraw;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 
 public class ClientSetup {
@@ -37,14 +38,12 @@ public class ClientSetup {
             "key.categories.timestop"
     );
 
-    public static final KeyMapping FLIP_COIN_KEY = net.minecraftforge.fml.ModList.get().isLoaded("tacz")
-            ? new KeyMapping(
-                    "key.timestop.flip_coin",
-                    InputConstants.Type.KEYSYM,
-                    GLFW.GLFW_KEY_C,
-                    "key.categories.timestop"
-            )
-            : null;
+    public static final KeyMapping FLIP_COIN_KEY = new KeyMapping(
+            "key.timestop.flip_coin",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_C,
+            "key.categories.timestop"
+    );
 
     public static final KeyMapping PROJECTILE_FLOW_TOGGLE_KEY = new KeyMapping(
             "key.timestop.toggle_projectile_flow",
@@ -65,6 +64,7 @@ public class ClientSetup {
         modEventBus.addListener(ClientSetup::registerOverlays);
         modEventBus.addListener(ClientSetup::registerEntityRenderers);
         MinecraftForge.EVENT_BUS.register(new ClientForgeEvents());
+        MinecraftForge.EVENT_BUS.addListener(com.timestop.combat.KineticPalmManager::onClientTick);
         MinecraftForge.EVENT_BUS.register(new ChronoAudioHandler());
         MinecraftForge.EVENT_BUS.register(new ClientInteractionHandler());
         MinecraftForge.EVENT_BUS.register(new DeadEyeRenderer());
@@ -81,22 +81,20 @@ public class ClientSetup {
         event.register(TIME_STOP_KEY);
         event.register(RELEASE_PROJECTILES_KEY);
         event.register(TRANSPOSITION_KEY);
-        if (FLIP_COIN_KEY != null) {
-            event.register(FLIP_COIN_KEY);
-        }
+        event.register(FLIP_COIN_KEY);
         event.register(PROJECTILE_FLOW_TOGGLE_KEY);
         event.register(KINETIC_BARRIER_KEY);
     }
 
-    public static void registerOverlays(RegisterGuiOverlaysEvent event) {
-        event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "chrono_meter", ChronoOverlay.HUD_CHRONO);
-        event.registerAbove(VanillaGuiOverlay.HOTBAR.id(), "captured_projectiles_hud", CapturedProjectilesOverlay.HUD_ORBIT);
-        event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "transposition_hud", TranspositionRenderer.HUD_TRANSPOSITION);
-        if (net.minecraftforge.fml.ModList.get().isLoaded("tacz")) {
-            event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "chrono_coin_hud", com.timestop.client.renderer.ChronoCoinOverlay.HUD_CHRONO_COIN);
-        }
-        event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "dead_eye_hud", DeadEyeRenderer.HUD_DEAD_EYE);
-        event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "superhot_hud", SuperhotRenderer.HUD_SUPERHOT);
+    public static void registerOverlays(AddGuiOverlayLayersEvent event) {
+        // Keep HUD layers in the same depth stack as the crosshair and hotbar.
+        ForgeLayeredDraw draw = event.getLayeredDraw().locateStack(ForgeLayeredDraw.PRE_SLEEP_STACK).orElseThrow();
+        draw.add(ResourceLocation.fromNamespaceAndPath("timestop", "chrono_meter"), ChronoOverlay.HUD_CHRONO);
+        draw.add(ResourceLocation.fromNamespaceAndPath("timestop", "captured_projectiles_hud"), CapturedProjectilesOverlay.HUD_ORBIT);
+        draw.add(ResourceLocation.fromNamespaceAndPath("timestop", "transposition_hud"), TranspositionRenderer.HUD_TRANSPOSITION);
+        draw.add(ResourceLocation.fromNamespaceAndPath("timestop", "chrono_coin_hud"), com.timestop.client.renderer.ChronoCoinOverlay.HUD_CHRONO_COIN);
+        draw.add(ResourceLocation.fromNamespaceAndPath("timestop", "dead_eye_hud"), DeadEyeRenderer.HUD_DEAD_EYE);
+        draw.add(ResourceLocation.fromNamespaceAndPath("timestop", "superhot_hud"), SuperhotRenderer.HUD_SUPERHOT);
     }
 
     public static class ClientForgeEvents {

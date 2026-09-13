@@ -10,6 +10,6 @@
     "item": "minecraft:netherite_ingot"
   },
   "result": {
-    "item": "timestop:netherite_watch"
+    "id": "timestop:netherite_watch"
   }
 }

@@ -42,8 +42,6 @@ public class TimeStopSettingsScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(guiGraphics);
-
         int modalWidth = 320;
         int modalHeight = 270;
         int modalX = (this.width - modalWidth) / 2;
@@ -315,6 +313,11 @@ public class TimeStopSettingsScreen extends Screen {
                 this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.0F);
             }
         }
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Untinted transparent background: settings panel renders its own bordered dark-glass box
     }
 
     @Override

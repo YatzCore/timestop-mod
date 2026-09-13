@@ -5,11 +5,13 @@ import com.timestop.core.TimeMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
+import net.minecraft.client.gui.LayeredDraw;
 
 public class SuperhotRenderer {
 
-    public static final IGuiOverlay HUD_SUPERHOT = (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
+    public static final LayeredDraw.Layer HUD_SUPERHOT = (guiGraphics, deltaTracker) -> {
+        int screenWidth = guiGraphics.guiWidth();
+        int screenHeight = guiGraphics.guiHeight();
         if (!ClientTimeStopManager.isTimeStopped() || ClientTimeStopManager.getCurrentMode() != TimeMode.SUPERHOT) {
             return;
         }

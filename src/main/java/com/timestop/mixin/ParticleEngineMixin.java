@@ -21,7 +21,7 @@ public abstract class ParticleEngineMixin {
     }
 
     @ModifyVariable(
-            method = "render(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;Lnet/minecraft/client/renderer/LightTexture;Lnet/minecraft/client/Camera;F)V",
+            method = "render(Lnet/minecraft/client/renderer/LightTexture;Lnet/minecraft/client/Camera;F)V",
             at = @At("HEAD"),
             argsOnly = true
     )

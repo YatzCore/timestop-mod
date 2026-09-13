@@ -1,5 +1,6 @@
 package com.timestop.core;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -15,7 +16,7 @@ public class TimeStopSavedData extends SavedData {
     public TimeStopSavedData() {
     }
 
-    public static TimeStopSavedData load(CompoundTag tag) {
+    public static TimeStopSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
         TimeStopSavedData data = new TimeStopSavedData();
         if (tag.contains("ServerForceGlobalMode")) {
             data.watchScope = tag.getBoolean("ServerForceGlobalMode") ? WatchScope.GLOBAL : WatchScope.WATCH;
@@ -33,7 +34,7 @@ public class TimeStopSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
         tag.putBoolean("ServerForceGlobalMode", isServerForceGlobalMode());
         tag.putString("WatchScope", watchScope.name());
         tag.putBoolean("RedirectToLook", redirectToLook);
@@ -56,9 +57,15 @@ public class TimeStopSavedData extends SavedData {
     public TimeStopManager.ProjectileStasisMode getProjectileStasisMode() { return projectileStasisMode; }
     public void setProjectileStasisMode(TimeStopManager.ProjectileStasisMode mode) { this.projectileStasisMode = mode; setDirty(); }
 
+    public static final SavedData.Factory<TimeStopSavedData> FACTORY = new SavedData.Factory<>(
+            TimeStopSavedData::new,
+            TimeStopSavedData::load,
+            null
+    );
+
     public static TimeStopSavedData get() {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return new TimeStopSavedData();
-        return server.overworld().getDataStorage().computeIfAbsent(TimeStopSavedData::load, TimeStopSavedData::new, DATA_NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
     }
 }

@@ -3,12 +3,12 @@ package com.timestop.client;
 import com.timestop.combat.RuneManager;
 import com.timestop.item.rune.RuneType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 public class CapturedProjectilesOverlay {
 
@@ -22,7 +22,9 @@ public class CapturedProjectilesOverlay {
         return orbitCount;
     }
 
-    public static final IGuiOverlay HUD_ORBIT = (gui, guiGraphics, partialTick, width, height) -> {
+    public static final LayeredDraw.Layer HUD_ORBIT = (guiGraphics, deltaTracker) -> {
+        int width = guiGraphics.guiWidth();
+        int height = guiGraphics.guiHeight();
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null || mc.options.hideGui) return;

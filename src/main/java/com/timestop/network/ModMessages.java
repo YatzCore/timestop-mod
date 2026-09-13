@@ -2,19 +2,17 @@ package com.timestop.network;
 
 import com.timestop.TimeStopMod;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.network.ChannelBuilder;
 import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.minecraftforge.network.SimpleChannel;
 
 public class ModMessages {
-    private static final String PROTOCOL_VERSION = "6";
-    public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(TimeStopMod.MOD_ID, "main"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
-    );
+    private static final int PROTOCOL_VERSION = 6;
+    public static final SimpleChannel INSTANCE = ChannelBuilder.named(
+            ResourceLocation.fromNamespaceAndPath(TimeStopMod.MOD_ID, "main"))
+            .networkProtocolVersion(PROTOCOL_VERSION)
+            .simpleChannel();
 
     private static int packetId = 0;
 
@@ -186,14 +184,14 @@ public class ModMessages {
     }
 
     public static <MSG> void sendToServer(MSG message) {
-        INSTANCE.sendToServer(message);
+        INSTANCE.send(message, PacketDistributor.SERVER.noArg());
     }
 
     public static <MSG> void sendToClients(MSG message) {
-        INSTANCE.send(PacketDistributor.ALL.noArg(), message);
+        INSTANCE.send(message, PacketDistributor.ALL.noArg());
     }
 
     public static <MSG> void sendToPlayer(MSG message, net.minecraft.server.level.ServerPlayer player) {
-        INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), message);
+        INSTANCE.send(message, PacketDistributor.PLAYER.with(player));
     }
 }

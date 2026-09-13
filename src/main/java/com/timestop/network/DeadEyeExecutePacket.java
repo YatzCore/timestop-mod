@@ -4,11 +4,10 @@ import com.timestop.combat.DeadEyeManager;
 import com.timestop.combat.DeadEyeTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 public class DeadEyeExecutePacket {
     private final List<DeadEyeTag> tags;
@@ -33,8 +32,7 @@ public class DeadEyeExecutePacket {
         }
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
+    public void handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null && DeadEyeManager.hasDeadEyeRune(player)) {
@@ -43,6 +41,6 @@ public class DeadEyeExecutePacket {
                 }
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

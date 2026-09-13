@@ -34,6 +34,15 @@ public class TimeStopMod {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
 
+        // Mixed client/server handlers must not be auto-scanned after @OnlyIn stripping.
+        var forgeBus = net.minecraftforge.common.MinecraftForge.EVENT_BUS;
+        forgeBus.addListener(com.timestop.combat.DeadEyeManager::onServerTick);
+        forgeBus.addListener(com.timestop.combat.KineticPalmManager::onServerTick);
+        forgeBus.addListener(net.minecraftforge.eventbus.api.EventPriority.LOWEST,
+                com.timestop.combat.KineticPalmManager::onDroppedProjectileImpact);
+        forgeBus.addListener(com.timestop.combat.KineticPalmManager::onStartTracking);
+        forgeBus.addListener(com.timestop.combat.KineticPalmManager::onProjectileLoaded);
+
         net.minecraftforge.fml.ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.CLIENT, com.timestop.config.TimeStopConfig.CLIENT_SPEC);
         net.minecraftforge.fml.ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, com.timestop.config.TimeStopConfig.COMMON_SPEC);
 

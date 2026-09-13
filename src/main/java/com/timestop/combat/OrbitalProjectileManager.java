@@ -120,7 +120,7 @@ public class OrbitalProjectileManager {
             HitResult hit = event.getRayTraceResult();
             if (hit instanceof EntityHitResult entityHit && entityHit.getEntity() == projectile.getOwner()) {
                 // Owner immunity: launched orbital projectiles never damage or hit the player who fired them!
-                event.setCanceled(true);
+                event.setImpactResult(ProjectileImpactEvent.ImpactResult.SKIP_ENTITY);
                 return;
             }
 
@@ -146,7 +146,7 @@ public class OrbitalProjectileManager {
                 || !canAutoCapture(player, projectile)) return;
 
         // Catch the projectile directly upon imminent impact!
-        event.setCanceled(true);
+        event.setImpactResult(ProjectileImpactEvent.ImpactResult.STOP_AT_CURRENT_NO_DAMAGE);
         captureProjectile(player, projectile, level);
     }
 
@@ -194,14 +194,15 @@ public class OrbitalProjectileManager {
                         p.setNoGravity(false);
                         p.getPersistentData().remove("OrbitedPlayerUuid");
                         p.getPersistentData().remove("InStasisOrbit");
-                        ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p),
-                                new SyncOrbitalEntityPacket(p.getId(), playerUuid, -1, -1, false));
+                        ModMessages.INSTANCE.send(
+                                new SyncOrbitalEntityPacket(p.getId(), playerUuid, -1, -1, false),
+                                PacketDistributor.TRACKING_ENTITY_AND_SELF.with(p));
                     }
                 }
                 list.clear();
                 playerOrbits.remove(playerUuid);
                 if (player != null) {
-                    ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new SyncOrbitCountPacket(0));
+                    ModMessages.INSTANCE.send(new SyncOrbitCountPacket(0), PacketDistributor.PLAYER.with(player));
                 }
                 continue;
             }
@@ -237,9 +238,8 @@ public class OrbitalProjectileManager {
 
                 // Fireballs: neutralize internal acceleration while in orbit
                 if (proj instanceof AbstractHurtingProjectile hurting) {
-                    hurting.xPower = 0.0;
-                    hurting.yPower = 0.0;
-                    hurting.zPower = 0.0;
+                    hurting.setDeltaMovement(Vec3.ZERO);
+                    hurting.accelerationPower = 0.0;
                 }
 
                 int oldIndex = proj.getPersistentData().getInt("OrbitIndex");
@@ -247,8 +247,9 @@ public class OrbitalProjectileManager {
                 if (oldIndex != i || oldTotal != count) {
                     proj.getPersistentData().putInt("OrbitIndex", i);
                     proj.getPersistentData().putInt("OrbitTotal", count);
-                    ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> proj),
-                            new SyncOrbitalEntityPacket(proj.getId(), playerUuid, i, count, true));
+                    ModMessages.INSTANCE.send(
+                            new SyncOrbitalEntityPacket(proj.getId(), playerUuid, i, count, true),
+                            PacketDistributor.TRACKING_ENTITY_AND_SELF.with(proj));
                 }
 
                 if (tick % 2 == 0) {
@@ -295,10 +296,8 @@ public class OrbitalProjectileManager {
                         Vec3 toTarget = targetCenter.subtract(proj.position()).normalize();
 
                         if (proj instanceof AbstractHurtingProjectile hurting) {
-                            hurting.xPower = toTarget.x * 0.18D;
-                            hurting.yPower = toTarget.y * 0.18D;
-                            hurting.zPower = toTarget.z * 0.18D;
                             hurting.setDeltaMovement(toTarget.scale(3.4D));
+                            hurting.accelerationPower = 0.18D;
                             hurting.hasImpulse = true;
                         } else if (proj instanceof ThrownTrident trident) {
                             Vec3 cur = trident.getDeltaMovement();
@@ -360,9 +359,8 @@ public class OrbitalProjectileManager {
         projectile.getPersistentData().putBoolean("InStasisOrbit", true);
 
         if (projectile instanceof AbstractHurtingProjectile hurting) {
-            hurting.xPower = 0.0;
-            hurting.yPower = 0.0;
-            hurting.zPower = 0.0;
+            hurting.setDeltaMovement(Vec3.ZERO);
+            hurting.accelerationPower = 0.0;
         }
 
         // Disallow arrow pickup, but KEEP tridents retrievable!
@@ -384,11 +382,13 @@ public class OrbitalProjectileManager {
 
         // Sync count to client HUD and tracking clients
         if (player instanceof ServerPlayer serverPlayer) {
-            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
-                    new SyncOrbitCountPacket(newCount));
+            ModMessages.INSTANCE.send(
+                    new SyncOrbitCountPacket(newCount),
+                    PacketDistributor.PLAYER.with(serverPlayer));
         }
-        ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> projectile),
-                new SyncOrbitalEntityPacket(projectile.getId(), player.getUUID(), newCount - 1, newCount, true));
+        ModMessages.INSTANCE.send(
+                new SyncOrbitalEntityPacket(projectile.getId(), player.getUUID(), newCount - 1, newCount, true),
+                PacketDistributor.TRACKING_ENTITY_AND_SELF.with(projectile));
     }
 
     public static void launchOrbitingProjectiles(Player player) {
@@ -422,8 +422,9 @@ public class OrbitalProjectileManager {
             proj.getPersistentData().remove("OrbitTotal");
             proj.getPersistentData().putBoolean("WasOrbitalLaunched", true);
             ProjectileCombatHelper.markReleased(proj, player);
-            ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> proj),
-                    new SyncOrbitalEntityPacket(proj.getId(), player.getUUID(), -1, -1, false));
+            ModMessages.INSTANCE.send(
+                    new SyncOrbitalEntityPacket(proj.getId(), player.getUUID(), -1, -1, false),
+                    PacketDistributor.TRACKING_ENTITY_AND_SELF.with(proj));
 
             LivingEntity target = null;
             Vec3 dir;
@@ -469,10 +470,8 @@ public class OrbitalProjectileManager {
             } else if (isFireball) {
                 AbstractHurtingProjectile hurting = (AbstractHurtingProjectile) proj;
                 hurting.setNoGravity(true);
-                hurting.xPower = dir.x * 0.18D;
-                hurting.yPower = dir.y * 0.18D;
-                hurting.zPower = dir.z * 0.18D;
                 hurting.setDeltaMovement(dir.scale(3.4D));
+                hurting.accelerationPower = 0.18D;
 
                 level.sendParticles(ParticleTypes.FLAME, proj.getX(), proj.getY(), proj.getZ(),
                         10, dir.x * 0.2, dir.y * 0.2, dir.z * 0.2, 0.08);
@@ -498,8 +497,9 @@ public class OrbitalProjectileManager {
         playerOrbits.remove(player.getUUID());
 
         if (player instanceof ServerPlayer serverPlayer) {
-            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
-                    new SyncOrbitCountPacket(0));
+            ModMessages.INSTANCE.send(
+                    new SyncOrbitCountPacket(0),
+                    PacketDistributor.PLAYER.with(serverPlayer));
         }
     }
 
@@ -585,8 +585,9 @@ public class OrbitalProjectileManager {
         proj.getPersistentData().putBoolean("WasOrbitalLaunched", true);
         ProjectileCombatHelper.markReleased(proj, player);
         proj.setOwner(player);
-        ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> toLaunch),
-                new SyncOrbitalEntityPacket(toLaunch.getId(), player.getUUID(), -1, -1, false));
+        ModMessages.INSTANCE.send(
+                new SyncOrbitalEntityPacket(toLaunch.getId(), player.getUUID(), -1, -1, false),
+                PacketDistributor.TRACKING_ENTITY_AND_SELF.with(toLaunch));
 
         boolean isTrident = proj instanceof ThrownTrident;
         boolean isFireball = proj instanceof AbstractHurtingProjectile;
@@ -628,10 +629,8 @@ public class OrbitalProjectileManager {
         } else if (isFireball) {
             AbstractHurtingProjectile hurting = (AbstractHurtingProjectile) proj;
             hurting.setNoGravity(true);
-            hurting.xPower = fireDir.x * 0.18D;
-            hurting.yPower = fireDir.y * 0.18D;
-            hurting.zPower = fireDir.z * 0.18D;
             hurting.setDeltaMovement(fireDir.scale(3.4D));
+            hurting.accelerationPower = 0.18D;
 
             // Fireball audio
             level.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -660,8 +659,9 @@ public class OrbitalProjectileManager {
         }
 
         if (player instanceof ServerPlayer serverPlayer) {
-            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer),
-                    new SyncOrbitCountPacket(remaining));
+            ModMessages.INSTANCE.send(
+                    new SyncOrbitCountPacket(remaining),
+                    PacketDistributor.PLAYER.with(serverPlayer));
         }
     }
 
@@ -669,8 +669,9 @@ public class OrbitalProjectileManager {
     public static void onPlayerRespawn(net.minecraftforge.event.entity.player.PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             playerOrbits.remove(player.getUUID());
-            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player),
-                    new SyncOrbitCountPacket(0));
+            ModMessages.INSTANCE.send(
+                    new SyncOrbitCountPacket(0),
+                    PacketDistributor.PLAYER.with(player));
         }
     }
 
@@ -678,8 +679,9 @@ public class OrbitalProjectileManager {
     public static void onPlayerLoggedIn(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             int count = getOrbitCount(player);
-            ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player),
-                    new SyncOrbitCountPacket(count));
+            ModMessages.INSTANCE.send(
+                    new SyncOrbitCountPacket(count),
+                    PacketDistributor.PLAYER.with(player));
         }
     }
 }

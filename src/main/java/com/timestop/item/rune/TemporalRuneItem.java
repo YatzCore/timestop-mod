@@ -28,7 +28,7 @@ public class TemporalRuneItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltipComponents, TooltipFlag isAdvanced) {
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag isAdvanced) {
         tooltipComponents.add(type.getFormattedComponent());
         tooltipComponents.add(Component.literal(type.getDescription()).withStyle(ChatFormatting.GRAY));
 
@@ -71,15 +71,20 @@ public class TemporalRuneItem extends Item {
     }
 
     public static com.timestop.combat.ChainTargetFilter getTargetFilter(ItemStack stack) {
-        if (stack != null && stack.hasTag() && stack.getTag().contains("ChainFilter")) {
-            return com.timestop.combat.ChainTargetFilter.fromName(stack.getTag().getString("ChainFilter"));
+        if (stack != null) {
+            net.minecraft.world.item.component.CustomData customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+            if (customData != null && customData.contains("ChainFilter")) {
+                return com.timestop.combat.ChainTargetFilter.fromName(customData.copyTag().getString("ChainFilter"));
+            }
         }
         return com.timestop.combat.ChainTargetFilter.HOSTILE;
     }
 
     public static void setTargetFilter(ItemStack stack, com.timestop.combat.ChainTargetFilter filter) {
         if (stack != null) {
-            stack.getOrCreateTag().putString("ChainFilter", filter.name());
+            net.minecraft.world.item.component.CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA, stack, tag -> {
+                tag.putString("ChainFilter", filter.name());
+            });
         }
     }
 }

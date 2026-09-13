@@ -11,9 +11,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class KineticBlockPunchPacket {
     private final int entityId;
@@ -43,9 +42,7 @@ public class KineticBlockPunchPacket {
         buf.writeDouble(this.lookDirection.z);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player == null) return;
 
@@ -76,6 +73,6 @@ public class KineticBlockPunchPacket {
                 player.swing(InteractionHand.MAIN_HAND, true);
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

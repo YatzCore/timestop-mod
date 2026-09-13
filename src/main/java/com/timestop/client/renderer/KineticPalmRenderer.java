@@ -19,7 +19,7 @@ import org.joml.Matrix4f;
 public class KineticPalmRenderer {
     @SubscribeEvent
     public void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
         var bullets = mc.level.getEntitiesOfClass(Projectile.class, mc.player.getBoundingBox().inflate(40),
@@ -32,18 +32,18 @@ public class KineticPalmRenderer {
         RenderSystem.disableCull();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         var tessellator = Tesselator.getInstance();
-        var buffer = tessellator.getBuilder();
-        var matrix = event.getPoseStack().last().pose();
+        var matrix = new Matrix4f();
         Vec3 camera = event.getCamera().getPosition();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        BufferBuilder buffer = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (Projectile bullet : bullets) {
-            float age = bullet.getPersistentData().getInt("NeoWakeAge") + event.getPartialTick();
+            float partialTick = mc.getTimer().getGameTimeDeltaPartialTick(false);
+            float age = bullet.getPersistentData().getInt("NeoWakeAge") + partialTick;
             float fade = Math.max(0, 1 - age / 12f);
             Vec3 direction = bullet.getLookAngle().normalize();
             Vec3 right = direction.cross(new Vec3(0, 1, 0)).normalize();
             if (right.lengthSqr() < 0.01) right = new Vec3(1, 0, 0);
             Vec3 up = right.cross(direction).normalize();
-            Vec3 position = bullet.getPosition(event.getPartialTick()).subtract(camera);
+            Vec3 position = bullet.getPosition(partialTick).subtract(camera);
             for (int ring = 0; ring < 2; ring++) {
                 Vec3 center = position.subtract(direction.scale(0.12 + ring * 0.18));
                 double radius = 0.045 + age * 0.009 + ring * 0.035;
@@ -51,7 +51,7 @@ public class KineticPalmRenderer {
                 ripple(buffer, matrix, center, right, up, radius, fade * 0.10f / (ring + 1));
             }
         }
-        tessellator.end();
+        BufferUploader.drawWithShader(buffer.buildOrThrow());
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
         RenderSystem.disableBlend();
@@ -76,8 +76,8 @@ public class KineticPalmRenderer {
     private static void vertex(BufferBuilder buffer, Matrix4f matrix, Vec3 center, Vec3 right, Vec3 up,
                                double angle, double radius, float alpha) {
         Vec3 point = center.add(right.scale(Math.cos(angle) * radius)).add(up.scale(Math.sin(angle) * radius));
-        buffer.vertex(matrix, (float) point.x, (float) point.y, (float) point.z)
-                .color(0.78f, 0.78f, 0.76f, alpha).endVertex();
+        buffer.addVertex(matrix, (float) point.x, (float) point.y, (float) point.z)
+                .setColor(0.78f, 0.78f, 0.76f, alpha);
     }
 
     @SubscribeEvent

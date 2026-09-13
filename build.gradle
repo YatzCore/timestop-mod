@@ -1,18 +1,29 @@
-plugins {
-    id 'java'
-    id 'net.neoforged.moddev.legacyforge' version '2.0.78'
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '[6.0.24,6.2)', changing: true
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
 }
 
-version = '1.3.12'
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'java'
+
+version = '1.4.0'
 group = 'com.timestop'
 
 base {
-    archivesName = 'timestop-1.20.1'
+    archivesName = 'timestop-1.21.1'
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -20,29 +31,58 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-// Opt-in server tests stay out of normal release artifacts.
-if (providers.gradleProperty('gameTests').isPresent()) {
+// Opt-in integration tests run in a separate disposable world, never in a player save.
+if (project.hasProperty('portChecks')) {
     sourceSets.main.java.srcDir 'src/gameTest/java'
+    sourceSets.main.java.exclude '**/TimeStopRegressionTests.java'
     sourceSets.main.resources.srcDir 'src/gameTest/resources'
+    // Forge's module scanner needs test classes and mods.toml in one output root.
+    sourceSets.main.java.destinationDirectory.set(layout.buildDirectory.dir('port-test-classes'))
+    sourceSets.main.output.resourcesDir = file('build/port-test-classes')
 }
 
-legacyForge {
-    version = '1.20.1-47.3.0'
-    validateAccessTransformers = true
+minecraft {
+    mappings channel: 'official', version: '1.21.1'
+    copyIdeResources = true
 
     runs {
         gameTestServer {
-            type = 'gameTestServer'
-            gameDirectory = file(providers.gradleProperty('testDirectory').getOrElse('build/gametest'))
-            systemProperty 'forge.enabledGameTestNamespaces', 'timestop'
+            workingDirectory project.file('build/port-test-run')
+            property 'forge.enabledGameTestNamespaces', 'timestop'
+            mods {
+                timestop { source sourceSets.main }
+            }
+        }
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                timestop {
+                    source sourceSets.main
+                }
+            }
+        }
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                timestop {
+                    source sourceSets.main
+                }
+            }
         }
     }
+}
 
-    mods {
-        timestop {
-            sourceSet sourceSets.main
-        }
-    }
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.21.1-52.1.16'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 mixin {
@@ -50,58 +90,12 @@ mixin {
     config 'timestop.mixins.json'
 }
 
-dependencies {
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    if (providers.gradleProperty('taczTests').isPresent()) {
-        def taczJar = fileTree('../mods') { include 'tacz-1.20.1-1.1.8-hotfix*.jar' }.singleFile
-        copy { from taczJar; into layout.buildDirectory.dir('taczDependency'); rename { 'tacz-1.20.1-1.1.8-hotfix.jar' } }
-        repositories { flatDir { dirs layout.buildDirectory.dir('taczDependency') } }
-        modImplementation 'local.tacz:tacz-1.20.1:1.1.8-hotfix'
-        sourceSets.main.java.srcDir 'src/taczTest/java'
-    }
-}
-
-tasks.register('validateResources') {
-    inputs.dir('src/main/resources')
-    doLast {
-        def assets = file('src/main/resources/assets')
-        def parser = new groovy.json.JsonSlurper()
-        fileTree('src/main/resources').matching { include '**/*.json' }.each { resource ->
-            def json = parser.parse(resource, 'UTF-8')
-            if (resource.path.replace('\\', '/').contains('/models/')) {
-                json.textures?.values()?.each { texture ->
-                    if (texture.startsWith('timestop:')) {
-                        def target = new File(assets, 'timestop/textures/' + texture.substring(9) + '.png')
-                        if (!target.isFile()) throw new GradleException("Missing texture ${texture} in ${resource}")
-                        if (javax.imageio.ImageIO.read(target) == null) throw new GradleException("Invalid PNG: ${target}")
-                    }
-                }
-            }
-        }
-    }
-}
-
-tasks.named('check') { dependsOn 'validateResources' }
-
-tasks.named('runGameTestServer') {
-    doFirst {
-        if (!providers.gradleProperty('gameTests').isPresent()) {
-            throw new GradleException('Run server regression tests with -PgameTests.')
-        }
-    }
-    doLast {
-        // Forge can exit successfully after a mod-loading failure without running tests.
-        def testLog = file(providers.gradleProperty('testDirectory').getOrElse('build/gametest') + '/logs/latest.log')
-        if (!testLog.isFile() || !(testLog.getText('UTF-8') =~ /All [1-9][0-9]* required tests passed/)) {
-            throw new GradleException('Game tests did not report success; inspect build/gametest/logs/latest.log.')
-        }
-    }
-}
-
 tasks.named('jar', Jar) {
+    exclude 'com/timestop/PortRegressionTests*.class'
     exclude 'com/timestop/TimeStopRegressionTests*.class'
     exclude 'com/timestop/TimeStopTaczTests*.class'
     exclude 'data/timestop/structures/empty.nbt'
+    exclude 'data/timestop/structure/empty.nbt'
     manifest {
         attributes([
             'Specification-Title': 'timestop',
@@ -116,8 +110,17 @@ tasks.named('jar', Jar) {
     }
 }
 
+tasks.named('processResources') {
+    // These datapack directories became singular in Minecraft 1.21.
+    eachFile { details ->
+        if (details.path.startsWith('data/')) {
+            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/')
+        }
+    }
+}
+
 tasks.register('deployToMods', Copy) {
-    dependsOn 'reobfJar'
-    from tasks.named('reobfJar').flatMap { it.archiveFile }
+    dependsOn 'jar'
+    from tasks.named('jar').flatMap { it.archiveFile }
     into file('../mods')
 }

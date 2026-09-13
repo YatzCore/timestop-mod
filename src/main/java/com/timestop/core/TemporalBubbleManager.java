@@ -16,6 +16,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -34,12 +35,12 @@ public class TemporalBubbleManager {
     private static final Map<UUID, TemporalBubble> activeBubbles = new ConcurrentHashMap<>();
     private static final Map<UUID, UUID> playerToBubble = new ConcurrentHashMap<>();
 
-    private static final UUID MATRIX_SPEED_UUID = UUID.fromString("c0a80101-0000-0000-0000-000000000001");
-    private static final UUID MATRIX_ATTACK_UUID = UUID.fromString("c0a80101-0000-0000-0000-000000000002");
+    private static final ResourceLocation MATRIX_SPEED_RL = ResourceLocation.fromNamespaceAndPath("timestop", "bubble_matrix_speed");
+    private static final ResourceLocation MATRIX_ATTACK_RL = ResourceLocation.fromNamespaceAndPath("timestop", "bubble_matrix_attack_speed");
     private static final AttributeModifier MATRIX_SPEED_MOD = new AttributeModifier(
-            MATRIX_SPEED_UUID, "Matrix Speed", 0.5, AttributeModifier.Operation.MULTIPLY_TOTAL);
+            MATRIX_SPEED_RL, 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     private static final AttributeModifier MATRIX_ATTACK_MOD = new AttributeModifier(
-            MATRIX_ATTACK_UUID, "Matrix Attack Speed", 3.0, AttributeModifier.Operation.MULTIPLY_TOTAL);
+            MATRIX_ATTACK_RL, 3.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
     public static Map<UUID, TemporalBubble> getActiveBubbles() {
         return Collections.unmodifiableMap(activeBubbles);
@@ -403,7 +404,7 @@ public class TemporalBubbleManager {
     public static void syncAllToPlayer(ServerPlayer player) {
         for (TemporalBubble b : activeBubbles.values()) {
             Vec3 c = b.getCenter();
-            ModMessages.INSTANCE.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
+            ModMessages.INSTANCE.send(
                     new TemporalBubbleSyncPacket(
                             TemporalBubbleSyncPacket.Action.CREATE_OR_UPDATE,
                             b.getBubbleId(),
@@ -416,29 +417,30 @@ public class TemporalBubbleManager {
                             b.getTotalDuration(),
                             b.getTier(),
                             b.getExemptPlayers()
-                    ));
+                    ),
+                    net.minecraftforge.network.PacketDistributor.PLAYER.with(player));
         }
     }
 
     private static void applyMatrixAttributes(Player player) {
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null && !speed.hasModifier(MATRIX_SPEED_MOD)) {
+        if (speed != null && !speed.hasModifier(MATRIX_SPEED_RL)) {
             speed.addTransientModifier(MATRIX_SPEED_MOD);
         }
         AttributeInstance attack = player.getAttribute(Attributes.ATTACK_SPEED);
-        if (attack != null && !attack.hasModifier(MATRIX_ATTACK_MOD)) {
+        if (attack != null && !attack.hasModifier(MATRIX_ATTACK_RL)) {
             attack.addTransientModifier(MATRIX_ATTACK_MOD);
         }
     }
 
     private static void removeMatrixAttributes(Player player) {
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null && speed.hasModifier(MATRIX_SPEED_MOD)) {
-            speed.removeModifier(MATRIX_SPEED_MOD);
+        if (speed != null && speed.hasModifier(MATRIX_SPEED_RL)) {
+            speed.removeModifier(MATRIX_SPEED_RL);
         }
         AttributeInstance attack = player.getAttribute(Attributes.ATTACK_SPEED);
-        if (attack != null && attack.hasModifier(MATRIX_ATTACK_MOD)) {
-            attack.removeModifier(MATRIX_ATTACK_MOD);
+        if (attack != null && attack.hasModifier(MATRIX_ATTACK_RL)) {
+            attack.removeModifier(MATRIX_ATTACK_RL);
         }
     }
 

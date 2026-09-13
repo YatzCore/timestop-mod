@@ -112,9 +112,6 @@ public class TimeModeSelectionScreen extends Screen {
                     if (i == watchSlot) continue; // Never scan the watch itself
                     ItemStack invStack = player.getInventory().getItem(i);
                     if (!invStack.isEmpty() && invStack.getCount() > 0 && invStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
-                        if (runeItem.getType() == RuneType.RICOSHOT && !net.minecraftforge.fml.ModList.get().isLoaded("tacz")) {
-                            continue;
-                        }
                         this.availableRunes.add(new InventoryRuneEntry(i, invStack, runeItem.getType()));
                     }
                 }
@@ -152,8 +149,6 @@ public class TimeModeSelectionScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics);
-
         TierTheme theme = getTheme();
         int modalWidth = getModalWidth();
         int modalHeight = getModalHeight();
@@ -618,16 +613,21 @@ public class TimeModeSelectionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (this.availableRunes.size() > 10) {
-            if (delta > 0) {
+            if (scrollY > 0) {
                 this.trayScrollOffset = Math.max(0, this.trayScrollOffset - 1);
-            } else if (delta < 0) {
+            } else if (scrollY < 0) {
                 this.trayScrollOffset = Math.min(Math.max(0, this.availableRunes.size() - 10), this.trayScrollOffset + 1);
             }
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, delta);
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Untinted transparent background: modal card renders its own bordered theme box
     }
 
     @Override

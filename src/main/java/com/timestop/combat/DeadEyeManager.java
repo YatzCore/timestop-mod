@@ -39,7 +39,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import com.timestop.TimeStopMod;
 import net.minecraftforge.fml.common.Mod;
 
-@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class DeadEyeManager {
 
     public static final int MAX_TAGS = 6;
@@ -102,7 +101,7 @@ public class DeadEyeManager {
     // CLIENT-SIDE AIMING & TARGET PAINTING
     // ==========================================
 
-    public static final net.minecraft.resources.ResourceLocation SEPIA_SHADER = new net.minecraft.resources.ResourceLocation("timestop", "shaders/post/sepia.json");
+    public static final net.minecraft.resources.ResourceLocation SEPIA_SHADER = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("timestop", "shaders/post/sepia.json");
     private static boolean deadEyeShaderActive = false;
 
     @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
@@ -168,7 +167,7 @@ public class DeadEyeManager {
 
             // Target painting raycast capped by actual available arrows (up to 6 max)
             int maxAllowed = getAvailableArrowCount(mc.player);
-            if (clientTags.size() < maxAllowed) {
+            if (maxAllowed > 0) {
                 paintTargetUnderCrosshair(mc, maxAllowed);
             }
         } else {
@@ -216,12 +215,15 @@ public class DeadEyeManager {
 
     @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     private static void paintTargetUnderCrosshair(Minecraft mc, int maxAllowed) {
-        if (clientTags.size() >= maxAllowed) return;
 
         Vec3 eyePos = mc.player.getEyePosition(1.0F);
         Vec3 viewVec = mc.player.getViewVector(1.0F);
         double reach = 48.0;
         Vec3 reachVec = eyePos.add(viewVec.scale(reach));
+        var blockHit = mc.level.clip(new net.minecraft.world.level.ClipContext(eyePos, reachVec,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+        if (blockHit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) reachVec = blockHit.getLocation();
         AABB searchBox = mc.player.getBoundingBox().expandTowards(viewVec.scale(reach)).inflate(2.0);
 
         List<LivingEntity> entities = mc.level.getEntitiesOfClass(LivingEntity.class, searchBox,
@@ -232,8 +234,12 @@ public class DeadEyeManager {
         double bestDistSqr = Double.MAX_VALUE;
 
         for (LivingEntity e : entities) {
-            AABB bb = e.getBoundingBox().inflate(0.35);
+            AABB bb = e.getBoundingBox().inflate(0.12);
             Optional<Vec3> clip = bb.clip(eyePos, reachVec);
+            // Pig heads protrude beyond the vanilla collision box.
+            Optional<Vec3> headClip = headBounds(e).clip(eyePos, reachVec);
+            if (headClip.isPresent() && (clip.isEmpty()
+                    || eyePos.distanceToSqr(headClip.get()) < eyePos.distanceToSqr(clip.get()))) clip = headClip;
             if (clip.isPresent()) {
                 double dist = eyePos.distanceToSqr(clip.get());
                 if (dist < bestDistSqr) {
@@ -245,17 +251,15 @@ public class DeadEyeManager {
         }
 
         if (bestEntity != null && bestHit != null) {
-            double headThreshold = bestEntity.getY() + bestEntity.getBbHeight() * 0.7;
-            boolean isHead = bestHit.y >= headThreshold;
-            Vec3 targetPos = isHead ? bestEntity.getEyePosition() : bestEntity.position().add(0, bestEntity.getBbHeight() * 0.65, 0);
+            boolean isHead = isHeadAim(bestEntity, eyePos, reachVec);
+            Vec3 targetPos = isHead ? headPosition(bestEntity, 1.0F) : bestEntity.position().add(0, bestEntity.getBbHeight() * 0.65, 0);
 
             // Check if spot already tagged
             final int entityId = bestEntity.getId();
             final boolean headFlag = isHead;
             boolean alreadyTagged = clientTags.stream().anyMatch(t -> t.entityId == entityId && t.isHead == headFlag);
 
-            if (!alreadyTagged && clientTags.size() < maxAllowed) {
-                clientTags.add(new DeadEyeTag(entityId, targetPos, isHead));
+            if (!alreadyTagged && addOrUpgradeTag(clientTags, new DeadEyeTag(entityId, targetPos, isHead), maxAllowed)) {
                 // Metallic revolver cock / click sound
                 mc.level.playSound(mc.player, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
                         SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 1.4F, 1.9F);
@@ -268,6 +272,55 @@ public class DeadEyeManager {
     // ==========================================
     // SERVER-SIDE EXECUTION & SEQUENTIAL VOLLEY
     // ==========================================
+
+    public static boolean addOrUpgradeTag(List<DeadEyeTag> tags, DeadEyeTag tag, int maxAllowed) {
+        if (tags.size() < maxAllowed) return tags.add(tag);
+        if (tag.isHead) {
+            for (int i = 0; i < tags.size(); i++) {
+                if (tags.get(i).entityId == tag.entityId && !tags.get(i).isHead) {
+                    tags.set(i, tag);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static Vec3 headPosition(LivingEntity target, float partialTick) {
+        if (target instanceof net.minecraft.world.entity.animal.Pig pig) {
+            // Vanilla PigModel: head pivot (0,12,-6), skull centre (0,0,-4).
+            // Piglets retain the full head, translated down/back by four model pixels.
+            double bodyYaw = Math.toRadians(net.minecraft.util.Mth.rotLerp(partialTick, pig.yBodyRotO, pig.yBodyRot));
+            double headYaw = Math.toRadians(net.minecraft.util.Mth.rotLerp(partialTick, pig.yHeadRotO, pig.yHeadRot));
+            double pitch = Math.toRadians(pig.getViewXRot(partialTick));
+            double pivotForward = pig.isBaby() ? 0.125 : 0.375;
+            double height = pig.isBaby() ? 0.501 : 0.751;
+            double scale = pig.getScale();
+            return pig.getPosition(partialTick).add(
+                    (-Math.sin(bodyYaw) * pivotForward - Math.sin(headYaw) * Math.cos(pitch) * 0.25) * scale,
+                    (height - Math.sin(pitch) * 0.25) * scale,
+                    (Math.cos(bodyYaw) * pivotForward + Math.cos(headYaw) * Math.cos(pitch) * 0.25) * scale);
+        }
+        return target.getEyePosition(partialTick);
+    }
+
+    private static AABB headBounds(LivingEntity target) {
+        Vec3 centre = headPosition(target, 1.0F);
+        if (target instanceof net.minecraft.world.entity.animal.Pig) {
+            double radius = 0.29 * target.getScale();
+            return new AABB(centre, centre).inflate(radius);
+        }
+        double radius = Math.max(0.10, Math.min(0.30, target.getBbWidth() * 0.42));
+        double halfHeight = Math.max(0.09, Math.min(0.24, target.getBbHeight() * 0.13));
+        return new AABB(centre.x - radius, centre.y - halfHeight, centre.z - radius,
+                centre.x + radius, Math.min(target.getBoundingBox().maxY, centre.y + halfHeight), centre.z + radius);
+    }
+
+    /** Uses the visible head, including anatomy that extends outside the collision box. */
+    public static boolean isHeadAim(LivingEntity target, Vec3 from, Vec3 to) {
+        AABB head = headBounds(target);
+        return head.contains(from) || head.clip(from, to).isPresent();
+    }
 
     public static void handleStateChange(ServerPlayer player, boolean active) {
         ServerLevel level = player.serverLevel();
@@ -344,20 +397,25 @@ public class DeadEyeManager {
             while (arrowIt.hasNext()) {
                 WeakReference<Arrow> ref = arrowIt.next();
                 Arrow arrow = ref.get();
-                if (arrow == null || !arrow.isAlive() || arrow.onGround()) {
+                if (ProjectileCombatHelper.isStuckOrDead(arrow)) {
                     if (arrow != null) {
                         arrow.setNoGravity(false);
+                        arrow.getPersistentData().remove("DeadEyeTargetEntity");
                     }
                     activeHomingArrows.remove(ref);
                     continue;
                 }
 
+                if (com.timestop.core.TemporalBubbleManager.isEntityInStasis(arrow)
+                        || arrow.getPersistentData().getBoolean("InStasisOrbit")
+                        || arrow.getPersistentData().getBoolean("KineticPalmCaptured")) continue;
                 int targetId = arrow.getPersistentData().getInt("DeadEyeTargetEntity");
                 boolean guided = false;
                 if (targetId != 0 && arrow.level() instanceof ServerLevel sl) {
                     Entity target = sl.getEntity(targetId);
                     if (target instanceof LivingEntity living && living.isAlive()) {
                         boolean isHead = arrow.getPersistentData().getBoolean("DeadEyeIsHead");
+                        // Vanilla projectile collisions use the body hitbox, even for protruding model heads.
                         Vec3 targetCoord = isHead ? living.getEyePosition() : living.position().add(0, living.getBbHeight() * 0.65, 0);
                         Vec3 toTarget = targetCoord.subtract(arrow.position()).normalize();
 
@@ -413,7 +471,7 @@ public class DeadEyeManager {
 
         Vec3 dir = targetPos.subtract(eyePos).normalize();
 
-        Arrow arrow = new Arrow(level, player);
+        Arrow arrow = new Arrow(level, player, new ItemStack(Items.ARROW), player.getMainHandItem());
         arrow.setPos(eyePos.x, eyePos.y - 0.05, eyePos.z);
         float projectileSpeed = 3.8F;
         arrow.shoot(dir.x, dir.y, dir.z, projectileSpeed, 0.0F); // Sets rotation, pitch/yaw, and exact velocity vector
@@ -454,9 +512,16 @@ public class DeadEyeManager {
         if (player.isCreative()) return true;
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
-        boolean hasInfinity = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, main) > 0
-                || EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, off) > 0;
+        boolean hasInfinity = hasInfinityEnchantment(player, main) || hasInfinityEnchantment(player, off);
         return hasInfinity && hasAtLeastOneArrow(player);
+    }
+
+    private static boolean hasInfinityEnchantment(Player player, ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        var lookup = player.level().registryAccess().lookup(net.minecraft.core.registries.Registries.ENCHANTMENT);
+        if (lookup.isEmpty()) return false;
+        var holder = lookup.get().get(net.minecraft.world.item.enchantment.Enchantments.INFINITY);
+        return holder.map(h -> net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(h, stack) > 0).orElse(false);
     }
 
     private static boolean hasAtLeastOneArrow(Player player) {
@@ -490,8 +555,7 @@ public class DeadEyeManager {
         if (player.isCreative()) return true;
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
-        boolean hasInfinity = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, main) > 0
-                || EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, off) > 0;
+        boolean hasInfinity = hasInfinityEnchantment(player, main) || hasInfinityEnchantment(player, off);
 
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);

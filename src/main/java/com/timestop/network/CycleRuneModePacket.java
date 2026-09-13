@@ -6,9 +6,8 @@ import com.timestop.item.rune.TemporalRuneItem;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class CycleRuneModePacket {
 
@@ -18,8 +17,7 @@ public class CycleRuneModePacket {
 
     public void toBytes(FriendlyByteBuf buf) {}
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
+    public void handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null) {
@@ -38,6 +36,6 @@ public class CycleRuneModePacket {
                 }
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

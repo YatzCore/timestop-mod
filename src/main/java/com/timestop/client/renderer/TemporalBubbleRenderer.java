@@ -102,7 +102,7 @@ public class TemporalBubbleRenderer {
 
     @SubscribeEvent
     public void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         if (!ClientBubbleManager.hasActiveBubbles()) return;
 
         refreshConfigIfNeeded();
@@ -110,7 +110,7 @@ public class TemporalBubbleRenderer {
 
         Camera camera = event.getCamera();
         Vec3 camPos = camera.getPosition();
-        PoseStack poseStack = event.getPoseStack();
+        PoseStack poseStack = new PoseStack();
 
         float gameTime = (System.currentTimeMillis() % 3600000) / 1000.0F;
         double userOpacity = cachedBubbleOpacity;
@@ -126,12 +126,11 @@ public class TemporalBubbleRenderer {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
         Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = tesselator.getBuilder();
-
         float opacityScale = (float) (userOpacity / 0.35);
 
         for (ClientBubbleManager.ClientBubble bubble : ClientBubbleManager.getActiveBubbles()) {
-            Vec3 center = bubble.getCenter(event.getPartialTick());
+            // Forge 52's event supplies frame duration, not the game's interpolation fraction.
+            Vec3 center = bubble.getCenter(Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
             float radius = (float) bubble.radius;
             int colorHex = bubble.tier.getThemeColorHex();
 
@@ -169,7 +168,7 @@ public class TemporalBubbleRenderer {
             Matrix4f matrix = poseStack.last().pose();
 
             // 1. RENDER 3D VOLUMETRIC CHRONO-SHELL (Ultra High-Performance Loop)
-            buffer.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            BufferBuilder buffer = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
 
             for (int v = 0; v < TOTAL_VERTICES; v++) {
                 float nx = UNIT_X[v];
@@ -209,19 +208,19 @@ public class TemporalBubbleRenderer {
                 float g = Math.min(1.0F, baseG + specBoost);
                 float b = Math.min(1.0F, baseB + specBoost);
 
-                buffer.vertex(matrix, vx, vy, vz).color(r, g, b, finalAlpha).endVertex();
+                buffer.addVertex(matrix, vx, vy, vz).setColor(r, g, b, finalAlpha);
             }
 
-            tesselator.end();
+            BufferUploader.drawWithShader(buffer.buildOrThrow());
 
             // 2. RENDER ROTATING 3D EQUATOR & ORBIT ENERGY BANDS
             if (enableEquator) {
-                renderOrbitBands(buffer, tesselator, matrix, radius, baseR, baseG, baseB, gameTime);
+                renderOrbitBands(tesselator, matrix, radius, baseR, baseG, baseB, gameTime);
             }
 
             // 3. RENDER SCI-FI GRID LATTICE LINES
             if (enableGrid) {
-                renderGridLattice(buffer, tesselator, matrix, radius, baseR, baseG, baseB);
+                renderGridLattice(tesselator, matrix, radius, baseR, baseG, baseB);
             }
 
             poseStack.popPose();
@@ -232,8 +231,8 @@ public class TemporalBubbleRenderer {
         RenderSystem.disableBlend();
     }
 
-    private static void renderOrbitBands(BufferBuilder buffer, Tesselator tesselator, Matrix4f matrix, float radius, float r, float g, float b, float gameTime) {
-        buffer.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
+    private static void renderOrbitBands(Tesselator tesselator, Matrix4f matrix, float radius, float r, float g, float b, float gameTime) {
+        BufferBuilder buffer = tesselator.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
         int ringSegments = 48;
         float ringRot1 = gameTime * 0.4F;
         float ringRot2 = -gameTime * 0.25F;
@@ -251,8 +250,8 @@ public class TemporalBubbleRenderer {
             float z2 = (float) (Math.sin(a2 + ringRot1) * radius * 1.002F);
             float y2 = (float) (Math.sin(a2 * 2.0 + ringRot1) * radius * 0.06F);
 
-            buffer.vertex(matrix, x1, y1, z1).color(r, g, b, 0.45F).endVertex();
-            buffer.vertex(matrix, x2, y2, z2).color(r, g, b, 0.45F).endVertex();
+            buffer.addVertex(matrix, x1, y1, z1).setColor(r, g, b, 0.45F);
+            buffer.addVertex(matrix, x2, y2, z2).setColor(r, g, b, 0.45F);
         }
 
         // Polar Orbit Ring 2
@@ -272,15 +271,15 @@ public class TemporalBubbleRenderer {
             float boostG = Math.min(1.0F, g + 0.3F);
             float boostB = Math.min(1.0F, b + 0.3F);
 
-            buffer.vertex(matrix, x1, y1, z1).color(boostR, boostG, boostB, 0.35F).endVertex();
-            buffer.vertex(matrix, x2, y2, z2).color(boostR, boostG, boostB, 0.35F).endVertex();
+            buffer.addVertex(matrix, x1, y1, z1).setColor(boostR, boostG, boostB, 0.35F);
+            buffer.addVertex(matrix, x2, y2, z2).setColor(boostR, boostG, boostB, 0.35F);
         }
 
-        tesselator.end();
+        BufferUploader.drawWithShader(buffer.buildOrThrow());
     }
 
-    private static void renderGridLattice(BufferBuilder buffer, Tesselator tesselator, Matrix4f matrix, float radius, float r, float g, float b) {
-        buffer.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
+    private static void renderGridLattice(Tesselator tesselator, Matrix4f matrix, float radius, float r, float g, float b) {
+        BufferBuilder buffer = tesselator.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
 
         int latLines = 6;
         int circleSegs = 24;
@@ -300,11 +299,11 @@ public class TemporalBubbleRenderer {
                 float x2 = (float) (rLayer * Math.cos(phi2));
                 float z2 = (float) (rLayer * Math.sin(phi2));
 
-                buffer.vertex(matrix, x1, y, z1).color(r, g, b, 0.22F).endVertex();
-                buffer.vertex(matrix, x2, y, z2).color(r, g, b, 0.22F).endVertex();
+                buffer.addVertex(matrix, x1, y, z1).setColor(r, g, b, 0.22F);
+                buffer.addVertex(matrix, x2, y, z2).setColor(r, g, b, 0.22F);
             }
         }
 
-        tesselator.end();
+        BufferUploader.drawWithShader(buffer.buildOrThrow());
     }
 }

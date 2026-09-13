@@ -68,7 +68,10 @@ public abstract class ProjectileMixin {
             if (projectile.tickCount >= 1) {
                 Vec3 vel = projectile.getDeltaMovement();
                 if (vel.lengthSqr() <= 1.0E-5 && projectile instanceof AbstractHurtingProjectile hurting) {
-                    vel = new Vec3(hurting.xPower, hurting.yPower, hurting.zPower).scale(10.0);
+                    vel = projectile.getDeltaMovement();
+                    if (vel.lengthSqr() <= 1.0E-5) {
+                        vel = projectile.getLookAngle().scale(hurting.accelerationPower > 0 ? hurting.accelerationPower : 0.1);
+                    }
                 }
                 if (vel.lengthSqr() > 1.0E-5) {
                     TimeStopManager.registerSuspendedProjectile(projectile, vel);
@@ -80,6 +83,23 @@ public abstract class ProjectileMixin {
             if (TimeStopManager.isProjectileSuspended(projectile) && level instanceof net.minecraft.server.level.ServerLevel sl) {
                 TimeStopManager.resumeSingleProjectile(sl, projectile);
             }
+        }
+    }
+
+    @Inject(method = "isPickable", at = @At("HEAD"), cancellable = true)
+    private void onProjectileIsPickable(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        Projectile projectile = (Projectile) (Object) this;
+        boolean timeActive = projectile.level().isClientSide ? com.timestop.core.ClientTimeStopManager.isTimeStopped() : TimeStopManager.isGlobalTimeStopped();
+        if (timeActive) {
+            TimeMode mode = projectile.level().isClientSide ? com.timestop.core.ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
+            if (mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD) {
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+
+        if (com.timestop.combat.DecelerationFieldManager.isDecelerated(projectile)) {
+            cir.setReturnValue(true);
         }
     }
 }

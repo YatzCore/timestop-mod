@@ -13,9 +13,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SlapProjectilePacket {
     private final int entityId;
@@ -38,9 +37,7 @@ public class SlapProjectilePacket {
         buf.writeDouble(this.lookDirection.z);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player == null) return;
 
@@ -51,6 +48,5 @@ public class SlapProjectilePacket {
             }
         });
         context.setPacketHandled(true);
-        return true;
     }
 }

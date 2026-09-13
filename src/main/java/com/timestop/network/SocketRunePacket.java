@@ -11,9 +11,8 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SocketRunePacket {
     private final InteractionHand hand;
@@ -30,9 +29,7 @@ public class SocketRunePacket {
         buf.writeEnum(this.hand);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 ItemStack watchStack = player.getItemInHand(this.hand);
@@ -57,6 +54,5 @@ public class SocketRunePacket {
             }
         });
         context.setPacketHandled(true);
-        return true;
     }
 }

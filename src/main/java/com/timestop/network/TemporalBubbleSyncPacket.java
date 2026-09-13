@@ -4,14 +4,13 @@ import com.timestop.core.ClientBubbleManager;
 import com.timestop.core.TimeMode;
 import com.timestop.item.WatchTier;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Supplier;
 
 public class TemporalBubbleSyncPacket {
     public enum Action {
@@ -121,8 +120,7 @@ public class TemporalBubbleSyncPacket {
         }
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
+    public void handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
             if (action == Action.REMOVE) {
                 ClientBubbleManager.handleRemoveBubble(bubbleId);
@@ -131,6 +129,6 @@ public class TemporalBubbleSyncPacket {
                         mode, remainingTicks, totalDuration, tier, exemptPlayers);
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

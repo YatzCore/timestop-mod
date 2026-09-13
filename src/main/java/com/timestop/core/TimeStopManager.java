@@ -10,6 +10,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -118,12 +119,12 @@ public class TimeStopManager {
     private static volatile long superhotTickMs = 500L;
 
     // Attribute modifiers for Matrix mode: ZERO potion effects, pure engine attribute boost!
-    private static final UUID MATRIX_SPEED_UUID = UUID.fromString("c0a80101-0000-0000-0000-000000000001");
-    private static final UUID MATRIX_ATTACK_UUID = UUID.fromString("c0a80101-0000-0000-0000-000000000002");
+    private static final ResourceLocation MATRIX_SPEED_RL = ResourceLocation.fromNamespaceAndPath("timestop", "matrix_speed");
+    private static final ResourceLocation MATRIX_ATTACK_RL = ResourceLocation.fromNamespaceAndPath("timestop", "matrix_attack_speed");
     private static final AttributeModifier MATRIX_SPEED_MOD = new AttributeModifier(
-            MATRIX_SPEED_UUID, "Matrix Speed", 3.0, AttributeModifier.Operation.MULTIPLY_TOTAL);
+            MATRIX_SPEED_RL, 3.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     private static final AttributeModifier MATRIX_ATTACK_MOD = new AttributeModifier(
-            MATRIX_ATTACK_UUID, "Matrix Attack Speed", 3.0, AttributeModifier.Operation.MULTIPLY_TOTAL);
+            MATRIX_ATTACK_RL, 3.0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
     public static boolean isGlobalTimeStopActive() {
         return timeStopped;
@@ -578,11 +579,11 @@ public class TimeStopManager {
 
     private static void applyMatrixAttributes(Player player) {
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null && !speed.hasModifier(MATRIX_SPEED_MOD)) {
+        if (speed != null && !speed.hasModifier(MATRIX_SPEED_RL)) {
             speed.addTransientModifier(MATRIX_SPEED_MOD);
         }
         AttributeInstance attack = player.getAttribute(Attributes.ATTACK_SPEED);
-        if (attack != null && !attack.hasModifier(MATRIX_ATTACK_MOD)) {
+        if (attack != null && !attack.hasModifier(MATRIX_ATTACK_RL)) {
             attack.addTransientModifier(MATRIX_ATTACK_MOD);
         }
     }
@@ -590,12 +591,12 @@ public class TimeStopManager {
     public static void removeMatrixAttributes(Player player) {
         if (player == null) return;
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speed != null && speed.hasModifier(MATRIX_SPEED_MOD)) {
-            speed.removeModifier(MATRIX_SPEED_MOD);
+        if (speed != null && speed.hasModifier(MATRIX_SPEED_RL)) {
+            speed.removeModifier(MATRIX_SPEED_RL);
         }
         AttributeInstance attack = player.getAttribute(Attributes.ATTACK_SPEED);
-        if (attack != null && attack.hasModifier(MATRIX_ATTACK_MOD)) {
-            attack.removeModifier(MATRIX_ATTACK_MOD);
+        if (attack != null && attack.hasModifier(MATRIX_ATTACK_RL)) {
+            attack.removeModifier(MATRIX_ATTACK_RL);
         }
     }
 
@@ -640,9 +641,8 @@ public class TimeStopManager {
         projectile.xRotO = xRot;
 
         if (projectile instanceof AbstractHurtingProjectile hurting) {
-            hurting.xPower = dir.x * 0.1D;
-            hurting.yPower = dir.y * 0.1D;
-            hurting.zPower = dir.z * 0.1D;
+            hurting.setDeltaMovement(dir.scale(0.1D));
+            hurting.accelerationPower = 0.1D;
         }
 
         if (projectile.level() instanceof ServerLevel serverLevel) {
@@ -701,9 +701,8 @@ public class TimeStopManager {
         projectile.setOwner(player);
 
         if (projectile instanceof AbstractHurtingProjectile hurting) {
-            hurting.xPower = returnDir.x * 0.1D;
-            hurting.yPower = returnDir.y * 0.1D;
-            hurting.zPower = returnDir.z * 0.1D;
+            hurting.setDeltaMovement(returnDir.scale(0.1D));
+            hurting.accelerationPower = 0.1D;
         }
 
         double horiz = Math.sqrt(returnDir.x * returnDir.x + returnDir.z * returnDir.z);
@@ -717,7 +716,9 @@ public class TimeStopManager {
         if (projectile instanceof AbstractArrow arrow) {
             arrow.setBaseDamage(arrow.getBaseDamage() + 5.0);
             arrow.setCritArrow(true);
-            arrow.setPierceLevel((byte) Math.min(3, arrow.getPierceLevel() + 1));
+            if (arrow instanceof com.timestop.mixin.AbstractArrowAccessor accessor) {
+                accessor.timestop$setPierceLevel((byte) Math.min(3, arrow.getPierceLevel() + 1));
+            }
         }
 
         if (projectile.level() instanceof ServerLevel serverLevel) {
@@ -772,6 +773,7 @@ public class TimeStopManager {
     }
 
     public static void registerSuspendedProjectile(Projectile projectile, Vec3 originalVelocity) {
+        if (com.timestop.combat.ProjectileCombatHelper.isStuckOrDead(projectile)) return;
         boolean isStasis = false;
         if (TemporalBubbleManager.hasActiveBubbles()) {
             TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(projectile.level().dimension(), projectile.position());
@@ -798,6 +800,11 @@ public class TimeStopManager {
         projectileEntities.remove(uuid);
         if (data == null) return;
 
+        if (com.timestop.combat.ProjectileCombatHelper.isStuckOrDead(projectile)) {
+            projectile.setNoGravity(data.originalNoGravity);
+            return;
+        }
+
         if (projectile.isAlive()) {
             Vec3 velocity = data.getDischargeVelocity();
 
@@ -819,15 +826,16 @@ public class TimeStopManager {
                 if (data.hitCount > 0) {
                     arrow.setBaseDamage(arrow.getBaseDamage() + data.totalDamageBonus);
                     arrow.setCritArrow(true);
-                    arrow.setPierceLevel((byte) Math.min(5, arrow.getPierceLevel() + data.hitCount));
+                    if (arrow instanceof com.timestop.mixin.AbstractArrowAccessor accessor) {
+                        accessor.timestop$setPierceLevel((byte) Math.min(5, arrow.getPierceLevel() + data.hitCount));
+                    }
                 }
             }
 
             if (data.hitCount > 0 && projectile instanceof AbstractHurtingProjectile hurting) {
                 Vec3 norm = velocity.normalize();
-                hurting.xPower = norm.x * 0.1D;
-                hurting.yPower = norm.y * 0.1D;
-                hurting.zPower = norm.z * 0.1D;
+                hurting.setDeltaMovement(norm.scale(0.1D));
+                hurting.accelerationPower = 0.1D;
             }
 
             // Launch puff at discharge origin

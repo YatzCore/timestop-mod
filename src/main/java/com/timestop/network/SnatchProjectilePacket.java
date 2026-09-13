@@ -8,9 +8,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SnatchProjectilePacket {
     private final int entityId;
@@ -27,9 +26,7 @@ public class SnatchProjectilePacket {
         buf.writeVarInt(this.entityId);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player == null) return;
 
@@ -58,6 +55,6 @@ public class SnatchProjectilePacket {
                 TemporalInteractionEvents.snatchProjectile(projectile, player);
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

@@ -94,7 +94,7 @@ public class VoltaicRicochetHandler {
             LivingEntity nextTarget = findNextTarget(level, victim, hitList, filter, player);
             if (nextTarget != null) {
                 // Cancel arrow impact discard so the arrow continues flying to the next target!
-                event.setCanceled(true);
+                event.setImpactResult(ProjectileImpactEvent.ImpactResult.SKIP_ENTITY);
 
                 // Reposition arrow at center of current victim
                 Vec3 launchPos = victim.position().add(0, victim.getBbHeight() * 0.6, 0);
@@ -113,7 +113,9 @@ public class VoltaicRicochetHandler {
                 arrow.hasImpulse = true;
 
                 tag.putInt("RicochetTargetId", nextTarget.getId());
-                activeRicochetArrows.add(new WeakReference<>(arrow));
+                if (activeRicochetArrows.stream().noneMatch(ref -> ref.get() == arrow)) {
+                    activeRicochetArrows.add(new WeakReference<>(arrow));
+                }
 
                 // Electric bounce feedback
                 level.playSound(null, launchPos.x, launchPos.y, launchPos.z,
@@ -127,7 +129,7 @@ public class VoltaicRicochetHandler {
         // End of chain (or no eligible targets remain): final thunder discharge flash
         level.sendParticles(ParticleTypes.FLASH, victim.getX(), victim.getY() + 1.0, victim.getZ(), 1, 0, 0, 0, 0);
         arrow.discard();
-        event.setCanceled(true);
+        event.setImpactResult(ProjectileImpactEvent.ImpactResult.STOP_AT_CURRENT_NO_DAMAGE);
     }
 
     private static LivingEntity findNextTarget(ServerLevel level, LivingEntity current, ListTag hitList, ChainTargetFilter filter, Player shooter) {
@@ -202,15 +204,19 @@ public class VoltaicRicochetHandler {
         while (it.hasNext()) {
             WeakReference<Projectile> ref = it.next();
             Projectile arrow = ref.get();
-            if (arrow == null || !arrow.isAlive() || arrow.onGround()) {
+            if (ProjectileCombatHelper.isStuckOrDead(arrow)) {
                 if (arrow != null) {
                     arrow.setNoGravity(false);
+                    arrow.getPersistentData().remove("RicochetTargetId");
                 }
                 activeRicochetArrows.remove(ref);
                 continue;
             }
 
             if (arrow.level() instanceof ServerLevel level) {
+                if (com.timestop.core.TemporalBubbleManager.isEntityInStasis(arrow)
+                        || arrow.getPersistentData().getBoolean("InStasisOrbit")
+                        || arrow.getPersistentData().getBoolean("KineticPalmCaptured")) continue;
                 // Electric particle trail
                 level.sendParticles(ParticleTypes.ELECTRIC_SPARK, arrow.getX(), arrow.getY(), arrow.getZ(),
                         3, 0.05, 0.05, 0.05, 0.05);

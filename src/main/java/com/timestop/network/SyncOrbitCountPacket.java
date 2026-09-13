@@ -4,9 +4,8 @@ import com.timestop.client.CapturedProjectilesOverlay;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SyncOrbitCountPacket {
 
@@ -24,13 +23,12 @@ public class SyncOrbitCountPacket {
         buf.writeVarInt(this.count);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context ctx = supplier.get();
-        ctx.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {
+        context.enqueueWork(() -> {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
                 CapturedProjectilesOverlay.setOrbitCount(this.count);
             });
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

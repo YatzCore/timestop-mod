@@ -44,6 +44,6 @@ public class ChronoCoinRenderer extends EntityRenderer<ChronoCoinEntity> {
 
     @Override
     public ResourceLocation getTextureLocation(ChronoCoinEntity entity) {
-        return new ResourceLocation("minecraft", "textures/item/gold_nugget.png");
+        return ResourceLocation.fromNamespaceAndPath("minecraft", "textures/item/gold_nugget.png");
     }
 }

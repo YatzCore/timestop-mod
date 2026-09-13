@@ -5,16 +5,30 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.3.12-blue?style=flat-square&logo=github" alt="Release" /></a>
-  <img src="https://img.shields.io/badge/Minecraft-1.20.1-brightgreen?style=flat-square" alt="Minecraft 1.20.1" />
-  <img src="https://img.shields.io/badge/Forge-47.3.0%2B-orange?style=flat-square" alt="Forge" />
-  <img src="https://img.shields.io/badge/TACZ-Compatible%20(Optional)-purple?style=flat-square" alt="TACZ Compatible" />
+  <b>Minecraft Version Branches:</b><br />
+  <a href="https://github.com/YatzCore/timestop-mod/tree/main">Minecraft 1.20.1 (main)</a> &bull;
+  <b><a href="https://github.com/YatzCore/timestop-mod/tree/1.21.1">Minecraft 1.21.1 (Current)</a></b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.4.0-blue?style=flat-square&logo=github" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?style=flat-square" alt="Minecraft 1.21.1" />
+  <img src="https://img.shields.io/badge/Forge-52.1.16%2B-orange?style=flat-square" alt="Forge" />
+  <img src="https://img.shields.io/badge/Java-21-red?style=flat-square" alt="Java 21" />
+  <img src="https://img.shields.io/badge/TACZ-1.20.1_Only_(Dormant_Ready)-lightgrey?style=flat-square" alt="TACZ Status" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" /></a>
 </p>
 
 ---
 
-A true engine-level temporal manipulation mod for **Minecraft Forge 1.20.1**. Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, and optional deep ballistic integration with **Timeless and Classics Zero (TACZ)**.
+A true engine-level temporal manipulation mod ported to **Minecraft Forge 1.21.1** (running on Java 21). Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, and modern 1.21.1 rendering and delta-tracking.
+
+> [!IMPORTANT]
+> **TACZ (Timeless and Classics Zero) Compatibility on 1.21.1**:
+> Upstream TACZ is currently available exclusively for Minecraft 1.20.1 and has not yet published an official 1.21.1 build.
+> - **Zero Crashes / Clean Fallback**: The 1.21.1 codebase maintains full reflection-guarded hooks (`TaczDeadEyeCompat`). If TACZ is not present, all gun hooks and custom runes gracefully hide from creative tabs, recipes, and overlays without errors.
+> - **Future-Proof**: Once TACZ releases for 1.21.1, compatibility will activate automatically with no mod update needed!
+> - **Need full TACZ firearm gameplay now?** Please use our **[1.20.1 branch (main)](https://github.com/YatzCore/timestop-mod/tree/main)** and releases (`v1.3.12`).
 
 ---
 
@@ -70,13 +84,16 @@ Socketable into Tier 2–4 pocket watches via the watch interface (**Shift + Rig
 | <img src="src/main/resources/assets/timestop/textures/item/rune_transposition.png" width="24" height="24" /> | **Rune of Spatial Transposition** | Instantly swaps positions with any targeted entity or projectile (**G**). | Core |
 | <img src="src/main/resources/assets/timestop/textures/item/rune_barrier.png" width="24" height="24" /> | **Rune of the Kinetic Barrier** | Hold **Middle Click** to freeze bullets in mid-air. Attack to fire back. | Core / TACZ |
 | <img src="src/main/resources/assets/timestop/textures/item/blank_rune.png" width="24" height="24" /> | **Rune of Vector Control** | Directs struck projectiles and barrier volleys toward crosshair aim. | Core / TACZ |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | Toss coins into mid-air (**C**) and shoot them to deflect lethal critical shots. | TACZ Required |
+| <img src="src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | Toss coins into mid-air (**C**) and shoot them to deflect lethal critical shots. | 1.20.1 Only (TACZ) |
 
 ---
 
 ## Timeless and Classics Zero (TACZ) Integration
 
-Ultimate Time Stop features dedicated soft-dependency support for **Timeless and Classics Zero (1.1.8-hotfix+)**:
+> [!NOTE]
+> *Status in 1.21.1*: Upstream TACZ is currently available for Minecraft 1.20.1 only. In 1.21.1, all TACZ integration logic remains dormant and safely isolated via runtime reflection. The features below are active in the [1.20.1 release](https://github.com/YatzCore/timestop-mod/tree/main) and will automatically activate in 1.21.1 as soon as upstream TACZ updates.
+
+Ultimate Time Stop features dedicated soft-dependency support for **Timeless and Classics Zero**:
 
 - **Native Ballistics in Stasis**: Kinetic bullets, shotgun buckshot, 40mm grenades, and RPG-7 rockets are treated as native physical projectiles. They freeze in mid-air, maintain ballistic velocity on resumption, and correctly interact with temporal fields.
 - **Rune of the Kinetic Barrier (Neo's Palm)**: Hold **Middle Click** to freeze incoming gunfire and explosive ordnance directly in front of you. Release the barrier to let spent rounds drop, or attack to redirect the entire volley forward.
@@ -127,10 +144,12 @@ For detailed command breakdowns, syntax, permissions, and tutorials, see [COMMAN
 
 ## Installation
 
-1. Install **Minecraft 1.20.1** using **Minecraft Forge** or **NeoForge** (version 47.3.0 or higher).
-2. Download the latest release (`timestop-1.20.1-1.3.12.jar`) from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
+1. Install **Minecraft 1.21.1** with **Minecraft Forge** (version 52.1.16 or higher) running on **Java 21**.
+2. Download the latest release (`timestop-1.21.1-1.4.0.jar`) from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
 3. Place the `.jar` into your `.minecraft/mods` directory.
-4. *(Optional)* Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
+4. Launch Minecraft and manipulate time!
+
+*(Note: For Minecraft 1.20.1 or active TACZ firearm integration, download `timestop-1.20.1-1.3.12.jar` from the [1.20.1 branch](https://github.com/YatzCore/timestop-mod/tree/main)).*
 
 ---
 

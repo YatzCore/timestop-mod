@@ -109,11 +109,30 @@ public class ModItems {
                         output.accept(RUNE_TRANSPOSITION.get());
                         output.accept(RUNE_BARRIER.get());
                         output.accept(RUNE_VECTOR.get());
-                        if (net.minecraftforge.fml.ModList.get().isLoaded("tacz")) {
-                            output.accept(RUNE_COIN.get());
-                            output.accept(CHRONO_COIN.get());
-                        }
+                        output.accept(RUNE_COIN.get());
+                        output.accept(CHRONO_COIN.get());
                     })
                     .build()
     );
+
+    public static Item getRuneItem(RuneType type) {
+        if (type == null) return BLANK_RUNE.get();
+        return switch (type) {
+            case BLANK -> BLANK_RUNE.get();
+            case DEFLECTION -> RUNE_DEFLECTION.get();
+            case SNATCHING -> RUNE_SNATCHING.get();
+            case PHASING -> RUNE_PHASING.get();
+            case KINETIC -> RUNE_KINETIC.get();
+            case VAMPIRISM -> RUNE_VAMPIRISM.get();
+            case VOLATILE -> RUNE_VOLATILE.get();
+            case TACHYON -> RUNE_TACHYON.get();
+            case DEAD_EYE -> RUNE_DEAD_EYE.get();
+            case RICOCHET -> RUNE_RICOCHET.get();
+            case ORBITAL -> RUNE_ORBITAL.get();
+            case TRANSPOSITION -> RUNE_TRANSPOSITION.get();
+            case VECTOR -> RUNE_VECTOR.get();
+            case KINETIC_BARRIER -> RUNE_BARRIER.get();
+            case RICOSHOT -> RUNE_COIN.get();
+        };
+    }
 }

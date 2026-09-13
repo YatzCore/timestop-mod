@@ -5,9 +5,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SetWatchScopePacket {
     private final InteractionHand hand;
@@ -28,9 +27,7 @@ public class SetWatchScopePacket {
         buf.writeBoolean(this.globalScope);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 ItemStack stack = player.getItemInHand(this.hand);
@@ -44,6 +41,6 @@ public class SetWatchScopePacket {
                 }
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

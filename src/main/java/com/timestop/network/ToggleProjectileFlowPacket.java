@@ -5,10 +5,9 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
 import javax.annotation.Nullable;
-import java.util.function.Supplier;
 
 public class ToggleProjectileFlowPacket {
 
@@ -38,10 +37,8 @@ public class ToggleProjectileFlowPacket {
         }
     }
 
-    public void handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context ctx = supplier.get();
-        ctx.enqueueWork(() -> {
-            ServerPlayer player = ctx.getSender();
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
             if (player != null && player.isAlive()) {
                 TimeStopManager.ProjectileStasisMode next = (this.targetMode != null)
                         ? this.targetMode
@@ -58,6 +55,6 @@ public class ToggleProjectileFlowPacket {
                 player.displayClientMessage(msg, true);
             }
         });
-        ctx.setPacketHandled(true);
+        context.setPacketHandled(true);
     }
 }

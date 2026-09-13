@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.timestop.mixin",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_21",
   "refmap": "timestop.refmap.json",
   "mixins": [
     "ServerLevelMixin",
@@ -17,9 +17,7 @@
     "AbstractArrowMixin",
     "AbstractArrowAccessor",
     "ProjectileDecelerationMixin",
-    "ItemEntityMixin",
-    "TaczDeadEyeShotMixin",
-    "TaczDeadEyeBulletMixin"
+    "ItemEntityMixin"
   ],
   "client": [
     "EntityOutlineMixin",
@@ -29,7 +27,7 @@
     "ParticleEngineMixin",
     "SingleQuadParticleMixin",
     "LivingEntityRendererMixin",
-    "TimerMixin",
+    "DeltaTrackerTimerMixin",
     "TextureAtlasMixin",
     "PlayerModelMixin"
   ],

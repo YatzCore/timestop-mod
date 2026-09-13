@@ -33,7 +33,7 @@ public abstract class ProjectileDecelerationMixin {
     @Inject(method = "tick", at = @At("HEAD"))
     private void onHeadTick(CallbackInfo ci) {
         Projectile projectile = (Projectile) (Object) this;
-        if (!projectile.isAlive() || projectile.onGround()) {
+        if (com.timestop.combat.ProjectileCombatHelper.isStuckOrDead(projectile)) {
             this.timestop$preTickVelocity = null;
             return;
         }
@@ -74,7 +74,7 @@ public abstract class ProjectileDecelerationMixin {
             Vec3 orig = this.timestop$preTickVelocity;
             this.timestop$preTickVelocity = null;
 
-            if (!projectile.isAlive() || projectile.onGround()) {
+            if (com.timestop.combat.ProjectileCombatHelper.isStuckOrDead(projectile)) {
                 return;
             }
 

@@ -62,7 +62,7 @@ public class ClientOrbitalHandler {
         ClientLevel level = mc.level;
         if (level == null) return;
 
-        float partialTick = event.renderTickTime;
+        float partialTick = event.getTimer().getGameTimeDeltaPartialTick(false);
         double angularSpeed = 0.09;
         double orbitRadius = OrbitalProjectileManager.ORBIT_RADIUS;
 

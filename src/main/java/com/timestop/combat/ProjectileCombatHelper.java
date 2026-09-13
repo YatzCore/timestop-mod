@@ -10,7 +10,7 @@ public class ProjectileCombatHelper {
             return com.timestop.core.TimeStopManager.getSuspendedVelocity(projectile);
         var velocity = projectile.getDeltaMovement();
         if (velocity.lengthSqr() < 1e-8 && projectile instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile fireball)
-            return new net.minecraft.world.phys.Vec3(fireball.xPower, fireball.yPower, fireball.zPower).scale(10);
+            return fireball.getLookAngle().scale(fireball.accelerationPower > 0 ? fireball.accelerationPower : 0.1);
         return velocity;
     }
 

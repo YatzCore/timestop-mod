@@ -2,24 +2,33 @@ package com.timestop.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.GameRenderer;
+import org.joml.Matrix4f;
 import com.timestop.combat.DeadEyeManager;
 import com.timestop.combat.DeadEyeTag;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public class DeadEyeRenderer {
 
-    private static final ResourceLocation VIGNETTE_LOCATION = new ResourceLocation("textures/misc/vignette.png");
+    private static final ResourceLocation VIGNETTE_LOCATION = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/misc/vignette.png");
 
-    public static final IGuiOverlay HUD_DEAD_EYE = (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
+    public static final LayeredDraw.Layer HUD_DEAD_EYE = (guiGraphics, deltaTracker) -> {
+        int screenWidth = guiGraphics.guiWidth();
+        int screenHeight = guiGraphics.guiHeight();
         if (!DeadEyeManager.clientAiming) return;
 
         // 1. Subtle, clear cinematic vignette (center 100% transparent and clear)
@@ -71,43 +80,60 @@ public class DeadEyeRenderer {
 
     @SubscribeEvent
     public void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
-        if (!DeadEyeManager.clientAiming && DeadEyeManager.clientTags.isEmpty()) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
+        if (DeadEyeManager.clientTags.isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
         Camera camera = event.getCamera();
         Vec3 camPos = camera.getPosition();
-        PoseStack poseStack = event.getPoseStack();
-        Font font = mc.font;
-
+        PoseStack poseStack = new PoseStack();
+        float partialTick = mc.getTimer().getGameTimeDeltaPartialTick(false);
+        // Draw the crosses directly: text batches can be occluded or flushed into
+        // a different render target by the 1.21 world rendering pipeline.
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (DeadEyeTag tag : DeadEyeManager.clientTags) {
-            Vec3 target = tag.targetPos;
-            if (mc.level != null) {
-                net.minecraft.world.entity.Entity e = mc.level.getEntity(tag.entityId);
-                if (e instanceof net.minecraft.world.entity.LivingEntity living && living.isAlive()) {
-                    target = tag.isHead
-                            ? living.getEyePosition(event.getPartialTick())
-                            : living.getPosition(event.getPartialTick()).add(0, living.getBbHeight() * 0.5, 0);
-                }
-            }
+            if (mc.level == null) continue;
+            var entity = mc.level.getEntity(tag.entityId);
+            if (!(entity instanceof net.minecraft.world.entity.LivingEntity living) || !living.isAlive()) continue;
+            Vec3 target = tag.isHead ? DeadEyeManager.headPosition(living, partialTick)
+                    : living.getPosition(partialTick).add(0, living.getBbHeight() * 0.65, 0);
 
             poseStack.pushPose();
             poseStack.translate(target.x - camPos.x, target.y - camPos.y, target.z - camPos.z);
             poseStack.mulPose(camera.rotation());
-            poseStack.scale(-0.045F, -0.045F, 0.045F);
-
-            // Red glowing [ X ] crosshair marker
-            String markerText = tag.isHead ? "☠ [X]" : "[X]";
-            int color = tag.isHead ? 0xFFFF1744 : 0xFFFF5252;
-
-            int w = font.width(markerText);
-            font.drawInBatch(markerText, -w / 2.0F, -4, color, false,
-                    poseStack.last().pose(), mc.renderBuffers().bufferSource(),
-                    Font.DisplayMode.SEE_THROUGH, 0, 15728880);
+            Matrix4f matrix = poseStack.last().pose();
+            // A small vermilion ink cross with a hairline dark edge, no brackets or icons.
+            float size = Math.min(0.14F, Math.max(0.075F, living.getBbWidth() * 0.15F));
+            drawMark(buffer, matrix, size + 0.008F, 0.017F, 0xD02A0806);
+            drawMark(buffer, matrix, size, 0.013F, 0xFFFF0000);
 
             poseStack.popPose();
         }
 
-        mc.renderBuffers().bufferSource().endBatch();
+        var mesh = buffer.build();
+        if (mesh != null) BufferUploader.drawWithShader(mesh);
+        RenderSystem.enableCull();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
+        RenderSystem.disableBlend();
+    }
+
+    private static void drawMark(BufferBuilder buffer, Matrix4f matrix, float size, float width, int color) {
+        // Four tapered arms resemble a painted X while remaining legible on light and dark skins.
+        for (int x = -1; x <= 1; x += 2) {
+            for (int y = -1; y <= 1; y += 2) {
+                float nx = -y * width, ny = x * width;
+                buffer.addVertex(matrix, nx, ny, 0).setColor(color);
+                buffer.addVertex(matrix, x * size + nx * 0.35F, y * size + ny * 0.35F, 0).setColor(color);
+                buffer.addVertex(matrix, x * size - nx * 0.35F, y * size - ny * 0.35F, 0).setColor(color);
+                buffer.addVertex(matrix, -nx, -ny, 0).setColor(color);
+            }
+        }
     }
 }

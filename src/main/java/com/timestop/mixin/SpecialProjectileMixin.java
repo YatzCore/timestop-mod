@@ -4,21 +4,17 @@ import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeMode;
 import com.timestop.core.TimeStopManager;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.projectile.DragonFireball;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
-import net.minecraft.world.entity.projectile.SmallFireball;
-import net.minecraft.world.entity.projectile.WitherSkull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * SmallFireball, WitherSkull, DragonFireball, and ShulkerBullet explicitly override isPickable()
- * in vanilla to return false (so players cannot normally click or hit them).
+ * ShulkerBullet explicitly overrides isPickable() in vanilla to return false.
  * This mixin enables pickability when temporal stasis or slow-motion is active.
  */
-@Mixin({SmallFireball.class, WitherSkull.class, DragonFireball.class, ShulkerBullet.class})
+@Mixin(ShulkerBullet.class)
 public abstract class SpecialProjectileMixin {
 
     @Inject(method = "isPickable", at = @At("HEAD"), cancellable = true)

@@ -8,9 +8,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class ToggleTimeStopPacket {
     public ToggleTimeStopPacket() {
@@ -22,9 +21,7 @@ public class ToggleTimeStopPacket {
     public void toBytes(FriendlyByteBuf buf) {
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
-        context.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {       context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null && player.level() instanceof ServerLevel serverLevel) {
                 boolean isOmnipotentActive = TimeStopManager.isGlobalTimeStopActive() || com.timestop.core.TemporalBubbleManager.hasCreativeBubble();
@@ -79,7 +76,7 @@ public class ToggleTimeStopPacket {
                 }
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 
     private static ItemStack findBestWatch(ServerPlayer player) {

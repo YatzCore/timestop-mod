@@ -254,6 +254,8 @@ public class TemporalBubble {
      * Calculates the time dilation speed factor for an entity inside this bubble.
      */
     public float getTimeDilationFactor(Entity entity) {
+        // Player movement and actions are accelerated explicitly, never by recursive player ticks.
+        if (mode == TimeMode.FAST_FORWARD && entity instanceof Player) return 1.0F;
         if (canEntityAct(entity)) return 1.0F;
 
         if (entity instanceof Player player) {

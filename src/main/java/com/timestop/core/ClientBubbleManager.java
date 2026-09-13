@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientBubbleManager {
 
-    private static final ResourceLocation SUPERHOT_SHADER = new ResourceLocation("minecraft", "shaders/post/superhot.json");
+    private static final ResourceLocation SUPERHOT_SHADER = ResourceLocation.fromNamespaceAndPath("minecraft", "shaders/post/superhot.json");
 
     public static class ClientBubble {
         public final UUID bubbleId;
@@ -66,7 +66,7 @@ public class ClientBubbleManager {
         }
 
         public Vec3 getCenter() {
-            return this.center;
+            return getCenter(1.0F);
         }
 
         public boolean contains(Vec3 pos) {
@@ -74,9 +74,10 @@ public class ClientBubbleManager {
         }
 
         public boolean contains(double px, double py, double pz) {
-            double dx = px - this.center.x;
-            double dy = py - this.center.y;
-            double dz = pz - this.center.z;
+            Vec3 currentCenter = getCenter();
+            double dx = px - currentCenter.x;
+            double dy = py - currentCenter.y;
+            double dz = pz - currentCenter.z;
             return (dx * dx + dy * dy + dz * dz) <= this.radiusSq;
         }
 
@@ -117,6 +118,7 @@ public class ClientBubbleManager {
         }
 
         public float getTimeDilationFactor(Entity entity) {
+            if (mode == TimeMode.FAST_FORWARD && entity instanceof Player) return 1.0F;
             if (canEntityAct(entity)) return 1.0F;
 
             if (entity instanceof Player player) {

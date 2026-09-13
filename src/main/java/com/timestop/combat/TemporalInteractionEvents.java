@@ -131,31 +131,14 @@ public class TemporalInteractionEvents {
     private static ItemStack getDroppedItemForProjectile(Projectile projectile) {
         if (TaczProjectileCompat.isBullet(projectile)) return TaczProjectileCompat.ammunition(projectile);
         if (projectile instanceof Arrow arrow) {
-            if (arrow.getColor() > 0) {
-                ItemStack tipped = new ItemStack(Items.TIPPED_ARROW);
-                net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
-                arrow.addAdditionalSaveData(tag);
-                if (tag.contains("Potion")) {
-                    tipped.getOrCreateTag().putString("Potion", tag.getString("Potion"));
-                }
-                if (tag.contains("CustomPotionEffects")) {
-                    tipped.getOrCreateTag().put("CustomPotionEffects", tag.getList("CustomPotionEffects", net.minecraft.nbt.Tag.TAG_COMPOUND));
-                }
-                if (tag.contains("CustomPotionColor")) {
-                    tipped.getOrCreateTag().putInt("CustomPotionColor", tag.getInt("CustomPotionColor"));
-                }
-                return tipped;
-            }
-            return new ItemStack(Items.ARROW);
-        } else if (projectile instanceof SpectralArrow) {
-            return new ItemStack(Items.SPECTRAL_ARROW);
+            ItemStack origin = arrow.getPickupItemStackOrigin();
+            return origin.isEmpty() ? new ItemStack(Items.ARROW) : origin.copy();
+        } else if (projectile instanceof SpectralArrow spectralArrow) {
+            ItemStack origin = spectralArrow.getPickupItemStackOrigin();
+            return origin.isEmpty() ? new ItemStack(Items.SPECTRAL_ARROW) : origin.copy();
         } else if (projectile instanceof ThrownTrident trident) {
-            net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
-            trident.addAdditionalSaveData(tag);
-            if (tag.contains("Trident", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
-                return ItemStack.of(tag.getCompound("Trident"));
-            }
-            return new ItemStack(Items.TRIDENT);
+            ItemStack origin = trident.getPickupItemStackOrigin();
+            return origin.isEmpty() ? new ItemStack(Items.TRIDENT) : origin.copy();
         } else if (projectile instanceof Snowball) {
             return new ItemStack(Items.SNOWBALL);
         } else if (projectile instanceof ThrownEgg) {

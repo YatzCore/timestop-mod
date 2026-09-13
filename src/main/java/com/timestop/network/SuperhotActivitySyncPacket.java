@@ -2,9 +2,8 @@ package com.timestop.network;
 
 import com.timestop.core.ClientTimeStopManager;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SuperhotActivitySyncPacket {
     private final float activity;
@@ -30,12 +29,11 @@ public class SuperhotActivitySyncPacket {
         buf.writeFloat(this.activity);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
+    public void handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
             if (bubbleId == null) ClientTimeStopManager.setServerSyncedSuperhotActivity(this.activity);
             else com.timestop.core.ClientBubbleManager.setSuperhotActivity(bubbleId, activity);
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

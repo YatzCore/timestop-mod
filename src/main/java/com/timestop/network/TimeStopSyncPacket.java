@@ -3,14 +3,13 @@ package com.timestop.network;
 import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeMode;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Supplier;
 
 public class TimeStopSyncPacket {
     private final boolean active;
@@ -71,12 +70,11 @@ public class TimeStopSyncPacket {
         buf.writeBoolean(allowPlayerProjectiles);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
+    public void handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
             ClientTimeStopManager.handleSync(active, duration, initiator, mode, exemptPlayers);
             ClientTimeStopManager.setProjectileFlow(projectileMode, allowPlayerProjectiles);
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

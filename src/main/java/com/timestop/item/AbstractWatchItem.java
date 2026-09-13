@@ -5,8 +5,8 @@ import com.timestop.core.TimeStopManager;
 import com.timestop.item.rune.RuneType;
 import com.timestop.item.rune.TemporalRuneItem;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
@@ -48,11 +49,21 @@ public abstract class AbstractWatchItem extends Item {
         return best;
     }
 
+    private static CompoundTag getCustomTag(ItemStack stack) {
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        return customData != null ? customData.copyTag() : new CompoundTag();
+    }
+
+    private static void updateCustomTag(ItemStack stack, java.util.function.Consumer<CompoundTag> consumer) {
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, consumer);
+    }
+
     public static TimeMode getMode(ItemStack stack) {
         if (stack.getItem() instanceof AbstractWatchItem watch) {
-            if (stack.hasTag() && stack.getTag().contains("TimeMode")) {
+            CompoundTag tag = getCustomTag(stack);
+            if (tag.contains("TimeMode")) {
                 try {
-                    TimeMode mode = TimeMode.valueOf(stack.getTag().getString("TimeMode"));
+                    TimeMode mode = TimeMode.valueOf(tag.getString("TimeMode"));
                     if (watch.getTier().isModeUnlocked(mode)) {
                         return mode;
                     }
@@ -65,45 +76,70 @@ public abstract class AbstractWatchItem extends Item {
     }
 
     public static void setMode(ItemStack stack, TimeMode mode) {
-        stack.getOrCreateTag().putString("TimeMode", mode.name());
+        updateCustomTag(stack, tag -> tag.putString("TimeMode", mode.name()));
     }
 
     public static boolean isGlobalScope(ItemStack stack) {
         if (stack.getItem() instanceof CreativeWatchItem || (stack.getItem() instanceof AbstractWatchItem w && w.getTier() == WatchTier.CREATIVE)) {
-            if (stack.hasTag() && stack.getTag().contains("GlobalScope")) {
-                return stack.getTag().getBoolean("GlobalScope");
+            CompoundTag tag = getCustomTag(stack);
+            if (tag.contains("GlobalScope")) {
+                return tag.getBoolean("GlobalScope");
             }
             return true; // Creative Clock is GLOBAL (Full Server) by default!
         }
-        if (stack.hasTag() && stack.getTag().contains("GlobalScope")) {
-            return stack.getTag().getBoolean("GlobalScope");
+        CompoundTag tag = getCustomTag(stack);
+        if (tag.contains("GlobalScope")) {
+            return tag.getBoolean("GlobalScope");
         }
         return false;
     }
 
     public static void setGlobalScope(ItemStack stack, boolean global) {
-        stack.getOrCreateTag().putBoolean("GlobalScope", global);
+        updateCustomTag(stack, tag -> tag.putBoolean("GlobalScope", global));
     }
 
     public static ItemStack getSocketedRune(ItemStack stack) {
-        if (stack.hasTag() && stack.getTag().contains("SocketedRune", Tag.TAG_COMPOUND)) {
-            return ItemStack.of(stack.getTag().getCompound("SocketedRune"));
+        CompoundTag tag = getCustomTag(stack);
+        if (tag.contains("SocketedRuneType")) {
+            try {
+                RuneType type = RuneType.valueOf(tag.getString("SocketedRuneType"));
+                Item item = ModItems.getRuneItem(type);
+                ItemStack runeStack = new ItemStack(item);
+                if (tag.contains("SocketedRuneFilter")) {
+                    TemporalRuneItem.setTargetFilter(runeStack, com.timestop.combat.ChainTargetFilter.fromName(tag.getString("SocketedRuneFilter")));
+                }
+                return runeStack;
+            } catch (Exception ignored) {}
         }
         return ItemStack.EMPTY;
     }
 
     public static void setSocketedRune(ItemStack watchStack, ItemStack runeStack) {
         if (runeStack.isEmpty()) {
-            if (watchStack.hasTag()) {
-                watchStack.getTag().remove("SocketedRune");
-            }
-        } else {
-            watchStack.getOrCreateTag().put("SocketedRune", runeStack.save(new CompoundTag()));
+            updateCustomTag(watchStack, tag -> {
+                tag.remove("SocketedRuneType");
+                tag.remove("SocketedRuneFilter");
+            });
+        } else if (runeStack.getItem() instanceof TemporalRuneItem runeItem) {
+            updateCustomTag(watchStack, tag -> {
+                tag.putString("SocketedRuneType", runeItem.getType().name());
+                if (runeItem.getType() == RuneType.RICOCHET) {
+                    tag.putString("SocketedRuneFilter", TemporalRuneItem.getTargetFilter(runeStack).name());
+                } else {
+                    tag.remove("SocketedRuneFilter");
+                }
+            });
         }
     }
 
     @Nullable
     public static RuneType getSocketedRuneType(ItemStack stack) {
+        CompoundTag tag = getCustomTag(stack);
+        if (tag.contains("SocketedRuneType")) {
+            try {
+                return RuneType.valueOf(tag.getString("SocketedRuneType"));
+            } catch (Exception ignored) {}
+        }
         ItemStack rune = getSocketedRune(stack);
         if (!rune.isEmpty() && rune.getItem() instanceof TemporalRuneItem runeItem) {
             return runeItem.getType();
@@ -146,7 +182,7 @@ public abstract class AbstractWatchItem extends Item {
                 }
             }
 
-            player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE, 1.0F, 1.2F);
+            player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1.0F, 1.2F);
             return true;
         }
 
@@ -178,7 +214,7 @@ public abstract class AbstractWatchItem extends Item {
                 }
             }
 
-            player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE, 1.0F, 1.2F);
+            player.playSound(net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1.0F, 1.2F);
             return true;
         }
 
@@ -244,7 +280,7 @@ public abstract class AbstractWatchItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltipComponents, TooltipFlag isAdvanced) {
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag isAdvanced) {
         TimeMode mode = getMode(stack);
 
         tooltipComponents.add(tier.getFormattedName().copy()

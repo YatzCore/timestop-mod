@@ -32,7 +32,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@Mod.EventBusSubscriber(modid = TimeStopMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class KineticPalmManager {
 
 
@@ -298,7 +297,8 @@ public class KineticPalmManager {
         syncCapture(projectile, owner, false);
         projectile.setNoGravity(false);
         if (projectile instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile fireball) {
-            fireball.xPower = fireball.yPower = fireball.zPower = 0;
+            fireball.setDeltaMovement(Vec3.ZERO);
+            fireball.accelerationPower = 0.0;
         }
         projectile.setDeltaMovement(new Vec3((level.random.nextDouble() - 0.5) * 0.05,
                 -0.22, (level.random.nextDouble() - 0.5) * 0.05));
@@ -337,16 +337,17 @@ public class KineticPalmManager {
                 double speed = Math.max(3.2, incoming.length());
                 p.setDeltaMovement(shootDir.scale(speed));
                 if (p instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile fireball) {
-                    fireball.xPower = shootDir.x * 0.1;
-                    fireball.yPower = shootDir.y * 0.1;
-                    fireball.zPower = shootDir.z * 0.1;
+                    fireball.setDeltaMovement(shootDir.scale(0.1));
+                    fireball.accelerationPower = 0.1;
                 }
                 p.hasImpulse = true;
 
                 if (p instanceof AbstractArrow arrow) {
                     arrow.setBaseDamage(arrow.getBaseDamage() + 6.0);
                     arrow.setCritArrow(true);
-                    arrow.setPierceLevel((byte) 3);
+                    if (arrow instanceof com.timestop.mixin.AbstractArrowAccessor accessor) {
+                        accessor.timestop$setPierceLevel((byte) 3);
+                    }
                 }
 
                 double horiz = Math.sqrt(shootDir.x * shootDir.x + shootDir.z * shootDir.z);
@@ -394,7 +395,7 @@ public class KineticPalmManager {
     public static void onDroppedProjectileImpact(ProjectileImpactEvent event) {
         Projectile p = event.getProjectile();
         if (p.getPersistentData().getBoolean("KineticPalmDropped")) {
-            event.setCanceled(true);
+            event.setImpactResult(ProjectileImpactEvent.ImpactResult.STOP_AT_CURRENT_NO_DAMAGE);
             if (p.level() instanceof ServerLevel sl) {
                 sl.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.CHAIN_HIT, SoundSource.PLAYERS, 0.2F, 1.4F);
             }
@@ -403,8 +404,9 @@ public class KineticPalmManager {
     }
 
     private static void syncCapture(Projectile projectile, UUID owner, boolean captured) {
-        ModMessages.INSTANCE.send(net.minecraftforge.network.PacketDistributor.TRACKING_ENTITY.with(() -> projectile),
-                new com.timestop.network.KineticCaptureSyncPacket(projectile.getId(), owner, captured, projectile.position()));
+        ModMessages.INSTANCE.send(
+                new com.timestop.network.KineticCaptureSyncPacket(projectile.getId(), owner, captured, projectile.position()),
+                net.minecraftforge.network.PacketDistributor.TRACKING_ENTITY.with(projectile));
     }
 
     @SubscribeEvent

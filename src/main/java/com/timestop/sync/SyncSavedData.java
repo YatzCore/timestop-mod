@@ -1,5 +1,6 @@
 package com.timestop.sync;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -17,10 +18,16 @@ public class SyncSavedData extends SavedData {
     private final Map<UUID, Set<UUID>> syncedPlayers = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastKnownNames = new ConcurrentHashMap<>();
 
+    public static final SavedData.Factory<SyncSavedData> FACTORY = new SavedData.Factory<>(
+            SyncSavedData::new,
+            SyncSavedData::load,
+            null
+    );
+
     public SyncSavedData() {
     }
 
-    public static SyncSavedData load(CompoundTag tag) {
+    public static SyncSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
         SyncSavedData data = new SyncSavedData();
         ListTag list = tag.contains("SyncPairs", Tag.TAG_LIST)
                 ? tag.getList("SyncPairs", Tag.TAG_COMPOUND)
@@ -48,7 +55,7 @@ public class SyncSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
         ListTag list = new ListTag();
         Set<String> processedPairs = ConcurrentHashMap.newKeySet();
 

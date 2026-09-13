@@ -26,7 +26,7 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
     @Shadow
     protected M model;
 
-    private static final ResourceLocation CRYSTAL_RED_TEXTURE = new ResourceLocation("timestop", "textures/entity/superhot_crystal_red.png");
+    private static final ResourceLocation CRYSTAL_RED_TEXTURE = ResourceLocation.fromNamespaceAndPath("timestop", "textures/entity/superhot_crystal_red.png");
 
     private boolean shouldEntityBeCrystalRed(LivingEntity entity) {
         if (entity == Minecraft.getInstance().player) {

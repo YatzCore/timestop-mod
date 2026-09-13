@@ -4,10 +4,9 @@ import com.timestop.client.ClientOrbitalHandler;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
 import java.util.UUID;
-import java.util.function.Supplier;
 
 public class SyncOrbitalEntityPacket {
     private final int projectileEntityId;
@@ -40,15 +39,14 @@ public class SyncOrbitalEntityPacket {
         buf.writeBoolean(this.isOrbiting);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context ctx = supplier.get();
-        ctx.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
+    public void handle(CustomPayloadEvent.Context context) {
+        context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
             if (this.isOrbiting) {
                 ClientOrbitalHandler.registerOrbit(this.projectileEntityId, this.playerUuid, this.orbitIndex, this.orbitTotal);
             } else {
                 ClientOrbitalHandler.unregisterOrbit(this.projectileEntityId);
             }
         }));
-        return true;
+        context.setPacketHandled(true);
     }
 }

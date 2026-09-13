@@ -26,3 +26,8 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Internal Dev Notes & Backups
+PORT_FIXES.md
+*.bak
+timestop-backups/

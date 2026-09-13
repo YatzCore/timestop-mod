@@ -5,18 +5,20 @@ import com.timestop.combat.RuneManager;
 import com.timestop.item.rune.RuneType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
+import net.minecraft.client.gui.LayeredDraw;
 
 public class ChronoCoinOverlay {
 
-    public static final IGuiOverlay HUD_CHRONO_COIN = (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
+    public static final LayeredDraw.Layer HUD_CHRONO_COIN = (guiGraphics, deltaTracker) -> {
+        int screenWidth = guiGraphics.guiWidth();
+        int screenHeight = guiGraphics.guiHeight();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
 
-        // Only display if TACZ is loaded and the Marksman rune is equipped
-        if (!net.minecraftforge.fml.ModList.get().isLoaded("tacz") || !RuneManager.hasRune(mc.player, RuneType.RICOSHOT)) return;
+        // Display if the Marksman rune is equipped
+        if (!RuneManager.hasRune(mc.player, RuneType.RICOSHOT)) return;
 
-        int charges = CoinManager.getCharges(mc.player);
+        int charges = mc.player.isCreative() ? CoinManager.MAX_CHARGES : CoinManager.getCharges(mc.player);
         int centerX = screenWidth / 2;
         int centerY = screenHeight / 2;
 
@@ -26,6 +28,9 @@ public class ChronoCoinOverlay {
         int pipW = 7;
         int pipH = 4;
         int spacing = 5;
+
+        guiGraphics.drawString(mc.font, charges + "/" + CoinManager.MAX_CHARGES,
+                startX + pipW + 4, centerY - 4, 0xFFFEF08A, true);
 
         for (int i = 0; i < CoinManager.MAX_CHARGES; i++) {
             int y = startY + i * spacing;

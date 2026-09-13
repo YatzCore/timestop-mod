@@ -4,9 +4,8 @@ import com.timestop.core.TimeMode;
 import com.timestop.core.TimeStopManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SuperhotSyncPacket {
     private final float activity;
@@ -23,14 +22,13 @@ public class SuperhotSyncPacket {
         buf.writeFloat(this.activity);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context context = supplier.get();
+    public void handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null) {
                 com.timestop.core.SuperhotActivityManager.report(player, activity);
             }
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }

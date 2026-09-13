@@ -3,10 +3,10 @@ package com.timestop.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.timestop.combat.TranspositionManager;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 import java.util.List;
 
@@ -16,7 +16,7 @@ import java.util.List;
  */
 public class TranspositionRenderer {
 
-    private static final ResourceLocation VIGNETTE_LOCATION = new ResourceLocation("textures/misc/vignette.png");
+    private static final ResourceLocation VIGNETTE_LOCATION = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/misc/vignette.png");
     private static int swapFlashTicks = 0;
 
     public static void triggerSwapFlash() {
@@ -81,7 +81,9 @@ public class TranspositionRenderer {
      * Fullscreen dimensional warp flash feedback when clapping/swapping.
      * The previous 2D HUD tab has been completely removed per user request.
      */
-    public static final IGuiOverlay HUD_TRANSPOSITION = (gui, guiGraphics, partialTick, width, height) -> {
+    public static final LayeredDraw.Layer HUD_TRANSPOSITION = (guiGraphics, deltaTracker) -> {
+        int width = guiGraphics.guiWidth();
+        int height = guiGraphics.guiHeight();
         // Subtle violet dimensional warp flash on swap
         if (swapFlashTicks > 0) {
             float alpha = (swapFlashTicks / 6.0F) * 0.38F;

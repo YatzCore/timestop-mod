@@ -4,13 +4,16 @@ import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeMode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 public class ChronoOverlay {
-    public static final IGuiOverlay HUD_CHRONO = (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
+    public static final LayeredDraw.Layer HUD_CHRONO = (guiGraphics, deltaTracker) -> {
+        int screenWidth = guiGraphics.guiWidth();
+        int screenHeight = guiGraphics.guiHeight();
+        float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
         int remainingTicks = 0;
         int totalDuration = 0;
         TimeMode mode = TimeMode.TIME_STOP;

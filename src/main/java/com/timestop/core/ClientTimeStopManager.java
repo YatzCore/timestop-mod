@@ -44,8 +44,8 @@ public class ClientTimeStopManager {
     private static double prevMouseX = 0.0;
     private static double prevMouseY = 0.0;
     private static boolean wasFastLastFrame = false;
-    private static final ResourceLocation DESATURATE_SHADER = new ResourceLocation("minecraft", "shaders/post/desaturate.json");
-    private static final ResourceLocation SUPERHOT_SHADER = new ResourceLocation("minecraft", "shaders/post/superhot.json");
+    private static final ResourceLocation DESATURATE_SHADER = ResourceLocation.fromNamespaceAndPath("minecraft", "shaders/post/desaturate.json");
+    private static final ResourceLocation SUPERHOT_SHADER = ResourceLocation.fromNamespaceAndPath("minecraft", "shaders/post/superhot.json");
     private static ResourceLocation currentShader = null;
 
     public static boolean isGlobalTimeStopActive() {
@@ -81,15 +81,8 @@ public class ClientTimeStopManager {
         }
         TimeMode mode = clientMode;
         boolean active = clientTimeStopped;
-        if (ClientBubbleManager.hasActiveBubbles()) {
-            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
-            if (b != null) {
-                active = true;
-                mode = b.mode;
-            } else if (!clientTimeStopped) {
-                return 50.0F; // Camera outside bubble and no global time stop = normal real-time!
-            }
-        }
+        // Local bubbles tick entities on a normal 20 TPS server. Changing the whole
+        // client clock also speeds up interpolation and entities outside the bubble.
         if (!active) return 50.0F;
         switch (mode) {
             case FAST_FORWARD:

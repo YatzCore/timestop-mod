@@ -4,9 +4,8 @@ import com.timestop.combat.CoinManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 
-import java.util.function.Supplier;
 
 public class SyncCoinChargesPacket {
 
@@ -24,13 +23,12 @@ public class SyncCoinChargesPacket {
         buf.writeVarInt(this.charges);
     }
 
-    public boolean handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context ctx = supplier.get();
-        ctx.enqueueWork(() -> {
+    public void handle(CustomPayloadEvent.Context context) {
+        context.enqueueWork(() -> {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
                 CoinManager.clientCharges = this.charges;
             });
         });
-        return true;
+        context.setPacketHandled(true);
     }
 }
