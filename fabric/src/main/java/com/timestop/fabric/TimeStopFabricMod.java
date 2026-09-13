@@ -43,33 +43,80 @@ public class TimeStopFabricMod implements ModInitializer {
     @Override
     public void onInitialize() {
         // 1. Items & Entities
+        TimeStopMod.LOGGER.info("[TimeStop] Registering {} items...", ModItems.ITEMS.size());
         ModItems.ITEMS.forEach((id, entry) -> {
             var item = Registry.register(BuiltInRegistries.ITEM, id, entry.get());
             entry.bind(item);
+            TimeStopMod.LOGGER.info("[TimeStop] Registered item: {}", id);
         });
         ModEntities.ENTITIES.forEach((id, entry) -> {
             var entity = Registry.register(BuiltInRegistries.ENTITY_TYPE, id, entry.get());
             entry.bind(entity);
+            TimeStopMod.LOGGER.info("[TimeStop] Registered entity: {}", id);
         });
 
         // 2. Creative Tab
-        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, new ResourceLocation(TimeStopMod.MOD_ID, "main"),
-                FabricItemGroup.builder()
-                        .title(Component.translatable("itemGroup.timestop"))
-                        .icon(() -> new ItemStack(ModItems.CHRONOS_WATCH.get()))
-                        .displayItems((params, output) -> {
-                            ModItems.ITEMS.values().forEach(entry -> {
-                                if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
-                                    if (Services.PLATFORM.isModLoaded("tacz")) {
-                                        output.accept(entry.get());
-                                    }
-                                } else {
-                                    output.accept(entry.get());
-                                }
-                            });
-                        })
-                        .build()
+        net.minecraft.resources.ResourceKey<net.minecraft.world.item.CreativeModeTab> tabKey = net.minecraft.resources.ResourceKey.create(
+                net.minecraft.core.registries.Registries.CREATIVE_MODE_TAB,
+                new ResourceLocation(TimeStopMod.MOD_ID, "main")
         );
+        net.minecraft.world.item.CreativeModeTab timeStopTab = FabricItemGroup.builder()
+                .title(Component.translatable("itemGroup.timestop_tab"))
+                .icon(() -> new ItemStack(ModItems.CHRONOS_WATCH.get()))
+                .displayItems((params, output) -> {
+                    ModItems.ITEMS.values().forEach(entry -> {
+                        if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
+                            if (Services.PLATFORM.isModLoaded("tacz")) {
+                                output.accept(entry.get());
+                            }
+                        } else {
+                            output.accept(entry.get());
+                        }
+                    });
+                })
+                .build();
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, tabKey, timeStopTab);
+
+        // Fabric ItemGroupEvents: Populate dedicated tab
+        net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(tabKey).register(content -> {
+            ModItems.ITEMS.values().forEach(entry -> {
+                if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
+                    if (Services.PLATFORM.isModLoaded("tacz")) {
+                        content.accept(entry.get());
+                    }
+                } else {
+                    content.accept(entry.get());
+                }
+            });
+        });
+
+        // Also add watches and runes directly into vanilla Tools & Utilities tab
+        net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES).register(content -> {
+            ModItems.ITEMS.values().forEach(entry -> {
+                if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
+                    if (Services.PLATFORM.isModLoaded("tacz")) {
+                        content.accept(entry.get());
+                    }
+                } else {
+                    content.accept(entry.get());
+                }
+            });
+        });
+
+        // Also add runes to vanilla Combat tab
+        net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(net.minecraft.world.item.CreativeModeTabs.COMBAT).register(content -> {
+            ModItems.ITEMS.values().forEach(entry -> {
+                if (entry.get() instanceof com.timestop.item.rune.TemporalRuneItem) {
+                    if (entry == ModItems.RUNE_COIN) {
+                        if (Services.PLATFORM.isModLoaded("tacz")) {
+                            content.accept(entry.get());
+                        }
+                    } else {
+                        content.accept(entry.get());
+                    }
+                }
+            });
+        });
 
         // 3. Config
         com.timestop.config.TimeStopConfig.load();
