@@ -3,6 +3,7 @@
   "minVersion": "0.8",
   "package": "com.timestop.fabric.mixin",
   "compatibilityLevel": "JAVA_17",
+  "refmap": "timestop.refmap.json",
   "mixins": [
     "EntityDataSaverMixin",
     "FabricProjectileImpactMixin"

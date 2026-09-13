@@ -2,6 +2,12 @@ plugins {
     id 'fabric-loom'
 }
 
+loom {
+    mixin {
+        defaultRefmapName = "timestop.refmap.json"
+    }
+}
+
 base {
     archivesName = "${project.archives_name}-fabric-${project.minecraft_version}"
 }
