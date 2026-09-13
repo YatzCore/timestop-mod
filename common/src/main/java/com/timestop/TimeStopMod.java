@@ -2,6 +2,7 @@ package com.timestop;
 
 import com.mojang.logging.LogUtils;
 import com.timestop.combat.KineticPalmManager;
+import com.timestop.combat.OrbitalProjectileManager;
 import com.timestop.combat.RuneManager;
 import com.timestop.combat.TemporalDamageBuffer;
 import com.timestop.combat.TemporalKineticBlockManager;
@@ -54,6 +55,7 @@ public class TimeStopMod {
         }
         KineticPalmManager.setGuarding(serverPlayer, false);
         KineticPalmManager.dischargeDrop(serverPlayer);
+        OrbitalProjectileManager.onPlayerRespawn(serverPlayer);
         TimeStopManager.removeMatrixAttributes(serverPlayer);
         RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
         TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
@@ -66,6 +68,7 @@ public class TimeStopMod {
         }
         KineticPalmManager.setGuarding(serverPlayer, false);
         KineticPalmManager.dischargeDrop(serverPlayer);
+        OrbitalProjectileManager.onPlayerRespawn(serverPlayer);
         TimeStopManager.removeMatrixAttributes(serverPlayer);
     }
 
@@ -79,6 +82,7 @@ public class TimeStopMod {
         }
         TimeStopManager.reset();
         KineticPalmManager.clearAll();
+        OrbitalProjectileManager.clearAll();
         TemporalBubbleManager.reset();
         TemporalKineticBlockManager.clearAll();
         SyncManager.resetCache();

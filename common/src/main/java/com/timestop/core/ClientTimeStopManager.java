@@ -43,6 +43,8 @@ public class ClientTimeStopManager {
     private static long lastSuperhotReport;
     private static double prevMouseX = 0.0;
     private static double prevMouseY = 0.0;
+    private static float lastYRot = 0.0F;
+    private static float lastXRot = 0.0F;
     private static boolean wasFastLastFrame = false;
     private static final ResourceLocation DESATURATE_SHADER = new ResourceLocation("minecraft", "shaders/post/desaturate.json");
     private static final ResourceLocation SUPERHOT_SHADER = new ResourceLocation("minecraft", "shaders/post/superhot.json");
@@ -228,16 +230,26 @@ public class ClientTimeStopManager {
                 || mc.options.keyDown.isDown()
                 || mc.options.keyLeft.isDown()
                 || mc.options.keyRight.isDown()
-                || mc.options.keyJump.isDown();
+                || mc.options.keyJump.isDown()
+                || mc.options.keyShift.isDown()
+                || mc.options.keySprint.isDown();
 
         boolean hasAction = mc.options.keyAttack.isDown()
                 || mc.options.keyUse.isDown()
                 || mc.player.swinging
                 || mc.player.isUsingItem();
 
-        boolean myLocalFast = mc.screen == null && (hasMovementKey || hasAction);
+        float yRot = mc.player.getYRot();
+        float xRot = mc.player.getXRot();
+        boolean hasLook = Math.abs(yRot - lastYRot) > 0.25F || Math.abs(xRot - lastXRot) > 0.25F;
+        lastYRot = yRot;
+        lastXRot = xRot;
+
+        boolean hasVelocity = mc.player.getDeltaMovement().lengthSqr() > 1.0E-4;
+
+        boolean myLocalFast = mc.screen == null && (hasMovementKey || hasAction || hasLook || hasVelocity);
         long now = System.currentTimeMillis();
-        if (myLocalFast != wasFastLastFrame || now - lastSuperhotReport >= 250) {
+        if (myLocalFast != wasFastLastFrame || now - lastSuperhotReport >= 200) {
             lastSuperhotReport = now;
             wasFastLastFrame = myLocalFast;
             ModMessages.sendToServer(new SuperhotSyncPacket(myLocalFast ? 1.0F : 0.0F));

@@ -56,10 +56,8 @@ public class ForgeClientSetup {
         event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "transposition_hud", (gui, guiGraphics, partialTick, w, h) ->
                 TranspositionRenderer.render(guiGraphics, partialTick, w, h));
 
-        if (Services.PLATFORM.isModLoaded("tacz")) {
-            event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "chrono_coin_hud", (gui, guiGraphics, partialTick, w, h) ->
-                    ChronoCoinOverlay.render(guiGraphics, partialTick, w, h));
-        }
+        event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "chrono_coin_hud", (gui, guiGraphics, partialTick, w, h) ->
+                ChronoCoinOverlay.render(guiGraphics, partialTick, w, h));
 
         event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "dead_eye_hud", (gui, guiGraphics, partialTick, w, h) ->
                 DeadEyeRenderer.renderHud(guiGraphics, partialTick, w, h));

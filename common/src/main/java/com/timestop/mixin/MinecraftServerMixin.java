@@ -19,16 +19,22 @@ public abstract class MinecraftServerMixin {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;waitUntilNextTick()V")
     )
     private void adjustTimeStopTickDelay(CallbackInfo ci) {
+        long cur = net.minecraft.Util.getMillis();
         if (!TimeStopManager.isGlobalTimeStopActive()) {
+            if (this.nextTickTime > cur + 50L) {
+                this.nextTickTime = cur + 50L;
+                this.delayedTasksMaxNextTickTime = this.nextTickTime;
+            }
             return;
         }
         long targetTickMs = TimeStopManager.getServerTickMs();
-        if (targetTickMs != 50L) {
+        if (targetTickMs > 50L) {
             long delta = targetTickMs - 50L;
-            if (delta > 0L) {
-                this.nextTickTime += delta;
-                this.delayedTasksMaxNextTickTime = this.nextTickTime;
-            }
+            this.nextTickTime += delta;
         }
+        if (this.nextTickTime > cur + targetTickMs) {
+            this.nextTickTime = cur + targetTickMs;
+        }
+        this.delayedTasksMaxNextTickTime = this.nextTickTime;
     }
 }

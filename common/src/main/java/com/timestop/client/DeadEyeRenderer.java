@@ -77,9 +77,17 @@ public class DeadEyeRenderer {
             if (mc.level != null) {
                 net.minecraft.world.entity.Entity e = mc.level.getEntity(tag.entityId);
                 if (e instanceof net.minecraft.world.entity.LivingEntity living && living.isAlive()) {
-                    target = tag.isHead
-                            ? living.getEyePosition(partialTick)
-                            : living.getPosition(partialTick).add(0, living.getBbHeight() * 0.5, 0);
+                    Vec3 currentPos = living.getPosition(partialTick);
+                    double dx = camPos.x - currentPos.x;
+                    double dz = camPos.z - currentPos.z;
+                    double distHoriz = Math.sqrt(dx * dx + dz * dz);
+                    double surfaceDist = (living.getBbWidth() * 0.5) + 0.08;
+                    double offsetX = (distHoriz > 1.0E-4) ? (dx / distHoriz) * surfaceDist : 0;
+                    double offsetZ = (distHoriz > 1.0E-4) ? (dz / distHoriz) * surfaceDist : 0;
+                    double tagY = tag.isHead
+                            ? (currentPos.y + living.getBbHeight() * 0.88)
+                            : (currentPos.y + living.getBbHeight() * 0.55);
+                    target = new Vec3(currentPos.x + offsetX, tagY, currentPos.z + offsetZ);
                 }
             }
 

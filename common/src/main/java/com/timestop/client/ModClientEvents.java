@@ -18,6 +18,7 @@ public class ModClientEvents {
 
     public static void onClientTick() {
         ClientTimeStopManager.clientTick();
+        ClientTimeStopManager.onRenderFrameMotion();
         ClientBubbleManager.clientTick();
         DeadEyeManager.clientTick(Minecraft.getInstance());
         ChronoAudioHandler.clientTick();

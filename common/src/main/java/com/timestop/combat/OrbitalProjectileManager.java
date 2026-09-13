@@ -106,6 +106,11 @@ public class OrbitalProjectileManager {
     public static boolean onProjectileImpact(Projectile projectile, HitResult hit) {
         if (!(projectile.level() instanceof ServerLevel level)) return false;
 
+        // 0. Projectiles actively held in stasis orbit never trigger impact or harm their owner
+        if (com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("InStasisOrbit")) {
+            return true;
+        }
+
         // 1. Check if this projectile was launched from orbit and has now impacted a surface or entity
         if (com.timestop.platform.EntityDataHelper.getPersistentData(projectile).contains("WasOrbitalLaunched") || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).contains("OrbitalTargetId")) {
             // hit passed in
@@ -652,5 +657,21 @@ public class OrbitalProjectileManager {
     public static void onPlayerLoggedIn(ServerPlayer player) {
         int count = getOrbitCount(player);
         ModMessages.sendToPlayer(new SyncOrbitCountPacket(count), player);
+    }
+
+    public static void clearAll() {
+        for (List<WeakReference<Projectile>> list : playerOrbits.values()) {
+            for (WeakReference<Projectile> ref : list) {
+                Projectile p = ref.get();
+                if (p != null && p.isAlive()) {
+                    p.setNoGravity(false);
+                    com.timestop.platform.EntityDataHelper.getPersistentData(p).remove("OrbitedPlayerUuid");
+                    com.timestop.platform.EntityDataHelper.getPersistentData(p).remove("InStasisOrbit");
+                }
+            }
+            list.clear();
+        }
+        playerOrbits.clear();
+        activeGuidedProjectiles.clear();
     }
 }

@@ -43,14 +43,32 @@ import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegisterEvent;
+import net.minecraftforge.registries.RegistryObject;
 
 @Mod(TimeStopMod.MOD_ID)
 public class TimeStopForgeMod {
 
+    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
+            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, TimeStopMod.MOD_ID);
+
+    public static final RegistryObject<CreativeModeTab> TIME_STOP_TAB = CREATIVE_MODE_TABS.register("main", () ->
+            CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup.timestop"))
+                    .icon(() -> new ItemStack(ModItems.CHRONOS_WATCH.get()))
+                    .displayItems((params, output) -> {
+                        ModItems.ITEMS.values().forEach(entry -> {
+                            output.accept(entry.get());
+                        });
+                    })
+                    .build()
+    );
+
     public TimeStopForgeMod() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        CREATIVE_MODE_TABS.register(modEventBus);
         modEventBus.addListener(this::onRegister);
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
@@ -77,24 +95,6 @@ public class TimeStopForgeMod {
                 event.register(Registries.ENTITY_TYPE, id, () -> entity);
                 entry.bind(entity);
             });
-        } else if (event.getRegistryKey().equals(Registries.CREATIVE_MODE_TAB)) {
-            event.register(Registries.CREATIVE_MODE_TAB, new ResourceLocation(TimeStopMod.MOD_ID, "main"), () ->
-                    CreativeModeTab.builder()
-                            .title(Component.translatable("itemGroup.timestop"))
-                            .icon(() -> new ItemStack(ModItems.CHRONOS_WATCH.get()))
-                            .displayItems((params, output) -> {
-                                ModItems.ITEMS.values().forEach(entry -> {
-                                    if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
-                                        if (Services.PLATFORM.isModLoaded("tacz")) {
-                                            output.accept(entry.get());
-                                        }
-                                    } else {
-                                        output.accept(entry.get());
-                                    }
-                                });
-                            })
-                            .build()
-            );
         }
     }
 
@@ -103,17 +103,6 @@ public class TimeStopForgeMod {
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            ModItems.ITEMS.values().forEach(entry -> {
-                if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
-                    if (Services.PLATFORM.isModLoaded("tacz")) {
-                        event.accept(entry.get());
-                    }
-                } else {
-                    event.accept(entry.get());
-                }
-            });
-        }
         if (event.getTabKey() == CreativeModeTabs.OP_BLOCKS) {
             event.accept(ModItems.CREATIVE_WATCH.get());
         }
@@ -130,6 +119,7 @@ public class TimeStopForgeMod {
                 com.timestop.combat.DeadEyeManager.serverTick();
                 com.timestop.combat.VoltaicRicochetHandler.serverTick();
                 com.timestop.combat.KineticPalmManager.serverTick();
+                com.timestop.combat.OrbitalProjectileManager.serverTick();
             }
         }
 
@@ -192,7 +182,7 @@ public class TimeStopForgeMod {
 
         @SubscribeEvent
         public void onLivingAttack(LivingAttackEvent event) {
-            if (!com.timestop.combat.RuneManager.onLivingAttack(event.getEntity(), event.getSource())) {
+            if (com.timestop.combat.RuneManager.onLivingAttack(event.getEntity(), event.getSource())) {
                 event.setCanceled(true);
             }
         }
@@ -215,10 +205,16 @@ public class TimeStopForgeMod {
 
         @SubscribeEvent(priority = EventPriority.HIGHEST)
         public void onProjectileImpact(ProjectileImpactEvent event) {
-            com.timestop.combat.OrbitalProjectileManager.onProjectileImpact(event.getProjectile(), event.getRayTraceResult());
+            if (com.timestop.combat.OrbitalProjectileManager.onProjectileImpact(event.getProjectile(), event.getRayTraceResult())) {
+                event.setCanceled(true);
+                return;
+            }
             com.timestop.combat.VoltaicRicochetHandler.onProjectileImpact(event.getProjectile(), event.getRayTraceResult());
             com.timestop.combat.VolatileStasisHandler.onProjectileImpact(event.getProjectile());
-            com.timestop.combat.KineticPalmManager.onDroppedProjectileImpact(event.getProjectile());
+            if (com.timestop.combat.KineticPalmManager.onDroppedProjectileImpact(event.getProjectile())) {
+                event.setCanceled(true);
+                return;
+            }
         }
 
         @SubscribeEvent
@@ -247,6 +243,7 @@ public class TimeStopForgeMod {
             }
             TimeStopManager.reset();
             com.timestop.combat.KineticPalmManager.clearAll();
+            com.timestop.combat.OrbitalProjectileManager.clearAll();
             TemporalBubbleManager.reset();
             com.timestop.combat.TemporalKineticBlockManager.clearAll();
             com.timestop.sync.SyncManager.resetCache();

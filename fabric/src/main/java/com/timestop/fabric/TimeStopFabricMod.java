@@ -61,62 +61,15 @@ public class TimeStopFabricMod implements ModInitializer {
                 new ResourceLocation(TimeStopMod.MOD_ID, "main")
         );
         net.minecraft.world.item.CreativeModeTab timeStopTab = FabricItemGroup.builder()
-                .title(Component.translatable("itemGroup.timestop_tab"))
+                .title(Component.translatable("itemGroup.timestop"))
                 .icon(() -> new ItemStack(ModItems.CHRONOS_WATCH.get()))
                 .displayItems((params, output) -> {
                     ModItems.ITEMS.values().forEach(entry -> {
-                        if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
-                            if (Services.PLATFORM.isModLoaded("tacz")) {
-                                output.accept(entry.get());
-                            }
-                        } else {
-                            output.accept(entry.get());
-                        }
+                        output.accept(entry.get());
                     });
                 })
                 .build();
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, tabKey, timeStopTab);
-
-        // Fabric ItemGroupEvents: Populate dedicated tab
-        net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(tabKey).register(content -> {
-            ModItems.ITEMS.values().forEach(entry -> {
-                if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
-                    if (Services.PLATFORM.isModLoaded("tacz")) {
-                        content.accept(entry.get());
-                    }
-                } else {
-                    content.accept(entry.get());
-                }
-            });
-        });
-
-        // Also add watches and runes directly into vanilla Tools & Utilities tab
-        net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES).register(content -> {
-            ModItems.ITEMS.values().forEach(entry -> {
-                if (entry == ModItems.RUNE_COIN || entry == ModItems.CHRONO_COIN) {
-                    if (Services.PLATFORM.isModLoaded("tacz")) {
-                        content.accept(entry.get());
-                    }
-                } else {
-                    content.accept(entry.get());
-                }
-            });
-        });
-
-        // Also add runes to vanilla Combat tab
-        net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents.modifyEntriesEvent(net.minecraft.world.item.CreativeModeTabs.COMBAT).register(content -> {
-            ModItems.ITEMS.values().forEach(entry -> {
-                if (entry.get() instanceof com.timestop.item.rune.TemporalRuneItem) {
-                    if (entry == ModItems.RUNE_COIN) {
-                        if (Services.PLATFORM.isModLoaded("tacz")) {
-                            content.accept(entry.get());
-                        }
-                    } else {
-                        content.accept(entry.get());
-                    }
-                }
-            });
-        });
 
         // 3. Config
         com.timestop.config.TimeStopConfig.load();
@@ -142,6 +95,7 @@ public class TimeStopFabricMod implements ModInitializer {
             }
             TimeStopManager.reset();
             com.timestop.combat.KineticPalmManager.clearAll();
+            com.timestop.combat.OrbitalProjectileManager.clearAll();
             TemporalBubbleManager.reset();
             com.timestop.combat.TemporalKineticBlockManager.clearAll();
             com.timestop.sync.SyncManager.resetCache();
@@ -162,6 +116,7 @@ public class TimeStopFabricMod implements ModInitializer {
             com.timestop.combat.DeadEyeManager.serverTick();
             com.timestop.combat.VoltaicRicochetHandler.serverTick();
             com.timestop.combat.KineticPalmManager.serverTick();
+            com.timestop.combat.OrbitalProjectileManager.serverTick();
         });
 
         // 8. Player Connections
@@ -210,7 +165,7 @@ public class TimeStopFabricMod implements ModInitializer {
         });
 
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
-                com.timestop.combat.RuneManager.onLivingAttack(entity, source));
+                !com.timestop.combat.RuneManager.onLivingAttack(entity, source));
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (com.timestop.combat.TemporalInteractionEvents.onAttackEntity(player, entity)) {

@@ -42,8 +42,20 @@ public class RuneManager {
      * Guarantees that volleys of arrows can never pierce the player's evasion.
      */
     public static boolean onLivingAttack(net.minecraft.world.entity.LivingEntity entity, net.minecraft.world.damagesource.DamageSource source) {
-        if (entity instanceof Player player) {
+        if (entity instanceof ServerPlayer player) {
             if (source.is(DamageTypeTags.IS_PROJECTILE)) {
+                Entity direct = source.getDirectEntity();
+                Projectile proj = direct instanceof Projectile p ? p : null;
+
+                // 1. Kinetic Barrier Guard Check
+                if (KineticPalmManager.isGuarding(player) && hasRune(player, RuneType.KINETIC_BARRIER)) {
+                    if (proj != null) {
+                        KineticPalmManager.captureOnImpact(player, proj);
+                    }
+                    return true;
+                }
+
+                // 2. Phasing Rune Check
                 RuneType rune = getSocketedRuneType(player);
                 if (rune == RuneType.PHASING) {
                     long now = player.level().getGameTime();
@@ -51,24 +63,48 @@ public class RuneManager {
                     long nextReady = PHASE_COOLDOWNS.getOrDefault(player.getUUID(), 0L);
 
                     if (now < intangibleUntil) {
-                        // Currently in brief intangibility grace window from previous evasion
-                        Entity direct = source.getDirectEntity();
-                        if (direct instanceof Projectile proj) {
+                        if (proj != null) {
                             proj.discard();
                         }
                         return true;
                     }
 
                     if (now >= nextReady) {
-                        // Cooldown is ready: cancel damage and trigger evasion!
-                        Entity direct = source.getDirectEntity();
-                        if (direct instanceof Projectile proj) {
+                        if (proj != null) {
                             proj.discard();
                         }
-                        triggerPhasingEvasion(direct instanceof Projectile p ? p : null, player);
+                        triggerPhasingEvasion(proj, player);
                         return true;
                     }
                     // If on cooldown: damage is NOT canceled, normal damage applies!
+                    return false;
+                }
+
+                // 3. Deflection (Redirection) Rune Check
+                if (rune == RuneType.DEFLECTION) {
+                    if (proj != null && !com.timestop.platform.EntityDataHelper.getPersistentData(proj).getBoolean("AutoParried")) {
+                        com.timestop.platform.EntityDataHelper.getPersistentData(proj).putBoolean("AutoParried", true);
+                        TimeStopManager.deflectDynamicProjectile(proj, player);
+                        player.displayClientMessage(Component.literal("[Rune of Redirection] Parried!").withStyle(ChatFormatting.AQUA), true);
+                        return true;
+                    }
+                }
+
+                // 4. Snatching Rune Check
+                if (rune == RuneType.SNATCHING) {
+                    if (proj != null) {
+                        TemporalInteractionEvents.snatchProjectile(proj, player);
+                        player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
+                        return true;
+                    }
+                }
+
+                // 5. Orbital Rune Check
+                if (rune == RuneType.ORBITAL) {
+                    if (proj != null && player.level() instanceof ServerLevel sl) {
+                        OrbitalProjectileManager.captureProjectile(player, proj, sl);
+                        return true;
+                    }
                 }
             }
         }
@@ -77,13 +113,13 @@ public class RuneManager {
 
     /**
      * Resolves the active socketed RuneType protecting this player.
-     * Evaluates off-hand watch first, then main-hand watch.
+     * Evaluates off-hand watch/rune first, then main-hand watch/rune, then inventory watches.
      */
     @Nullable
     public static RuneType getSocketedRuneType(@Nullable Player player) {
         if (player == null || !player.isAlive()) return null;
 
-        // 1. Off-hand Watch check
+        // 1. Off-hand Watch or Rune check
         ItemStack offhand = player.getOffhandItem();
         if (offhand.getItem() instanceof AbstractWatchItem) {
             RuneType rune = AbstractWatchItem.getSocketedRuneType(offhand);
@@ -91,13 +127,23 @@ public class RuneManager {
                 return rune;
             }
         }
+        if (offhand.getItem() instanceof TemporalRuneItem runeItem) {
+            if (runeItem.getType() != RuneType.BLANK && runeItem.getType() != RuneType.VECTOR) {
+                return runeItem.getType();
+            }
+        }
 
-        // 2. Main-hand Watch check
+        // 2. Main-hand Watch or Rune check
         ItemStack mainhand = player.getMainHandItem();
         if (mainhand.getItem() instanceof AbstractWatchItem) {
             RuneType rune = AbstractWatchItem.getSocketedRuneType(mainhand);
             if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                 return rune;
+            }
+        }
+        if (mainhand.getItem() instanceof TemporalRuneItem runeItem) {
+            if (runeItem.getType() != RuneType.BLANK && runeItem.getType() != RuneType.VECTOR) {
+                return runeItem.getType();
             }
         }
 
@@ -128,12 +174,14 @@ public class RuneManager {
             ItemStack rune = AbstractWatchItem.getSocketedRune(offhand);
             if (isActiveRune(rune)) return rune;
         }
+        if (isActiveRune(offhand)) return offhand;
 
         ItemStack mainhand = player.getMainHandItem();
         if (mainhand.getItem() instanceof AbstractWatchItem) {
             ItemStack rune = AbstractWatchItem.getSocketedRune(mainhand);
             if (isActiveRune(rune)) return rune;
         }
+        if (isActiveRune(mainhand)) return mainhand;
 
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);

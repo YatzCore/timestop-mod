@@ -47,14 +47,13 @@ public class TimeStopFabricClient implements ClientModInitializer {
             ChronoOverlay.render(guiGraphics, tickDelta, w, h);
             CapturedProjectilesOverlay.render(guiGraphics, tickDelta, w, h);
             TranspositionRenderer.render(guiGraphics, tickDelta, w, h);
-            if (Services.PLATFORM.isModLoaded("tacz")) {
-                ChronoCoinOverlay.render(guiGraphics, tickDelta, w, h);
-            }
+            ChronoCoinOverlay.render(guiGraphics, tickDelta, w, h);
             DeadEyeRenderer.renderHud(guiGraphics, tickDelta, w, h);
             SuperhotRenderer.render(guiGraphics, tickDelta, w, h);
         });
 
-        // 6. World Rendering
+        // 6. World Rendering & Render Ticks
+        WorldRenderEvents.START.register(context -> ModClientEvents.onRenderTick(context.tickDelta()));
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
             DeadEyeRenderer.renderWorld(context.matrixStack(), context.camera(), context.tickDelta());
             TemporalBubbleRenderer.renderLevel(context.matrixStack(), context.camera(), context.tickDelta());

@@ -223,6 +223,39 @@ public class KineticPalmManager {
         }
     }
 
+    public static boolean captureOnImpact(ServerPlayer player, Projectile projectile) {
+        if (!isGuarding(player) || !RuneManager.hasRune(player, RuneType.KINETIC_BARRIER)) return false;
+        if (com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("KineticPalmCaptured")) return true;
+
+        List<WeakReference<Projectile>> list = capturedProjectiles.computeIfAbsent(player.getUUID(),
+                k -> new CopyOnWriteArrayList<>());
+        cleanProjectileList(list);
+        if (list.size() >= 64) return false;
+
+        Vec3 look = player.getLookAngle();
+        Vec3 eye = player.getEyePosition();
+        Vec3 entry = eye.add(look.scale(1.5));
+
+        projectile.setPos(entry);
+        var captureData = com.timestop.platform.EntityDataHelper.getPersistentData(projectile);
+        Vec3 incoming = ProjectileCombatHelper.incomingVelocity(projectile);
+        captureData.putDouble("NeoIncomingX", incoming.x);
+        captureData.putDouble("NeoIncomingY", incoming.y);
+        captureData.putDouble("NeoIncomingZ", incoming.z);
+        captureData.putBoolean("NeoOriginalNoGravity", projectile.isNoGravity());
+        setDrift(projectile, Vec3.ZERO);
+        captureData.putBoolean("KineticPalmCaptured", true);
+        captureData.putUUID("KineticPalmOwner", player.getUUID());
+        projectile.setNoGravity(true);
+        projectile.setDeltaMovement(Vec3.ZERO);
+        com.timestop.core.TimeStopManager.removeSuspendedProjectile(projectile);
+        list.add(new WeakReference<>(projectile));
+        syncCapture(projectile, player.getUUID(), true);
+
+        player.level().playSound(null, entry.x, entry.y, entry.z, SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.2F, 1.5F);
+        return true;
+    }
+
     private static void setDrift(Projectile projectile, Vec3 drift) {
         var data = com.timestop.platform.EntityDataHelper.getPersistentData(projectile);
         data.putDouble("NeoDriftX", drift.x);

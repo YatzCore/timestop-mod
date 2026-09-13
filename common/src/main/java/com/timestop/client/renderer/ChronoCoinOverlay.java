@@ -13,8 +13,8 @@ public class ChronoCoinOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
 
-        // Only display if TACZ is loaded and the Marksman rune is equipped
-        if (!Services.PLATFORM.isModLoaded("tacz") || !RuneManager.hasRune(mc.player, RuneType.RICOSHOT)) return;
+        // Only display if the Marksman rune is equipped
+        if (!RuneManager.hasRune(mc.player, RuneType.RICOSHOT)) return;
 
         int charges = CoinManager.getCharges(mc.player);
         int centerX = screenWidth / 2;

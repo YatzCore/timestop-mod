@@ -8,7 +8,7 @@ public final class NeoBulletMotion {
     private NeoBulletMotion() {}
 
     public static Vec3 entryPoint(Vec3 position, Vec3 velocity, Vec3 eye, Vec3 look) {
-        if (velocity.lengthSqr() < 1e-6 || velocity.normalize().dot(look) >= -0.25) return null;
+        if (velocity.lengthSqr() < 1e-6 || velocity.normalize().dot(look) > 0.30) return null;
         Vec3 relative = position.subtract(eye);
         double radius = 4.5;
         double t = 0;
@@ -19,10 +19,15 @@ public final class NeoBulletMotion {
             double discriminant = b * b - a * c;
             if (discriminant < 0) return null;
             t = (-b - Math.sqrt(discriminant)) / a;
-            if (t < 0 || t > 1) return null;
+            if (t < 0 || t > 1.5) return null;
         }
-        Vec3 entry = position.add(velocity.scale(t));
-        return entry.subtract(eye).normalize().dot(look) >= 0.60 ? entry : null;
+        Vec3 entry = position.add(velocity.scale(Math.min(1.0, Math.max(0.0, t))));
+        Vec3 toEntry = entry.subtract(eye);
+        if (toEntry.lengthSqr() < 1.0) {
+            entry = eye.add(look.scale(1.5));
+            toEntry = entry.subtract(eye);
+        }
+        return toEntry.normalize().dot(look) >= 0.15 ? entry : null;
     }
 
     /** Own outgoing shots are caught in front of the player, rather than rejected as allies. */
@@ -33,7 +38,7 @@ public final class NeoBulletMotion {
         Vec3 entry = position.add(velocity.scale(t));
         Vec3 relative = entry.subtract(eye);
         return relative.lengthSqr() <= 4.5 * 4.5 && relative.dot(look) > 0.05
-                && relative.normalize().dot(look) >= 0.60 ? entry : null;
+                && relative.normalize().dot(look) >= 0.25 ? entry : null;
     }
 
     public static Vec3 initialDrift(Vec3 incoming, double distanceToPlayer) {

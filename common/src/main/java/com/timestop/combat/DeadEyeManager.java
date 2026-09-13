@@ -234,9 +234,9 @@ public class DeadEyeManager {
         }
 
         if (bestEntity != null && bestHit != null) {
-            double headThreshold = bestEntity.getY() + bestEntity.getBbHeight() * 0.7;
+            double headThreshold = bestEntity.getY() + bestEntity.getBbHeight() * 0.78;
             boolean isHead = bestHit.y >= headThreshold;
-            Vec3 targetPos = isHead ? bestEntity.getEyePosition() : bestEntity.position().add(0, bestEntity.getBbHeight() * 0.65, 0);
+            Vec3 targetPos = bestHit;
 
             // Check if spot already tagged
             final int entityId = bestEntity.getId();

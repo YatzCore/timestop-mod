@@ -4,8 +4,10 @@ import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeMode;
 import com.timestop.core.TimeStopManager;
 import com.timestop.item.AbstractWatchItem;
+import com.timestop.item.rune.RuneType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
@@ -30,14 +32,40 @@ public class DecelerationFieldManager {
     public static double getDecelerationRadius(@Nullable Player player) {
         if (player == null || !player.isAlive()) return 0.0;
 
+        double maxWatchRadius = 0.0;
+
         // 1. Off-Hand Passive Check
         if (player.getOffhandItem().getItem() instanceof AbstractWatchItem offWatch) {
             if (offWatch.getTier().hasOffhandPassive()) {
-                return offWatch.getTier().getDecelerationRadius();
+                maxWatchRadius = Math.max(maxWatchRadius, offWatch.getTier().getDecelerationRadius());
             }
         }
 
-        // 2. Active DECELERATION_FIELD mode (or MATRIX / SLOW_MOTION bullet-time) in engine
+        // 2. Main-Hand Passive Check
+        if (player.getMainHandItem().getItem() instanceof AbstractWatchItem mainWatch) {
+            if (mainWatch.getTier().hasOffhandPassive()) {
+                maxWatchRadius = Math.max(maxWatchRadius, mainWatch.getTier().getDecelerationRadius());
+            }
+        }
+
+        // 3. Inventory Passive Check
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof AbstractWatchItem invWatch) {
+                if (invWatch.getTier().hasOffhandPassive()) {
+                    maxWatchRadius = Math.max(maxWatchRadius, invWatch.getTier().getDecelerationRadius());
+                }
+            }
+        }
+
+        // 4. Defensive Rune Check: Any socketed/held defensive rune projects at least a 3.8m shield
+        RuneType rune = RuneManager.getSocketedRuneType(player);
+        if (rune == RuneType.DEFLECTION || rune == RuneType.PHASING || rune == RuneType.SNATCHING
+                || rune == RuneType.ORBITAL || rune == RuneType.KINETIC_BARRIER) {
+            return Math.max(3.8, maxWatchRadius);
+        }
+
+        // 5. Active DECELERATION_FIELD mode (or MATRIX / SLOW_MOTION bullet-time) in engine
         boolean isModeActive;
         if (player.level().isClientSide) {
             TimeMode mode = ClientTimeStopManager.getCurrentMode();
@@ -52,13 +80,10 @@ public class DecelerationFieldManager {
         }
 
         if (isModeActive) {
-            if (player.getMainHandItem().getItem() instanceof AbstractWatchItem mainWatch) {
-                return Math.max(4.0, mainWatch.getTier().getDecelerationRadius());
-            }
-            return 4.5;
+            return Math.max(4.5, maxWatchRadius);
         }
 
-        return 0.0;
+        return maxWatchRadius;
     }
 
     /**
