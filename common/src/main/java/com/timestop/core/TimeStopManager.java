@@ -114,8 +114,8 @@ public class TimeStopManager {
     private static final Map<UUID, ProjectileKineticData> projectileData = new ConcurrentHashMap<>();
     private static final Map<UUID, java.lang.ref.WeakReference<Projectile>> projectileEntities = new ConcurrentHashMap<>();
 
-    // Dynamic tick duration for SUPERHOT mode (500ms = 2 TPS idle extreme slow-mo, 50ms = 20 TPS moving)
-    private static volatile long superhotTickMs = 500L;
+    // Dynamic tick duration for SUPERHOT mode (1000ms = 1 TPS idle 5% speed, 50ms = 20 TPS moving)
+    private static volatile long superhotTickMs = 1000L;
 
     // Attribute modifiers for Matrix mode: ZERO potion effects, pure engine attribute boost!
     private static final UUID MATRIX_SPEED_UUID = UUID.fromString("c0a80101-0000-0000-0000-000000000001");
@@ -153,8 +153,17 @@ public class TimeStopManager {
         return currentMode;
     }
 
+    @Nullable
+    public static ServerLevel getActiveServerLevel() {
+        return activeServerLevel.get();
+    }
+
     public static void setSuperhotTickMs(long ms) {
         superhotTickMs = Math.max(50L, Math.min(1200L, ms));
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server instanceof IMinecraftServerTimeStop bridge) {
+            bridge.timestop$wakeServerTick();
+        }
     }
 
     /**
@@ -276,7 +285,7 @@ public class TimeStopManager {
                 if (previous == TimeMode.MATRIX) removeMatrixAttributes(initiator);
                 if (mode == TimeMode.MATRIX) applyMatrixAttributes(initiator);
             }
-            superhotTickMs = 500L;
+            superhotTickMs = 1000L;
         }
         syncLegacyState();
     }
@@ -483,7 +492,7 @@ public class TimeStopManager {
             TemporalKineticBlockManager.dischargeAll(level);
         }
 
-        superhotTickMs = 250L;
+        superhotTickMs = 1000L;
 
         // Clean up Matrix attributes from initiator
         if (initiatorUuid != null) {
@@ -568,7 +577,7 @@ public class TimeStopManager {
         initiatorWatchItem = null;
         initiatorCooldownTicks = 300;
         currentMode = TimeMode.TIME_STOP;
-        superhotTickMs = 500L;
+        superhotTickMs = 1000L;
         projectileStasisMode = ProjectileStasisMode.FLOWING;
         exemptPlayers.clear();
         projectileData.clear();

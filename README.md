@@ -7,6 +7,7 @@
 <p align="center">
   <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.3.12-blue?style=flat-square&logo=github" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Minecraft-1.20.1-brightgreen?style=flat-square" alt="Minecraft 1.20.1" />
+  <img src="https://img.shields.io/badge/Fabric-0.15.11%2B-lightgrey?style=flat-square" alt="Fabric" />
   <img src="https://img.shields.io/badge/Forge-47.3.0%2B-orange?style=flat-square" alt="Forge" />
   <img src="https://img.shields.io/badge/TACZ-Compatible%20(Optional)-purple?style=flat-square" alt="TACZ Compatible" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" /></a>
@@ -14,7 +15,7 @@
 
 ---
 
-A true engine-level temporal manipulation mod for **Minecraft Forge 1.20.1**. Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, and optional deep ballistic integration with **Timeless and Classics Zero (TACZ)**.
+A true engine-level temporal manipulation mod for **Minecraft 1.20.1** with native multi-loader support for both **Fabric** and **Forge**. Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, and optional deep ballistic integration with **Timeless and Classics Zero (TACZ)**.
 
 ---
 
@@ -40,11 +41,11 @@ Craft and upgrade pocket watches through survival tiers. Higher tiers expand act
 
 | Icon | Watch Tier | Duration | Cooldown | Field Radius | Passive Effect | Unlocked Modes |
 | :---: | :--- | :---: | :---: | :---: | :---: | :--- |
-| <img src="src/main/resources/assets/timestop/textures/item/copper_watch.png" width="24" height="24" /> | **Copper Watch** | 6s | 25s | 10m | None | Slow Motion, Fast Forward |
-| <img src="src/main/resources/assets/timestop/textures/item/chronos_watch.png" width="24" height="24" /> | **Golden Watch** | 10s | 18s | 16m | 3.5m Bullet Dodge | Deceleration Field, SUPERHOT |
-| <img src="src/main/resources/assets/timestop/textures/item/diamond_watch.png" width="24" height="24" /> | **Diamond Watch** | 14s | 12s | 24m | 4.5m Bullet Dodge | Matrix, Time Stop |
-| <img src="src/main/resources/assets/timestop/textures/item/netherite_watch.png" width="24" height="24" /> | **Netherite Watch** | 20s | 6s | 32m | 5.5m Bullet Dodge | All Modes (Fire-Resistant) |
-| <img src="src/main/resources/assets/timestop/textures/item/creative_watch.png" width="24" height="24" /> | **Creative Watch** | Infinite | None | 100m / Global | 8.0m Bullet Dodge | All Modes (Configurable Scope) |
+| <img src="common/src/main/resources/assets/timestop/textures/item/copper_watch.png" width="24" height="24" /> | **Copper Watch** | 6s | 25s | 10m | None | Slow Motion, Fast Forward |
+| <img src="common/src/main/resources/assets/timestop/textures/item/chronos_watch.png" width="24" height="24" /> | **Golden Watch** | 10s | 18s | 16m | 3.5m Bullet Dodge | Deceleration Field, SUPERHOT |
+| <img src="common/src/main/resources/assets/timestop/textures/item/diamond_watch.png" width="24" height="24" /> | **Diamond Watch** | 14s | 12s | 24m | 4.5m Bullet Dodge | Matrix, Time Stop |
+| <img src="common/src/main/resources/assets/timestop/textures/item/netherite_watch.png" width="24" height="24" /> | **Netherite Watch** | 20s | 6s | 32m | 5.5m Bullet Dodge | All Modes (Fire-Resistant) |
+| <img src="common/src/main/resources/assets/timestop/textures/item/creative_watch.png" width="24" height="24" /> | **Creative Watch** | Infinite | None | 100m / Global | 8.0m Bullet Dodge | All Modes (Configurable Scope) |
 
 > [!NOTE]
 > Pocket watches in survival generate localized spherical bubbles by default. Dedicated server tickrates remain at a stable 20 TPS outside active spheres, allowing multiple players to independently control time without interfering with global server performance.
@@ -57,20 +58,20 @@ Socketable into Tier 2–4 pocket watches via the watch interface (**Shift + Rig
 
 | Icon | Rune Name | Ability & Combat Function | Integration |
 | :---: | :--- | :--- | :---: |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_deflection.png" width="24" height="24" /> | **Rune of Redirection** | Automatically parries incoming projectiles back toward attackers. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_snatching.png" width="24" height="24" /> | **Rune of Snatching** | Automatically intercepts incoming projectiles straight into inventory. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_phasing.png" width="24" height="24" /> | **Rune of Phasing** | Teleports you out of harm's way right before an unavoidable projectile impact. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_kinetic.png" width="24" height="24" /> | **Rune of Kinetic Amplification** | Multiplies melee strikes during stasis with 2.5x accumulated launch force. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_vampirism.png" width="24" height="24" /> | **Rune of Chrono-Vampirism** | Siphons temporal energy from struck enemies, extending active duration. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_volatile.png" width="24" height="24" /> | **Rune of Volatile Stasis** | Imbues struck projectiles and falling blocks with delayed concussive blasts. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_tachyon.png" width="24" height="24" /> | **Rune of the Tachyon** | Accelerates mining speed (3x) and attack recharge in Slow-Mo and Matrix. | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_deadeye.png" width="24" height="24" /> | **Rune of the Dead Eye** | Paint multiple targets in slow motion, releasing a guided projectile volley. | Core / TACZ |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_ricochet.png" width="24" height="24" /> | **Rune of Voltaic Ricochet** | Projectiles fired in stasis chain between nearby hostiles like lightning. | Core / TACZ |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_orbital.png" width="24" height="24" /> | **Rune of Orbital Redirection** | Intercepts projectiles into a spinning halo; press **R** to launch. | Core / TACZ |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_transposition.png" width="24" height="24" /> | **Rune of Spatial Transposition** | Instantly swaps positions with any targeted entity or projectile (**G**). | Core |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_barrier.png" width="24" height="24" /> | **Rune of the Kinetic Barrier** | Hold **Middle Click** to freeze bullets in mid-air. Attack to fire back. | Core / TACZ |
-| <img src="src/main/resources/assets/timestop/textures/item/blank_rune.png" width="24" height="24" /> | **Rune of Vector Control** | Directs struck projectiles and barrier volleys toward crosshair aim. | Core / TACZ |
-| <img src="src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | Toss coins into mid-air (**C**) and shoot them to deflect lethal critical shots. | TACZ Required |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_deflection.png" width="24" height="24" /> | **Rune of Redirection** | Automatically parries incoming projectiles back toward attackers. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_snatching.png" width="24" height="24" /> | **Rune of Snatching** | Automatically intercepts incoming projectiles straight into inventory. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_phasing.png" width="24" height="24" /> | **Rune of Phasing** | Teleports you out of harm's way right before an unavoidable projectile impact. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_kinetic.png" width="24" height="24" /> | **Rune of Kinetic Amplification** | Multiplies melee strikes during stasis with 2.5x accumulated launch force. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_vampirism.png" width="24" height="24" /> | **Rune of Chrono-Vampirism** | Siphons temporal energy from struck enemies, extending active duration. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_volatile.png" width="24" height="24" /> | **Rune of Volatile Stasis** | Imbues struck projectiles and falling blocks with delayed concussive blasts. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_tachyon.png" width="24" height="24" /> | **Rune of the Tachyon** | Accelerates mining speed (3x) and attack recharge in Slow-Mo and Matrix. | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_deadeye.png" width="24" height="24" /> | **Rune of the Dead Eye** | Paint multiple targets in slow motion, releasing a guided projectile volley. | Core / TACZ |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_ricochet.png" width="24" height="24" /> | **Rune of Voltaic Ricochet** | Projectiles fired in stasis chain between nearby hostiles like lightning. | Core / TACZ |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_orbital.png" width="24" height="24" /> | **Rune of Orbital Redirection** | Intercepts projectiles into a spinning halo; press **R** to launch. | Core / TACZ |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_transposition.png" width="24" height="24" /> | **Rune of Spatial Transposition** | Instantly swaps positions with any targeted entity or projectile (**G**). | Core |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_barrier.png" width="24" height="24" /> | **Rune of the Kinetic Barrier** | Hold **Middle Click** to freeze bullets in mid-air. Attack to fire back. | Core / TACZ |
+| <img src="common/src/main/resources/assets/timestop/textures/item/blank_rune.png" width="24" height="24" /> | **Rune of Vector Control** | Directs struck projectiles and barrier volleys toward crosshair aim. | Core / TACZ |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | Toss coins into mid-air (**C**) and shoot them to deflect lethal critical shots. | Core / TACZ |
 
 ---
 
@@ -126,9 +127,16 @@ For detailed command breakdowns, syntax, permissions, and tutorials, see [COMMAN
 ---
 
 ## Installation
+ 
+### Fabric
+1. Install **Minecraft 1.20.1** with **Fabric Loader** (0.15.11 or higher).
+2. Install **Fabric API** in your `.minecraft/mods` folder.
+3. Download `timestop-fabric-1.20.1-1.3.12.jar` from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
+4. Place the `.jar` into your `.minecraft/mods` directory.
 
+### Forge / NeoForge
 1. Install **Minecraft 1.20.1** using **Minecraft Forge** or **NeoForge** (version 47.3.0 or higher).
-2. Download the latest release (`timestop-1.20.1-1.3.12.jar`) from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
+2. Download `timestop-forge-1.20.1-1.3.12.jar` from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
 3. Place the `.jar` into your `.minecraft/mods` directory.
 4. *(Optional)* Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
 

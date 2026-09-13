@@ -3,6 +3,7 @@ package com.timestop.core;
 import com.timestop.network.ModMessages;
 import com.timestop.network.SuperhotActivitySyncPacket;
 import com.timestop.platform.Services;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.*;
 
@@ -27,6 +28,8 @@ public final class SuperhotActivityManager {
         long now = System.currentTimeMillis();
         reports.entrySet().removeIf(e -> now - e.getValue().received() > 1500
                 || server.getPlayerList().getPlayer(e.getKey()) == null);
+
+        // 1. Process localized temporal bubbles
         for (var bubble : TemporalBubbleManager.getActiveBubbles().values()) {
             if (bubble.getMode() != TimeMode.SUPERHOT) continue;
             Set<UUID> occupants = new HashSet<>();
@@ -34,22 +37,51 @@ public final class SuperhotActivityManager {
                 if (!player.isAlive() || player.isSpectator() || !bubble.contains(player)) continue;
                 occupants.add(player.getUUID());
                 Activity report = reports.get(player.getUUID());
-                bubble.setPlayerActivity(player.getUUID(), report == null ? 0 : report.value());
+                bubble.setPlayerActivity(player.getUUID(), report == null ? 0.0f : report.value());
             }
             bubble.retainActivePlayers(occupants);
+
             for (var player : server.getPlayerList().getPlayers()) {
-                if (player.level().dimension().equals(bubble.getDimension()))
-                    ModMessages.sendToPlayer(new SuperhotActivitySyncPacket(bubble.getId(), bubble.getSuperhotActivity()), player);
+                if (player.level().dimension().equals(bubble.getDimension())) {
+                    // Send occupants the activity of other occupants in the bubble to avoid echoing their own input.
+                    // Send outside players total bubble activity so they observe correct dilation.
+                    float activityForPlayer = bubble.contains(player)
+                            ? bubble.getOtherPlayersSuperhotActivity(player.getUUID())
+                            : bubble.getSuperhotActivity();
+                    ModMessages.sendToPlayer(new SuperhotActivitySyncPacket(bubble.getId(), activityForPlayer), player);
+                }
             }
         }
-        float global = 0;
+
+        // 2. Process global SUPERHOT
         if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.SUPERHOT) {
+            ServerLevel activeLevel = TimeStopManager.getActiveServerLevel();
+            float global = 0.0f;
             for (var player : server.getPlayerList().getPlayers()) {
+                if (!player.isAlive() || player.isSpectator()) continue;
+                if (activeLevel != null && !player.level().dimension().equals(activeLevel.dimension())) continue;
                 Activity report = reports.get(player.getUUID());
-                if (player.isAlive() && !player.isSpectator() && report != null) global = Math.max(global, report.value());
+                if (report != null) {
+                    global = Math.max(global, report.value());
+                }
             }
+            // 5% speed idle (1000ms = 1 TPS) to 100% speed active (50ms = 20 TPS)
             TimeStopManager.setSuperhotTickMs((long) (1000 - global * 950));
-            ModMessages.sendToClients(new SuperhotActivitySyncPacket(global));
+
+            for (var player : server.getPlayerList().getPlayers()) {
+                if (activeLevel != null && !player.level().dimension().equals(activeLevel.dimension())) continue;
+                float othersGlobal = 0.0f;
+                for (var other : server.getPlayerList().getPlayers()) {
+                    if (other.equals(player)) continue;
+                    if (!other.isAlive() || other.isSpectator()) continue;
+                    if (activeLevel != null && !other.level().dimension().equals(activeLevel.dimension())) continue;
+                    Activity rep = reports.get(other.getUUID());
+                    if (rep != null) {
+                        othersGlobal = Math.max(othersGlobal, rep.value());
+                    }
+                }
+                ModMessages.sendToPlayer(new SuperhotActivitySyncPacket(othersGlobal), player);
+            }
         }
     }
 

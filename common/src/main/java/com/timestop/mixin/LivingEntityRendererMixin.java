@@ -23,6 +23,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extends EntityModel<T>> {
 
+    @Inject(method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V", at = @At("HEAD"))
+    private void timestop$beginHead(T entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffer, int light,
+                                   org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (com.timestop.client.DeadEyeClient.clientAiming)
+            com.timestop.client.DeadEyeHeadGeometry.begin(entity, model, pose);
+    }
+
+    @Inject(method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V", at = @At("RETURN"))
+    private void timestop$endHead(T entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffer, int light,
+                                 org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        com.timestop.client.DeadEyeHeadGeometry.end();
+    }
+
     @Shadow
     protected M model;
 

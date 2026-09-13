@@ -35,7 +35,23 @@ public class TimeStopFabricClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);
 
         // 4. Tick and Logout
-        ClientTickEvents.END_CLIENT_TICK.register(client -> ModClientEvents.onClientTick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // Vanilla maps a physical key to only one binding; middle click also binds Pick Block.
+            var key = KeyBindingHelper.getBoundKeyOf(ModKeyBindings.KINETIC_BARRIER_KEY);
+            long window = client.getWindow().getWindow();
+            boolean down = false;
+            if (client.isWindowActive() && client.screen == null && key.getValue() >= 0) {
+                if (key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.MOUSE) {
+                    down = org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, key.getValue()) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+                } else if (key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM) {
+                    down = com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, key.getValue());
+                } else {
+                    down = ModKeyBindings.KINETIC_BARRIER_KEY.isDown();
+                }
+            }
+            ModKeyBindings.KINETIC_BARRIER_KEY.setDown(down);
+            ModClientEvents.onClientTick();
+        });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ModClientEvents.onLoggingOut());
 
         // 5. HUD Overlays

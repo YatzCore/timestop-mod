@@ -20,6 +20,9 @@
     "ItemEntityMixin"
   ],
   "client": [
+    "AgeableListModelAccessor",
+    "ModelPartAccessor",
+    "DeadEyeModelPartMixin",
     "EntityOutlineMixin",
     "ClientLevelMixin",
     "EntityRenderDispatcherMixin",

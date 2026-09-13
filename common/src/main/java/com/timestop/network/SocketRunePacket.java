@@ -41,7 +41,7 @@ public class SocketRunePacket implements IServerboundPacket {
 
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 ItemStack s = player.getInventory().getItem(i);
-                if (s.getItem() instanceof TemporalRuneItem runeItem) {
+                if (s.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
                     slot = i;
                     type = runeItem.getRuneType();
                     break;

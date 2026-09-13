@@ -48,7 +48,9 @@ public class ClientOrbitalHandler {
         clear();
         CapturedProjectilesOverlay.setOrbitCount(0);
         WeatherFreezeManager.reset();
-        com.timestop.combat.DeadEyeManager.removeDeadEyeShader();
+        com.timestop.client.DeadEyeClient.removeDeadEyeShader();
+        com.timestop.client.DeadEyeClient.clientAiming = false;
+        com.timestop.client.DeadEyeClient.clientTags.clear();
     }
 
     public static void onRenderTick(float partialTick) {

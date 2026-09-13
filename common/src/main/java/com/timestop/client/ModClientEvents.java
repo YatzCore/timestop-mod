@@ -1,8 +1,6 @@
 package com.timestop.client;
 
 import com.timestop.combat.CoinManager;
-import com.timestop.combat.DeadEyeManager;
-import com.timestop.combat.KineticPalmManager;
 import com.timestop.combat.TranspositionManager;
 import com.timestop.core.ClientBubbleManager;
 import com.timestop.core.ClientTimeStopManager;
@@ -20,9 +18,9 @@ public class ModClientEvents {
         ClientTimeStopManager.clientTick();
         ClientTimeStopManager.onRenderFrameMotion();
         ClientBubbleManager.clientTick();
-        DeadEyeManager.clientTick(Minecraft.getInstance());
+        com.timestop.client.DeadEyeClient.clientTick(Minecraft.getInstance());
         ChronoAudioHandler.clientTick();
-        KineticPalmManager.clientTick();
+        KineticPalmClient.clientTick();
 
         while (ModKeyBindings.TIME_STOP_KEY.consumeClick()) {
             ModMessages.sendToServer(new ToggleTimeStopPacket());

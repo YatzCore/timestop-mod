@@ -47,3 +47,25 @@ afterEvaluate {
         actions.removeIf { it.displayName.contains('copy') }
     }
 }
+// Isolated Fabric GameTests; never included in the distributable mod.
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+loom {
+    mods {
+        timestop { sourceSet sourceSets.main }
+        timestop_tests { sourceSet sourceSets.gametest }
+    }
+    runs {
+        gametest {
+            server()
+            name 'Time Stop regression tests'
+            source sourceSets.gametest
+            vmArg '-Dfabric-api.gametest'
+            runDir 'build/gametest-run'
+        }
+    }
+}

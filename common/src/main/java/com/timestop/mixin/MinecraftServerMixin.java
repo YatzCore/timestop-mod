@@ -9,10 +9,20 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MinecraftServer.class)
-public abstract class MinecraftServerMixin {
+public abstract class MinecraftServerMixin implements com.timestop.core.IMinecraftServerTimeStop {
 
     @Shadow private long nextTickTime;
     @Shadow private long delayedTasksMaxNextTickTime;
+
+    @Override
+    public void timestop$wakeServerTick() {
+        long cur = net.minecraft.Util.getMillis();
+        long targetTickMs = TimeStopManager.getServerTickMs();
+        if (this.nextTickTime > cur + targetTickMs) {
+            this.nextTickTime = cur + targetTickMs;
+            this.delayedTasksMaxNextTickTime = this.nextTickTime;
+        }
+    }
 
     @Inject(
         method = "runServer",

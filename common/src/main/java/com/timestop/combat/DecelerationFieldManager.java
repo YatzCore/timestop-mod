@@ -7,9 +7,7 @@ import com.timestop.item.AbstractWatchItem;
 import com.timestop.item.rune.RuneType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -38,23 +36,6 @@ public class DecelerationFieldManager {
         if (player.getOffhandItem().getItem() instanceof AbstractWatchItem offWatch) {
             if (offWatch.getTier().hasOffhandPassive()) {
                 maxWatchRadius = Math.max(maxWatchRadius, offWatch.getTier().getDecelerationRadius());
-            }
-        }
-
-        // 2. Main-Hand Passive Check
-        if (player.getMainHandItem().getItem() instanceof AbstractWatchItem mainWatch) {
-            if (mainWatch.getTier().hasOffhandPassive()) {
-                maxWatchRadius = Math.max(maxWatchRadius, mainWatch.getTier().getDecelerationRadius());
-            }
-        }
-
-        // 3. Inventory Passive Check
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() instanceof AbstractWatchItem invWatch) {
-                if (invWatch.getTier().hasOffhandPassive()) {
-                    maxWatchRadius = Math.max(maxWatchRadius, invWatch.getTier().getDecelerationRadius());
-                }
             }
         }
 

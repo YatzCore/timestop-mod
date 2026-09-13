@@ -3,10 +3,6 @@ package com.timestop.combat;
 import com.timestop.core.TimeMode;
 import com.timestop.core.TimeStopManager;
 import com.timestop.item.rune.RuneType;
-import com.timestop.network.DeadEyeExecutePacket;
-import com.timestop.network.DeadEyeStatePacket;
-import com.timestop.network.ModMessages;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,28 +17,19 @@ import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DeadEyeManager {
 
     public static final int MAX_TAGS = 6;
-
-    // Client-side tracking
-    public static boolean clientAiming = false;
-    public static final List<DeadEyeTag> clientTags = new ArrayList<>();
-    private static int lastHeartbeatTick = 0;
 
     // Server-side sequential volley scheduler
     public static class ScheduledVolleyShot {
@@ -91,167 +78,6 @@ public class DeadEyeManager {
                     || id.contains("shotgun") || id.contains("smg") || id.contains("revolver") || id.contains("sniper");
         }
         return false;
-    }
-
-    // ==========================================
-    // CLIENT-SIDE AIMING & TARGET PAINTING
-    // ==========================================
-
-    public static final net.minecraft.resources.ResourceLocation SEPIA_SHADER = new net.minecraft.resources.ResourceLocation("timestop", "shaders/post/sepia.json");
-    private static boolean deadEyeShaderActive = false;
-
-    public static void applyDeadEyeShader() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.gameRenderer != null && !deadEyeShaderActive) {
-            try {
-                ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(SEPIA_SHADER);
-                deadEyeShaderActive = true;
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    public static void removeDeadEyeShader() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.gameRenderer != null && deadEyeShaderActive) {
-            try {
-                mc.gameRenderer.shutdownEffect();
-                deadEyeShaderActive = false;
-                if (com.timestop.core.ClientTimeStopManager.isTimeStopped() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-                    com.timestop.core.ClientTimeStopManager.applyShader();
-                }
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    public static void clientTick(Minecraft mc) {
-        if (mc.player == null || mc.level == null) {
-            if (clientAiming) stopClientAiming(false);
-            return;
-        }
-
-        boolean isDrawing = isAimingRanged(mc);
-
-        if (isDrawing) {
-            // If player pulls the trigger to shoot faster than slow-mo ends, execute tags immediately and exit!
-            if (clientAiming && mc.options.keyAttack.isDown()) {
-                stopClientAiming(true);
-                return;
-            }
-
-            if (!clientAiming) {
-                // Enter Dead Eye
-                clientAiming = true;
-                clientTags.clear();
-                applyDeadEyeShader();
-                ModMessages.sendToServer(new DeadEyeStatePacket(true));
-                mc.level.playSound(mc.player, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
-                        SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.4F, 1.0F);
-                lastHeartbeatTick = mc.player.tickCount;
-            }
-
-            // Periodic heartbeat audio
-            if (mc.player.tickCount - lastHeartbeatTick >= 22) {
-                mc.level.playSound(mc.player, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
-                        SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 1.3F, 1.0F);
-                lastHeartbeatTick = mc.player.tickCount;
-            }
-
-            // Target painting raycast capped by actual available arrows (up to 6 max)
-            int maxAllowed = getAvailableArrowCount(mc.player);
-            if (clientTags.size() < maxAllowed) {
-                paintTargetUnderCrosshair(mc, maxAllowed);
-            }
-        } else {
-            if (clientAiming) {
-                // Weapon released or cancelled
-                stopClientAiming(true);
-            }
-        }
-    }
-
-    private static boolean isAimingRanged(Minecraft mc) {
-        if (mc.player == null) return false;
-        if (!hasDeadEyeRune(mc.player)) return false;
-
-        // 1. Vanilla bow / crossbow item usage:
-        if (mc.player.isUsingItem()) {
-            ItemStack useItem = mc.player.getUseItem();
-            if (useItem.getItem() instanceof BowItem || useItem.getItem() instanceof CrossbowItem) {
-                return true;
-            }
-        }
-
-        // 2. Modern firearm / gun aiming (Right-Click held while holding gun in main or off hand):
-        ItemStack main = mc.player.getMainHandItem();
-        ItemStack off = mc.player.getOffhandItem();
-        if (isGun(main) || isGun(off)) {
-            return mc.options.keyUse.isDown();
-        }
-
-        return false;
-    }
-
-    private static void stopClientAiming(boolean executeIfTagged) {
-        clientAiming = false;
-        removeDeadEyeShader();
-        ModMessages.sendToServer(new DeadEyeStatePacket(false));
-
-        if (executeIfTagged && !clientTags.isEmpty()) {
-            ModMessages.sendToServer(new DeadEyeExecutePacket(new ArrayList<>(clientTags)));
-        }
-        clientTags.clear();
-    }
-
-    private static void paintTargetUnderCrosshair(Minecraft mc, int maxAllowed) {
-        if (clientTags.size() >= maxAllowed) return;
-
-        Vec3 eyePos = mc.player.getEyePosition(1.0F);
-        Vec3 viewVec = mc.player.getViewVector(1.0F);
-        double reach = 48.0;
-        Vec3 reachVec = eyePos.add(viewVec.scale(reach));
-        AABB searchBox = mc.player.getBoundingBox().expandTowards(viewVec.scale(reach)).inflate(2.0);
-
-        List<LivingEntity> entities = mc.level.getEntitiesOfClass(LivingEntity.class, searchBox,
-                e -> e != mc.player && e.isAlive() && !e.isSpectator());
-
-        LivingEntity bestEntity = null;
-        Vec3 bestHit = null;
-        double bestDistSqr = Double.MAX_VALUE;
-
-        for (LivingEntity e : entities) {
-            AABB bb = e.getBoundingBox().inflate(0.35);
-            Optional<Vec3> clip = bb.clip(eyePos, reachVec);
-            if (clip.isPresent()) {
-                double dist = eyePos.distanceToSqr(clip.get());
-                if (dist < bestDistSqr) {
-                    bestDistSqr = dist;
-                    bestEntity = e;
-                    bestHit = clip.get();
-                }
-            }
-        }
-
-        if (bestEntity != null && bestHit != null) {
-            double headThreshold = bestEntity.getY() + bestEntity.getBbHeight() * 0.78;
-            boolean isHead = bestHit.y >= headThreshold;
-            Vec3 targetPos = bestHit;
-
-            // Check if spot already tagged
-            final int entityId = bestEntity.getId();
-            final boolean headFlag = isHead;
-            boolean alreadyTagged = clientTags.stream().anyMatch(t -> t.entityId == entityId && t.isHead == headFlag);
-
-            if (!alreadyTagged && clientTags.size() < maxAllowed) {
-                clientTags.add(new DeadEyeTag(entityId, targetPos, isHead));
-                // Metallic revolver cock / click sound
-                mc.level.playSound(mc.player, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
-                        SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 1.4F, 1.9F);
-                mc.level.playSound(mc.player, targetPos.x, targetPos.y, targetPos.z,
-                        SoundEvents.ARROW_HIT_PLAYER, SoundSource.PLAYERS, 1.0F, 1.8F);
-            }
-        }
     }
 
     // ==========================================

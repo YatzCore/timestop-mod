@@ -112,9 +112,6 @@ public class TimeModeSelectionScreen extends Screen {
                     if (i == watchSlot) continue; // Never scan the watch itself
                     ItemStack invStack = player.getInventory().getItem(i);
                     if (!invStack.isEmpty() && invStack.getCount() > 0 && invStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
-                        if (runeItem.getType() == RuneType.RICOSHOT && !com.timestop.platform.Services.PLATFORM.isModLoaded("tacz")) {
-                            continue;
-                        }
                         this.availableRunes.add(new InventoryRuneEntry(i, invStack, runeItem.getType()));
                     }
                 }

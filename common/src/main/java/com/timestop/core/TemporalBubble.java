@@ -197,6 +197,15 @@ public class TemporalBubble {
         return max;
     }
 
+    public float getOtherPlayersSuperhotActivity(@Nullable UUID playerUuid) {
+        float max = 0.0F;
+        for (Map.Entry<UUID, Float> entry : playerActivities.entrySet()) {
+            if (playerUuid != null && playerUuid.equals(entry.getKey())) continue;
+            if (entry.getValue() > max) max = entry.getValue();
+        }
+        return max;
+    }
+
     /**
      * Resolves whether an entity can act freely inside this temporal bubble without time distortion.
      */

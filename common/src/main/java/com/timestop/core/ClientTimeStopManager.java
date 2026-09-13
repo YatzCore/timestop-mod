@@ -109,9 +109,6 @@ public class ClientTimeStopManager {
 
     public static void setServerSyncedSuperhotActivity(float activity) {
         serverSyncedSuperhotActivity = Float.isFinite(activity) ? Math.max(0, Math.min(1, activity)) : 0;
-        if (activity > 0.15F) {
-            superhotActivity = Math.max(superhotActivity, activity);
-        }
     }
 
     private static final Set<UUID> clientExemptPlayers = ConcurrentHashMap.newKeySet();
@@ -203,11 +200,14 @@ public class ClientTimeStopManager {
 
     public static void onRenderFrameMotion() {
         boolean isSuperhot = false;
+        boolean inBubble = false;
+        ClientBubbleManager.ClientBubble currentBubble = null;
         if (ClientBubbleManager.hasActiveBubbles()) {
-            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
-            if (b != null && b.mode == TimeMode.SUPERHOT) {
+            currentBubble = ClientBubbleManager.getCameraBubble();
+            if (currentBubble != null && currentBubble.mode == TimeMode.SUPERHOT) {
                 isSuperhot = true;
-                serverSyncedSuperhotActivity = ClientBubbleManager.getSuperhotActivity(b.bubbleId);
+                inBubble = true;
+                serverSyncedSuperhotActivity = ClientBubbleManager.getSuperhotActivity(currentBubble.bubbleId);
             }
         } else if (clientTimeStopped && clientMode == TimeMode.SUPERHOT) {
             isSuperhot = true;
@@ -221,42 +221,44 @@ public class ClientTimeStopManager {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.isPaused()) {
+        if (mc.player == null || mc.isPaused() || !mc.player.isAlive()) {
+            superhotActivity = 0.0F;
+            wasFastLastFrame = false;
             return;
         }
 
         // Direct key state queries on client options: instantaneous responsiveness!
-        boolean hasMovementKey = mc.options.keyUp.isDown()
-                || mc.options.keyDown.isDown()
-                || mc.options.keyLeft.isDown()
-                || mc.options.keyRight.isDown()
-                || mc.options.keyJump.isDown()
-                || mc.options.keyShift.isDown()
-                || mc.options.keySprint.isDown();
+        // Respects configured movement bindings; does not hardcode WASD or Space.
+        // Opening a menu (mc.screen != null) or losing window focus (!mc.isWindowActive()) counts as no movement input.
+        boolean inputActive = SuperhotMotion.isMovementInputActive(
+                mc.options.keyUp.isDown(),
+                mc.options.keyDown.isDown(),
+                mc.options.keyLeft.isDown(),
+                mc.options.keyRight.isDown(),
+                mc.options.keyJump.isDown(),
+                mc.screen != null,
+                mc.isWindowActive()
+        );
 
-        boolean hasAction = mc.options.keyAttack.isDown()
-                || mc.options.keyUse.isDown()
-                || mc.player.swinging
-                || mc.player.isUsingItem();
-
-        float yRot = mc.player.getYRot();
-        float xRot = mc.player.getXRot();
-        boolean hasLook = Math.abs(yRot - lastYRot) > 0.25F || Math.abs(xRot - lastXRot) > 0.25F;
-        lastYRot = yRot;
-        lastXRot = xRot;
-
-        boolean hasVelocity = mc.player.getDeltaMovement().lengthSqr() > 1.0E-4;
-
-        boolean myLocalFast = mc.screen == null && (hasMovementKey || hasAction || hasLook || hasVelocity);
-        long now = System.currentTimeMillis();
-        if (myLocalFast != wasFastLastFrame || now - lastSuperhotReport >= 200) {
-            lastSuperhotReport = now;
-            wasFastLastFrame = myLocalFast;
-            ModMessages.sendToServer(new SuperhotSyncPacket(myLocalFast ? 1.0F : 0.0F));
+        // Localized SUPERHOT bubble: advances when any living, non-spectating player inside that bubble holds a movement key.
+        // Input from players outside the bubble or in another dimension must not affect it.
+        boolean eligibleInput = inputActive && !mc.player.isSpectator();
+        if (inBubble && currentBubble != null) {
+            if (!currentBubble.contains(mc.player.getX(), mc.player.getY() + mc.player.getBbHeight() * 0.5, mc.player.getZ())) {
+                eligibleInput = false;
+            }
         }
 
-        // In Superhot: Moving or acting advances time. If any player on server in this sphere is moving, time also advances!
-        float target = (myLocalFast || serverSyncedSuperhotActivity > 0.15F) ? 1.0F : 0.0F;
+        long now = System.currentTimeMillis();
+        if (eligibleInput != wasFastLastFrame || now - lastSuperhotReport >= 200) {
+            lastSuperhotReport = now;
+            wasFastLastFrame = eligibleInput;
+            ModMessages.sendToServer(new SuperhotSyncPacket(eligibleInput ? 1.0F : 0.0F));
+        }
+
+        // In Superhot: Holding a movement key makes time flow at normal speed.
+        // If any other eligible player on server in this sphere/world is moving, time also advances!
+        float target = (eligibleInput || serverSyncedSuperhotActivity > 0.15F) ? 1.0F : 0.0F;
 
         if (target >= 0.9F) {
             // Immediate real-time acceleration!

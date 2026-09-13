@@ -16,7 +16,7 @@ public class DeadEyeRenderer {
     private static final ResourceLocation VIGNETTE_LOCATION = new ResourceLocation("textures/misc/vignette.png");
 
     public static void renderHud(GuiGraphics guiGraphics, float partialTick, int screenWidth, int screenHeight) {
-        if (!DeadEyeManager.clientAiming) return;
+        if (!com.timestop.client.DeadEyeClient.clientAiming) return;
 
         // 1. Subtle, clear cinematic vignette (center 100% transparent and clear)
         RenderSystem.disableDepthTest();
@@ -34,7 +34,7 @@ public class DeadEyeRenderer {
         if (mc.player == null) return;
         Font font = mc.font;
 
-        int taggedCount = DeadEyeManager.clientTags.size();
+        int taggedCount = com.timestop.client.DeadEyeClient.clientTags.size();
         int available = DeadEyeManager.getAvailableArrowCount(mc.player);
 
         Component text;
@@ -66,13 +66,13 @@ public class DeadEyeRenderer {
     }
 
     public static void renderWorld(PoseStack poseStack, Camera camera, float partialTick) {
-        if (!DeadEyeManager.clientAiming && DeadEyeManager.clientTags.isEmpty()) return;
+        if (!com.timestop.client.DeadEyeClient.clientAiming && com.timestop.client.DeadEyeClient.clientTags.isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
         Vec3 camPos = camera.getPosition();
         Font font = mc.font;
 
-        for (DeadEyeTag tag : DeadEyeManager.clientTags) {
+        for (DeadEyeTag tag : com.timestop.client.DeadEyeClient.clientTags) {
             Vec3 target = tag.targetPos;
             if (mc.level != null) {
                 net.minecraft.world.entity.Entity e = mc.level.getEntity(tag.entityId);
@@ -84,10 +84,13 @@ public class DeadEyeRenderer {
                     double surfaceDist = (living.getBbWidth() * 0.5) + 0.08;
                     double offsetX = (distHoriz > 1.0E-4) ? (dx / distHoriz) * surfaceDist : 0;
                     double offsetZ = (distHoriz > 1.0E-4) ? (dz / distHoriz) * surfaceDist : 0;
-                    double tagY = tag.isHead
-                            ? (currentPos.y + living.getBbHeight() * 0.88)
-                            : (currentPos.y + living.getBbHeight() * 0.55);
-                    target = new Vec3(currentPos.x + offsetX, tagY, currentPos.z + offsetZ);
+                    if (tag.isHead) {
+                        target = DeadEyeHeadGeometry.getBounds(living).getCenter()
+                                .add(currentPos.subtract(living.position()));
+                    } else {
+                        target = new Vec3(currentPos.x + offsetX, currentPos.y + living.getBbHeight() * 0.55,
+                                currentPos.z + offsetZ);
+                    }
                 }
             }
 
