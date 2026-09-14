@@ -20,10 +20,15 @@ public abstract class ClientLevelMixin {
     @Unique
     private float timestop$projectileRate(Entity entity) {
         if (!(entity instanceof net.minecraft.world.entity.projectile.Projectile)
-                || ClientTimeStopManager.isGlobalTimeStopActive()) return 1.0F;
+                || ClientTimeStopManager.isGlobalTimeStopActive()
+                || ClientTimeStopManager.getClientTickMs() != 50.0F) return 1.0F;
         var bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(
                 entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
-        return bubble == null ? 1.0F : bubble.getTimeDilationFactor(entity);
+        if (bubble == null) return 1.0F;
+        if (bubble.mode == TimeMode.SLOW_MOTION || bubble.mode == TimeMode.MATRIX || bubble.mode == TimeMode.SUPERHOT) {
+            return 1.0F;
+        }
+        return bubble.getTimeDilationFactor(entity);
     }
 
     @Inject(method = "tickNonPassenger", at = @At("HEAD"), cancellable = true)

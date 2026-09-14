@@ -177,6 +177,17 @@ public class TimeStopManager {
                     return 50L;
             }
         }
+        if (TemporalBubbleManager.hasActiveBubbles()) {
+            for (TemporalBubble bubble : TemporalBubbleManager.getActiveBubbles().values()) {
+                TimeMode bMode = bubble.getMode();
+                if (bMode == TimeMode.SLOW_MOTION || bMode == TimeMode.MATRIX) {
+                    return 200L;
+                } else if (bMode == TimeMode.SUPERHOT) {
+                    float act = bubble.getSuperhotActivity();
+                    return (long) (1000 - act * 950);
+                }
+            }
+        }
         return 50L;
     }
 

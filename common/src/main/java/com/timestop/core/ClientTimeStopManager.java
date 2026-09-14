@@ -79,11 +79,17 @@ public class ClientTimeStopManager {
         if (mc.level == null || mc.player == null || mc.screen != null) {
             return 50.0F; // Never accelerate or slow down GUI, death screen, or main menu
         }
-        TimeMode mode = clientMode;
-        boolean active = clientTimeStopped;
-        // Local bubbles tick entities on a normal 20 TPS server. Changing the whole
-        // client clock also speeds up interpolation and entities outside the bubble.
-        if (!active) return 50.0F;
+        TimeMode mode = null;
+        if (clientTimeStopped) {
+            mode = clientMode;
+        } else if (ClientBubbleManager.hasActiveBubbles()) {
+            ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
+            if (b != null) {
+                mode = b.mode;
+            }
+        }
+        if (mode == null) return 50.0F;
+
         switch (mode) {
             case FAST_FORWARD:
                 return 10.0F; // 10ms = 100 TPS (5x speed)

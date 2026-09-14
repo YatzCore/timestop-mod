@@ -18,7 +18,7 @@ public abstract class DeltaTrackerTimerMixin {
             )
     )
     private float redirectTargetMspt(it.unimi.dsi.fastutil.floats.FloatUnaryOperator operator, float defaultMspt) {
-        return ClientTimeStopManager.isGlobalTimeStopActive()
-                ? ClientTimeStopManager.getClientTickMs() : operator.apply(defaultMspt);
+        float clientTickMs = ClientTimeStopManager.getClientTickMs();
+        return clientTickMs != 50.0F ? clientTickMs : operator.apply(defaultMspt);
     }
 }

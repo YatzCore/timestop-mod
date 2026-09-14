@@ -75,10 +75,16 @@ public abstract class ServerLevelMixin {
 
     @Unique
     private float timestop$localTickRate(Entity entity) {
+        if (TimeStopManager.getServerTickMs() != 50L) return 1.0F;
         if (TimeStopManager.isGlobalTimeStopActive()) return 1.0F;
         var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(entity.level().dimension(),
                 entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
-        return bubble == null ? 1.0F : bubble.getTimeDilationFactor(entity);
+        if (bubble == null) return 1.0F;
+        TimeMode bMode = bubble.getMode();
+        if (bMode == TimeMode.SLOW_MOTION || bMode == TimeMode.MATRIX || bMode == TimeMode.SUPERHOT) {
+            return 1.0F;
+        }
+        return bubble.getTimeDilationFactor(entity);
     }
 
     @Inject(method = "tickNonPassenger", at = @At("TAIL"))
