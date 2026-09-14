@@ -155,7 +155,7 @@ public class TimeStopManager {
     }
 
     public static void setSuperhotTickMs(long ms) {
-        superhotTickMs = Math.max(50L, Math.min(250L, ms));
+        superhotTickMs = Math.max(50L, Math.min(1200L, ms));
     }
 
     /**
@@ -187,8 +187,8 @@ public class TimeStopManager {
                     return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.matrixRate.get()));
                 } else if (bMode == TimeMode.SUPERHOT) {
                     float act = Math.max(0.0F, Math.min(1.0F, bubble.getSuperhotActivity()));
-                    float idleRate = Math.max(0.20F, com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue());
-                    long maxMs = Math.min(250L, Math.max(50L, Math.round(50.0F / idleRate)));
+                    float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
+                    long maxMs = (long) Math.max(50.0F, Math.round(50.0F / idleRate));
                     return (long) (maxMs - act * (maxMs - 50L));
                 }
             }
