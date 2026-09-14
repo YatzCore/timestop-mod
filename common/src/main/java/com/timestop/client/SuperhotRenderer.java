@@ -33,10 +33,19 @@ public class SuperhotRenderer {
 
         // 2. Motion Status Indicator:
         float activity = ClientTimeStopManager.getSuperhotActivity();
-        boolean isMoving = activity > 0.15F;
+        String status;
+        int statusColor;
+        if (activity >= 0.70F) {
+            status = "▶ TIME IN MOTION";
+            statusColor = 0xFFFF3333; // Bright Superhot red
+        } else if (activity >= 0.15F) {
+            status = "◐ SLOW MOTION";
+            statusColor = 0xFFFBBF24; // Amber / Warm gold for mouse aiming
+        } else {
+            status = "■ TIME FROZEN";
+            statusColor = 0xFF94A3B8; // Cool gray for standstill
+        }
 
-        String status = isMoving ? "▶ TIME IN MOTION" : "■ TIME DILATED";
-        int statusColor = isMoving ? 0xFFFF3333 : 0xFFEEEEEE;
         int statusWidth = font.width(status);
         int statusX = (screenWidth - statusWidth) / 2;
         int statusY = screenHeight - 48;
