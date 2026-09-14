@@ -2,6 +2,21 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.4.0] - 2026-09-14
+
+### Added
+- **Minecraft 1.21.1 Port**: Full engine port to Minecraft 1.21.1 and Java 21 for Forge (52.1.16+) and Fabric (0.16.10+).
+- **Speed Calibration GUI**: In-game configuration interface (press H or access via Watch GUI) allowing players to customize Slow Motion, Matrix, and Superhot speeds with dynamic multipliers and network synchronization.
+- **Fast Forward Block Entity Acceleration**: Block entities (furnaces, blast furnaces, smokers, brewing stands) tick at 5x acceleration during Fast Forward mode.
+- **Configurable Superhot Mob Tint**: Added HOSTILE, PASSIVE, and ALL entity tint filtering options in the Settings GUI.
+
+### Fixed
+- **Superhot Motion Responsiveness**: Free cursor and mouse aiming now maintain full stasis without falsely triggering motion acceleration or displaying motion indicators.
+- **Superhot Idle Stasis**: Restored authentic near-zero crawl idle rate (down to 1 TPS / 1000ms delay) scaling with user configuration.
+- **Bubble Clock Dilation**: Resolved mob jitter, stuttering, and player movement lag during localized bubble time dilation by synchronizing server and client delta trackers.
+- **Superhot Visual Overlays**: Cleaned up entity layer rendering so weapons, shields, armor, and glowing eyes render naturally while mobs flash on damage.
+- **Superhot HUD**: Reverted HUD to a clean 2-state status indicator (TIME FROZEN vs TIME IN MOTION).
+
 ## [1.3.12] - 2026-09-11
 
 ### Added
