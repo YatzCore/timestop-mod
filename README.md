@@ -5,6 +5,13 @@
 </p>
 
 <p align="center">
+  <b>Minecraft Version Branches:</b><br />
+  <a href="https://github.com/YatzCore/timestop-mod/tree/main">Minecraft 1.20.1 (main)</a> |
+  <b><a href="https://github.com/YatzCore/timestop-mod/tree/1.20.1-forge-fabric">1.20.1 (Forge / Fabric / NeoForge) (Current)</a></b> |
+  <a href="https://github.com/YatzCore/timestop-mod/tree/1.21.1-forge-fabric">1.21.1 (Forge / Fabric)</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.3.12-blue?style=flat-square&logo=github" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Minecraft-1.20.1-brightgreen?style=flat-square" alt="Minecraft 1.20.1" />
   <img src="https://img.shields.io/badge/Fabric-0.15.11%2B-lightgrey?style=flat-square" alt="Fabric" />
