@@ -92,13 +92,14 @@ public class ClientTimeStopManager {
 
         switch (mode) {
             case FAST_FORWARD:
-                return 10.0F; // 10ms = 100 TPS (5x speed)
+                return 10.0F; // 10ms = 100 TPS
             case SLOW_MOTION:
+                return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get());
             case MATRIX:
-                return 200.0F; // 200ms = 5 TPS (0.25x speed)
+                return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.matrixRate.get());
             case SUPERHOT:
-                // Match the server: five percent speed while idle and normal speed while active.
-                return 50.0F / (0.05F + superhotActivity * 0.95F);
+                float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
+                return 50.0F / (idleRate + superhotActivity * (1.0F - idleRate));
             default:
                 return 50.0F;
         }

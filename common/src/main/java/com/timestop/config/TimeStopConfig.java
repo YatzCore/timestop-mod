@@ -76,6 +76,27 @@ public class TimeStopConfig {
         public final ConfigValue<Boolean> enableWaterWalkingInStasis = new ConfigValue<>(true);
         public final ConfigValue<Integer> friendRequestExpirySeconds = new ConfigValue<>(60);
         public final ConfigValue<Boolean> allowPlayerProjectilesInStasis = new ConfigValue<>(true);
+
+        // Speed Multipliers
+        public final ConfigValue<Double> fastForwardRate = new ConfigValue<>(5.0);
+        public final ConfigValue<Double> slowMotionRate = new ConfigValue<>(0.25);
+        public final ConfigValue<Double> matrixRate = new ConfigValue<>(0.25);
+        public final ConfigValue<Double> superhotIdleRate = new ConfigValue<>(0.05);
+        public final ConfigValue<Double> decelerationDrag = new ConfigValue<>(0.10);
+    }
+
+    public static double clampFastForward(double val) { return Math.max(1.1, Math.min(50.0, val)); }
+    public static double clampSlowMotion(double val) { return Math.max(0.01, Math.min(0.99, val)); }
+    public static double clampMatrix(double val) { return Math.max(0.01, Math.min(0.99, val)); }
+    public static double clampSuperhotIdle(double val) { return Math.max(0.005, Math.min(0.80, val)); }
+    public static double clampDecelerationDrag(double val) { return Math.max(0.001, Math.min(0.95, val)); }
+
+    public static void resetSpeedsToDefaults() {
+        COMMON.fastForwardRate.set(COMMON.fastForwardRate.getDefault());
+        COMMON.slowMotionRate.set(COMMON.slowMotionRate.getDefault());
+        COMMON.matrixRate.set(COMMON.matrixRate.getDefault());
+        COMMON.superhotIdleRate.set(COMMON.superhotIdleRate.getDefault());
+        COMMON.decelerationDrag.set(COMMON.decelerationDrag.getDefault());
     }
 
     public static final Client CLIENT = new Client();
@@ -142,6 +163,14 @@ public class TimeStopConfig {
                     if (c.has("netheriteCooldown")) COMMON.netheriteCooldown.set(c.get("netheriteCooldown").getAsInt());
                     if (c.has("creativeCooldown")) COMMON.creativeCooldown.set(c.get("creativeCooldown").getAsInt());
                 }
+                if (json.has("speed_multipliers")) {
+                    JsonObject s = json.getAsJsonObject("speed_multipliers");
+                    if (s.has("fastForwardRate")) COMMON.fastForwardRate.set(clampFastForward(s.get("fastForwardRate").getAsDouble()));
+                    if (s.has("slowMotionRate")) COMMON.slowMotionRate.set(clampSlowMotion(s.get("slowMotionRate").getAsDouble()));
+                    if (s.has("matrixRate")) COMMON.matrixRate.set(clampMatrix(s.get("matrixRate").getAsDouble()));
+                    if (s.has("superhotIdleRate")) COMMON.superhotIdleRate.set(clampSuperhotIdle(s.get("superhotIdleRate").getAsDouble()));
+                    if (s.has("decelerationDrag")) COMMON.decelerationDrag.set(clampDecelerationDrag(s.get("decelerationDrag").getAsDouble()));
+                }
             }
         } catch (Exception e) {
             TimeStopMod.LOGGER.error("Failed to load timestop configuration", e);
@@ -197,6 +226,14 @@ public class TimeStopConfig {
             cooldowns.addProperty("netheriteCooldown", COMMON.netheriteCooldown.get());
             cooldowns.addProperty("creativeCooldown", COMMON.creativeCooldown.get());
             root.add("watch_cooldowns_seconds", cooldowns);
+
+            JsonObject speeds = new JsonObject();
+            speeds.addProperty("fastForwardRate", COMMON.fastForwardRate.get());
+            speeds.addProperty("slowMotionRate", COMMON.slowMotionRate.get());
+            speeds.addProperty("matrixRate", COMMON.matrixRate.get());
+            speeds.addProperty("superhotIdleRate", COMMON.superhotIdleRate.get());
+            speeds.addProperty("decelerationDrag", COMMON.decelerationDrag.get());
+            root.add("speed_multipliers", speeds);
 
             try (FileWriter writer = new FileWriter(configFile)) {
                 GSON.toJson(root, writer);

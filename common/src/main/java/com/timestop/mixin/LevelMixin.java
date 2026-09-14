@@ -25,7 +25,8 @@ public abstract class LevelMixin {
         if (!stopped) {
             ticker.tick();
             if (isFastForward(level, pos)) {
-                for (int i = 0; i < 4 && !ticker.isRemoved(); i++) {
+                int extraTicks = Math.max(1, (int) Math.round(com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get())) - 1;
+                for (int i = 0; i < extraTicks && !ticker.isRemoved(); i++) {
                     ticker.tick();
                 }
             }

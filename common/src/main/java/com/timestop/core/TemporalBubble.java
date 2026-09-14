@@ -269,12 +269,14 @@ public class TemporalBubble {
             case TIME_STOP:
                 return 0.0F;
             case SLOW_MOTION:
+                return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
             case MATRIX:
-                return 0.25F;
+                return com.timestop.config.TimeStopConfig.COMMON.matrixRate.get().floatValue();
             case FAST_FORWARD:
-                return 5.0F;
+                return com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue();
             case SUPERHOT:
-                return 0.05F + net.minecraft.util.Mth.clamp(getSuperhotActivity(), 0.0F, 1.0F) * 0.95F;
+                float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
+                return idleRate + net.minecraft.util.Mth.clamp(getSuperhotActivity(), 0.0F, 1.0F) * (1.0F - idleRate);
             default:
                 return 1.0F;
         }

@@ -1,20 +1,20 @@
 package com.timestop.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.timestop.config.TimeStopConfig;
 import com.timestop.core.TimeStopManager;
 import com.timestop.network.ModMessages;
 import com.timestop.network.ToggleProjectileFlowPacket;
+import com.timestop.network.UpdateSpeedConfigPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import org.lwjgl.glfw.GLFW;
 
 import javax.annotation.Nullable;
+import java.util.Locale;
 
 public class TimeStopSettingsScreen extends Screen {
 
@@ -23,10 +23,33 @@ public class TimeStopSettingsScreen extends Screen {
     @Nullable
     private final InteractionHand hand;
 
+    // Tab state: 0 = Visuals & FX, 1 = Speed Calibration
+    private int activeTab = 0;
+
     private boolean draggingOpacity = false;
+    private int draggingSpeedIndex = -1;
+    private int focusedSpeedIndex = -1;
+    private String inputBuffer = "";
+
+    @Nullable
+    private Component activeTooltip = null;
+
+    private static final String[] SPEED_LABELS = {
+            "Fast Forward", "Slow Motion", "Matrix Dilation", "Superhot Idle", "Decel Drag"
+    };
+    private static final String[] SPEED_SUBS = {
+            "1.1x - 50.0x (def 5.0x)",
+            "0.01x - 0.99x (def 0.25x)",
+            "0.01x - 0.99x (def 0.25x)",
+            "0.005x - 0.80x (def 0.05x)",
+            "0.001x - 0.95x (def 0.10x)"
+    };
+    private static final double[] SPEED_MINS = { 1.1, 0.01, 0.01, 0.005, 0.001 };
+    private static final double[] SPEED_MAXS = { 50.0, 0.99, 0.99, 0.80, 0.95 };
+    private static final double[] SPEED_DEFS = { 5.0, 0.25, 0.25, 0.05, 0.10 };
 
     public TimeStopSettingsScreen(@Nullable Screen parentScreen, @Nullable InteractionHand hand) {
-        super(Component.literal("Temporal Settings"));
+        super(Component.literal("Temporal Engine Settings"));
         this.parentScreen = parentScreen;
         this.hand = hand;
     }
@@ -40,8 +63,86 @@ public class TimeStopSettingsScreen extends Screen {
         return false;
     }
 
+    public void onSpeedConfigSynced() {
+        // Automatically reflected by TimeStopConfig.COMMON reads
+    }
+
+    private boolean canEditSpeeds() {
+        if (this.minecraft == null || this.minecraft.player == null) return false;
+        if (this.minecraft.isSingleplayer()) return true;
+        return this.minecraft.player.hasPermissions(2);
+    }
+
+    private double getSpeedValue(int index) {
+        return switch (index) {
+            case 0 -> TimeStopConfig.COMMON.fastForwardRate.get();
+            case 1 -> TimeStopConfig.COMMON.slowMotionRate.get();
+            case 2 -> TimeStopConfig.COMMON.matrixRate.get();
+            case 3 -> TimeStopConfig.COMMON.superhotIdleRate.get();
+            case 4 -> TimeStopConfig.COMMON.decelerationDrag.get();
+            default -> 1.0;
+        };
+    }
+
+    private void setSpeedValue(int index, double val) {
+        switch (index) {
+            case 0 -> TimeStopConfig.COMMON.fastForwardRate.set(TimeStopConfig.clampFastForward(val));
+            case 1 -> TimeStopConfig.COMMON.slowMotionRate.set(TimeStopConfig.clampSlowMotion(val));
+            case 2 -> TimeStopConfig.COMMON.matrixRate.set(TimeStopConfig.clampMatrix(val));
+            case 3 -> TimeStopConfig.COMMON.superhotIdleRate.set(TimeStopConfig.clampSuperhotIdle(val));
+            case 4 -> TimeStopConfig.COMMON.decelerationDrag.set(TimeStopConfig.clampDecelerationDrag(val));
+        }
+    }
+
+    private void resetSpeedValue(int index) {
+        setSpeedValue(index, SPEED_DEFS[index]);
+    }
+
+    private String formatSpeed(int index, double val) {
+        if (index == 0) return String.format(Locale.ROOT, "%.2fx", val);
+        if (index == 1 || index == 2) return String.format(Locale.ROOT, "%.2fx", val);
+        return String.format(Locale.ROOT, "%.3fx", val);
+    }
+
+    private String formatSpeedRaw(int index, double val) {
+        if (index == 0) return String.format(Locale.ROOT, "%.2f", val);
+        if (index == 1 || index == 2) return String.format(Locale.ROOT, "%.2f", val);
+        return String.format(Locale.ROOT, "%.3f", val);
+    }
+
+    private void commitSpeedInput() {
+        if (this.focusedSpeedIndex >= 0) {
+            int idx = this.focusedSpeedIndex;
+            try {
+                double parsed = Double.parseDouble(this.inputBuffer.trim());
+                setSpeedValue(idx, parsed);
+                TimeStopConfig.save();
+                sendCurrentSpeedsToServer();
+            } catch (NumberFormatException ignored) {}
+            this.focusedSpeedIndex = -1;
+            this.inputBuffer = "";
+        }
+    }
+
+    private void cancelSpeedInput() {
+        this.focusedSpeedIndex = -1;
+        this.inputBuffer = "";
+    }
+
+    private void sendCurrentSpeedsToServer() {
+        ModMessages.sendToServer(new UpdateSpeedConfigPacket(
+                TimeStopConfig.COMMON.fastForwardRate.get(),
+                TimeStopConfig.COMMON.slowMotionRate.get(),
+                TimeStopConfig.COMMON.matrixRate.get(),
+                TimeStopConfig.COMMON.superhotIdleRate.get(),
+                TimeStopConfig.COMMON.decelerationDrag.get()
+        ));
+    }
+
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.activeTooltip = null;
+
         int modalWidth = 320;
         int modalHeight = 270;
         int modalX = (this.width - modalWidth) / 2;
@@ -51,12 +152,56 @@ public class TimeStopSettingsScreen extends Screen {
         guiGraphics.fill(modalX, modalY, modalX + modalWidth, modalY + modalHeight, 0xEE0B0F19);
         guiGraphics.renderOutline(modalX, modalY, modalWidth, modalHeight, 0xFF38BDF8);
 
-        // Header
-        guiGraphics.drawString(this.font, "⚙ TEMPORAL ENGINE SETTINGS", modalX + 16, modalY + 12, 0xFF38BDF8, false);
-        guiGraphics.fill(modalX + 12, modalY + 28, modalX + modalWidth - 12, modalY + 29, 0x33FFFFFF);
+        // Header Title
+        guiGraphics.drawString(this.font, "TEMPORAL ENGINE CONFIGURATION", modalX + 16, modalY + 11, 0xFF38BDF8, false);
 
-        int startY = modalY + 36;
-        int rowH = 20;
+        // Tab Selector Buttons
+        int tabW = 140;
+        int tabH = 16;
+        int tab0X = modalX + 16;
+        int tab0Y = modalY + 25;
+        int tab1X = modalX + modalWidth - 16 - tabW;
+        int tab1Y = modalY + 25;
+
+        // Tab 0 button: Visuals & FX
+        boolean hoverTab0 = isInside(mouseX, mouseY, tab0X, tab0Y, tabW, tabH);
+        int tab0Bg = (activeTab == 0) ? 0xFF0284C7 : (hoverTab0 ? 0xFF1E293B : 0xFF0F172A);
+        int tab0Border = (activeTab == 0) ? 0xFF38BDF8 : 0xFF334155;
+        int tab0Text = (activeTab == 0) ? 0xFFFFFFFF : (hoverTab0 ? 0xFFE2E8F0 : 0xFF94A3B8);
+        guiGraphics.fill(tab0X, tab0Y, tab0X + tabW, tab0Y + tabH, tab0Bg);
+        guiGraphics.renderOutline(tab0X, tab0Y, tabW, tabH, tab0Border);
+        int t0X = tab0X + (tabW - this.font.width("Visuals & FX")) / 2;
+        guiGraphics.drawString(this.font, "Visuals & FX", t0X, tab0Y + 4, tab0Text, false);
+
+        // Tab 1 button: Speed Calibration
+        boolean hoverTab1 = isInside(mouseX, mouseY, tab1X, tab1Y, tabW, tabH);
+        int tab1Bg = (activeTab == 1) ? 0xFF0284C7 : (hoverTab1 ? 0xFF1E293B : 0xFF0F172A);
+        int tab1Border = (activeTab == 1) ? 0xFF38BDF8 : 0xFF334155;
+        int tab1Text = (activeTab == 1) ? 0xFFFFFFFF : (hoverTab1 ? 0xFFE2E8F0 : 0xFF94A3B8);
+        guiGraphics.fill(tab1X, tab1Y, tab1X + tabW, tab1Y + tabH, tab1Bg);
+        guiGraphics.renderOutline(tab1X, tab1Y, tabW, tabH, tab1Border);
+        int t1X = tab1X + (tabW - this.font.width("Speed Calibration")) / 2;
+        guiGraphics.drawString(this.font, "Speed Calibration", t1X, tab1Y + 4, tab1Text, false);
+
+        // Horizontal divider under tabs
+        guiGraphics.fill(modalX + 12, modalY + 44, modalX + modalWidth - 12, modalY + 45, 0x33FFFFFF);
+
+        if (activeTab == 0) {
+            renderVisualsTab(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
+        } else {
+            renderSpeedsTab(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
+        }
+
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+
+        if (this.activeTooltip != null) {
+            guiGraphics.renderTooltip(this.font, this.activeTooltip, mouseX, mouseY);
+        }
+    }
+
+    private void renderVisualsTab(GuiGraphics guiGraphics, int modalX, int modalY, int modalWidth, int modalHeight, int mouseX, int mouseY) {
+        int startY = modalY + 48;
+        int rowH = 19;
 
         // 1. Render Sphere Toggle
         renderToggleRow(guiGraphics, modalX, startY, modalWidth, "Render Temporal Spheres",
@@ -91,7 +236,7 @@ public class TimeStopSettingsScreen extends Screen {
                 com.timestop.core.ClientTimeStopManager.getProjectileMode() == TimeStopManager.ProjectileStasisMode.FLOWING, mouseX, mouseY);
 
         // 9. Opacity Slider
-        int sliderY = startY + rowH * 8;
+        int sliderY = startY + rowH * 8 + 2;
         renderOpacitySlider(guiGraphics, modalX, sliderY, modalWidth, mouseX, mouseY);
 
         // Bottom Done / Back Button
@@ -108,8 +253,141 @@ public class TimeStopSettingsScreen extends Screen {
         String btnText = this.parentScreen != null ? "BACK" : "DONE";
         int textX = btnX + (btnW - this.font.width(btnText)) / 2;
         guiGraphics.drawString(this.font, btnText, textX, btnY + 6, 0xFFFFFFFF, false);
+    }
 
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    private void renderSpeedsTab(GuiGraphics guiGraphics, int modalX, int modalY, int modalWidth, int modalHeight, int mouseX, int mouseY) {
+        int startY = modalY + 50;
+        int rowH = 34;
+        boolean canEdit = canEditSpeeds();
+
+        for (int i = 0; i < 5; i++) {
+            int rowY = startY + i * rowH;
+
+            // Mode Title
+            guiGraphics.drawString(this.font, SPEED_LABELS[i], modalX + 16, rowY + 2, 0xFFE2E8F0, false);
+            // Range & Default Subtitle
+            guiGraphics.drawString(this.font, SPEED_SUBS[i], modalX + 16, rowY + 13, 0xFF64748B, false);
+
+            int trackW = 80;
+            int trackH = 10;
+            int trackX = modalX + 140;
+            int trackY = rowY + 5;
+
+            // Slider track
+            guiGraphics.fill(trackX, trackY, trackX + trackW, trackY + trackH, 0xFF1E293B);
+            guiGraphics.renderOutline(trackX, trackY, trackW, trackH, 0xFF475569);
+
+            double frac = (getSpeedValue(i) - SPEED_MINS[i]) / (SPEED_MAXS[i] - SPEED_MINS[i]);
+            int fillW = (int) Math.round(trackW * Math.max(0.0, Math.min(1.0, frac)));
+            int barColor = canEdit ? (i == 0 ? 0xFFF59E0B : 0xFF38BDF8) : 0xFF64748B;
+            guiGraphics.fill(trackX, trackY, trackX + fillW, trackY + trackH, barColor);
+
+            int handleX = trackX + fillW - 2;
+            int handleColor = canEdit ? 0xFFFFFFFF : 0xFF94A3B8;
+            guiGraphics.fill(handleX, trackY - 2, handleX + 4, trackY + trackH + 2, handleColor);
+
+            if (isInside(mouseX, mouseY, trackX - 2, trackY - 2, trackW + 4, trackH + 4)) {
+                if (!canEdit) {
+                    this.activeTooltip = Component.literal("Requires Server Operator (Level 2) permissions");
+                }
+            }
+
+            // Digit Box
+            int boxW = 46;
+            int boxH = 16;
+            int boxX = modalX + 228;
+            int boxY = rowY + 2;
+
+            boolean isFocused = (this.focusedSpeedIndex == i);
+            boolean isBoxHovered = isInside(mouseX, mouseY, boxX, boxY, boxW, boxH);
+            int boxBg = isFocused ? 0xFF0F172A : (isBoxHovered && canEdit ? 0xFF1E293B : 0xFF0B132B);
+            int boxBorder = isFocused ? 0xFFFACC15 : (isBoxHovered && canEdit ? 0xFF38BDF8 : 0xFF475569);
+            guiGraphics.fill(boxX, boxY, boxX + boxW, boxY + boxH, boxBg);
+            guiGraphics.renderOutline(boxX, boxY, boxW, boxH, boxBorder);
+
+            String dispStr;
+            if (isFocused) {
+                dispStr = this.inputBuffer + ((System.currentTimeMillis() / 400) % 2 == 0 ? "_" : "");
+            } else {
+                dispStr = formatSpeed(i, getSpeedValue(i));
+            }
+            int textColor = isFocused ? 0xFFFACC15 : (canEdit ? 0xFFFFFFFF : 0xFF94A3B8);
+            int textX = boxX + (boxW - this.font.width(dispStr)) / 2;
+            guiGraphics.drawString(this.font, dispStr, textX, boxY + 4, textColor, false);
+
+            if (isBoxHovered) {
+                if (!canEdit) {
+                    this.activeTooltip = Component.literal("Requires Server Operator (Level 2) permissions");
+                } else if (!isFocused) {
+                    this.activeTooltip = Component.literal("Click to type exact multiplier");
+                }
+            }
+
+            // Reset Button
+            int btnW = 16;
+            int btnH = 16;
+            int btnX = modalX + 282;
+            int btnY = rowY + 2;
+
+            boolean isResetHovered = isInside(mouseX, mouseY, btnX, btnY, btnW, btnH);
+            int rBg = isResetHovered && canEdit ? 0xFF0284C7 : 0xFF1E293B;
+            int rBorder = isResetHovered && canEdit ? 0xFF38BDF8 : 0xFF475569;
+            guiGraphics.fill(btnX, btnY, btnX + btnW, btnY + btnH, rBg);
+            guiGraphics.renderOutline(btnX, btnY, btnW, btnH, rBorder);
+            guiGraphics.drawString(this.font, "R", btnX + 5, btnY + 4, canEdit ? 0xFFFFFFFF : 0xFF64748B, false);
+
+            if (isResetHovered) {
+                if (!canEdit) {
+                    this.activeTooltip = Component.literal("Requires Server Operator (Level 2) permissions");
+                } else {
+                    this.activeTooltip = Component.literal("Reset to default (" + SPEED_DEFS[i] + "x)");
+                }
+            }
+        }
+
+        // Informational tip line
+        if (canEdit) {
+            guiGraphics.drawString(this.font, "Tip: Drag sliders or click boxes to type exact digits", modalX + 16, modalY + 224, 0xFF64748B, false);
+        } else {
+            guiGraphics.drawString(this.font, "Notice: Read-only mode (Server Operator level 2 required)", modalX + 16, modalY + 224, 0xFFEF4444, false);
+        }
+
+        // Bottom Reset All Button
+        int rAllW = 90;
+        int rAllH = 20;
+        int rAllX = modalX + 16;
+        int rAllY = modalY + modalHeight - 26;
+
+        boolean hoverRAll = isInside(mouseX, mouseY, rAllX, rAllY, rAllW, rAllH);
+        int rAllBg = canEdit ? (hoverRAll ? 0xFFB91C1C : 0xFF991B1B) : 0xFF334155;
+        int rAllBorder = canEdit ? 0xFFF87171 : 0xFF475569;
+        guiGraphics.fill(rAllX, rAllY, rAllX + rAllW, rAllY + rAllH, rAllBg);
+        guiGraphics.renderOutline(rAllX, rAllY, rAllW, rAllH, rAllBorder);
+        int rAllTextX = rAllX + (rAllW - this.font.width("RESET ALL")) / 2;
+        guiGraphics.drawString(this.font, "RESET ALL", rAllTextX, rAllY + 6, canEdit ? 0xFFFFFFFF : 0xFF94A3B8, false);
+
+        if (hoverRAll) {
+            if (canEdit) {
+                this.activeTooltip = Component.literal("Reset all 5 multipliers to default calibration");
+            } else {
+                this.activeTooltip = Component.literal("Requires Server Operator (Level 2) permissions");
+            }
+        }
+
+        // Bottom Done / Back Button
+        int doneW = 90;
+        int doneH = 20;
+        int doneX = modalX + modalWidth - 16 - doneW;
+        int doneY = modalY + modalHeight - 26;
+
+        boolean isDoneHovered = isInside(mouseX, mouseY, doneX, doneY, doneW, doneH);
+        int doneBg = isDoneHovered ? 0xFF0284C7 : 0xFF0369A1;
+        guiGraphics.fill(doneX, doneY, doneX + doneW, doneY + doneH, doneBg);
+        guiGraphics.renderOutline(doneX, doneY, doneW, doneH, 0xFF38BDF8);
+
+        String btnText = this.parentScreen != null ? "BACK" : "DONE";
+        int textX = doneX + (doneW - this.font.width(btnText)) / 2;
+        guiGraphics.drawString(this.font, btnText, textX, doneY + 6, 0xFFFFFFFF, false);
     }
 
     private void renderToggleRow(GuiGraphics guiGraphics, int modalX, int y, int modalWidth, String label, boolean enabled, int mouseX, int mouseY) {
@@ -162,97 +440,211 @@ public class TimeStopSettingsScreen extends Screen {
             int modalHeight = 270;
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
-            int startY = modalY + 36;
-            int rowH = 20;
 
-            int btnW = 60;
-            int btnH = 14;
-            int btnX = modalX + modalWidth - 16 - btnW;
+            // Tab headers
+            int tabW = 140;
+            int tabH = 16;
+            int tab0X = modalX + 16;
+            int tab0Y = modalY + 25;
+            int tab1X = modalX + modalWidth - 16 - tabW;
+            int tab1Y = modalY + 25;
 
-            // 1. Render Sphere
-            if (isInside(mouseX, mouseY, btnX, startY, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableBubbleRender.set(!TimeStopConfig.CLIENT.enableBubbleRender.get());
-                saveAndPlaySound();
-                return true;
-            }
-
-            // 2. Sci-Fi Grid
-            if (isInside(mouseX, mouseY, btnX, startY + rowH, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableBubbleGrid.set(!TimeStopConfig.CLIENT.enableBubbleGrid.get());
-                saveAndPlaySound();
-                return true;
-            }
-
-            // 3. 3D Specular
-            if (isInside(mouseX, mouseY, btnX, startY + rowH * 2, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableSpecularSheen.set(!TimeStopConfig.CLIENT.enableSpecularSheen.get());
-                saveAndPlaySound();
-                return true;
-            }
-
-            // 4. Orbit Equator
-            if (isInside(mouseX, mouseY, btnX, startY + rowH * 3, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableEquatorRing.set(!TimeStopConfig.CLIENT.enableEquatorRing.get());
-                saveAndPlaySound();
-                return true;
-            }
-
-            // 5. Shaders
-            if (isInside(mouseX, mouseY, btnX, startY + rowH * 4, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableShaders.set(!TimeStopConfig.CLIENT.enableShaders.get());
-                if (!TimeStopConfig.CLIENT.enableShaders.get()) {
-                    com.timestop.core.ClientTimeStopManager.removeShader();
+            if (isInside(mouseX, mouseY, tab0X, tab0Y, tabW, tabH)) {
+                if (this.activeTab != 0) {
+                    commitSpeedInput();
+                    this.activeTab = 0;
+                    playClickSound();
                 }
-                saveAndPlaySound();
                 return true;
             }
 
-            // 6. Sounds
-            if (isInside(mouseX, mouseY, btnX, startY + rowH * 5, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableSounds.set(!TimeStopConfig.CLIENT.enableSounds.get());
-                saveAndPlaySound();
+            if (isInside(mouseX, mouseY, tab1X, tab1Y, tabW, tabH)) {
+                if (this.activeTab != 1) {
+                    commitSpeedInput();
+                    this.activeTab = 1;
+                    playClickSound();
+                }
                 return true;
             }
 
-            // 7. Timer HUD
-            if (isInside(mouseX, mouseY, btnX, startY + rowH * 6, btnW, btnH)) {
-                TimeStopConfig.CLIENT.enableTimerHud.set(!TimeStopConfig.CLIENT.enableTimerHud.get());
-                saveAndPlaySound();
-                return true;
-            }
+            if (this.activeTab == 0) {
+                int startY = modalY + 48;
+                int rowH = 19;
+                int btnW = 60;
+                int btnH = 14;
+                int btnX = modalX + modalWidth - 16 - btnW;
 
-            // 8. Projectile Stasis Mode
-            if (isInside(mouseX, mouseY, btnX, startY + rowH * 7, btnW, btnH)) {
-                TimeStopManager.ProjectileStasisMode current = com.timestop.core.ClientTimeStopManager.getProjectileMode();
-                TimeStopManager.ProjectileStasisMode next = (current == TimeStopManager.ProjectileStasisMode.FLOWING)
-                        ? TimeStopManager.ProjectileStasisMode.SUSPENDED
-                        : TimeStopManager.ProjectileStasisMode.FLOWING;
-                com.timestop.core.ClientTimeStopManager.setProjectileFlow(next, TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get());
-                ModMessages.sendToServer(new ToggleProjectileFlowPacket(next));
-                saveAndPlaySound();
-                return true;
-            }
+                // 1. Render Sphere
+                if (isInside(mouseX, mouseY, btnX, startY, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableBubbleRender.set(!TimeStopConfig.CLIENT.enableBubbleRender.get());
+                    saveAndPlaySound();
+                    return true;
+                }
 
-            // 9. Opacity Slider
-            int sliderY = startY + rowH * 8;
-            int trackW = 100;
-            int trackH = 14;
-            int trackX = modalX + modalWidth - 16 - trackW;
-            if (isInside(mouseX, mouseY, trackX - 4, sliderY, trackW + 8, trackH)) {
-                this.draggingOpacity = true;
-                updateOpacityFromMouse(mouseX, trackX, trackW);
-                return true;
-            }
+                // 2. Sci-Fi Grid
+                if (isInside(mouseX, mouseY, btnX, startY + rowH, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableBubbleGrid.set(!TimeStopConfig.CLIENT.enableBubbleGrid.get());
+                    saveAndPlaySound();
+                    return true;
+                }
 
-            // Bottom Done / Back Button
-            int doneBtnW = 100;
-            int doneBtnH = 20;
-            int doneBtnX = modalX + (modalWidth - doneBtnW) / 2;
-            int doneBtnY = modalY + modalHeight - 26;
+                // 3. 3D Specular
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 2, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableSpecularSheen.set(!TimeStopConfig.CLIENT.enableSpecularSheen.get());
+                    saveAndPlaySound();
+                    return true;
+                }
 
-            if (isInside(mouseX, mouseY, doneBtnX, doneBtnY, doneBtnW, doneBtnH)) {
-                closeScreen();
-                return true;
+                // 4. Orbit Equator
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 3, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableEquatorRing.set(!TimeStopConfig.CLIENT.enableEquatorRing.get());
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 5. Shaders
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 4, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableShaders.set(!TimeStopConfig.CLIENT.enableShaders.get());
+                    if (!TimeStopConfig.CLIENT.enableShaders.get()) {
+                        com.timestop.core.ClientTimeStopManager.removeShader();
+                    }
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 6. Sounds
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 5, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableSounds.set(!TimeStopConfig.CLIENT.enableSounds.get());
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 7. Timer HUD
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 6, btnW, btnH)) {
+                    TimeStopConfig.CLIENT.enableTimerHud.set(!TimeStopConfig.CLIENT.enableTimerHud.get());
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 8. Projectile Stasis Mode
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 7, btnW, btnH)) {
+                    TimeStopManager.ProjectileStasisMode current = com.timestop.core.ClientTimeStopManager.getProjectileMode();
+                    TimeStopManager.ProjectileStasisMode next = (current == TimeStopManager.ProjectileStasisMode.FLOWING)
+                            ? TimeStopManager.ProjectileStasisMode.SUSPENDED
+                            : TimeStopManager.ProjectileStasisMode.FLOWING;
+                    com.timestop.core.ClientTimeStopManager.setProjectileFlow(next, TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get());
+                    ModMessages.sendToServer(new ToggleProjectileFlowPacket(next));
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 9. Opacity Slider
+                int sliderY = startY + rowH * 8 + 2;
+                int trackW = 100;
+                int trackH = 14;
+                int trackX = modalX + modalWidth - 16 - trackW;
+                if (isInside(mouseX, mouseY, trackX - 4, sliderY, trackW + 8, trackH)) {
+                    this.draggingOpacity = true;
+                    updateOpacityFromMouse(mouseX, trackX, trackW);
+                    return true;
+                }
+
+                // Done / Back Button
+                int doneBtnW = 100;
+                int doneBtnH = 20;
+                int doneBtnX = modalX + (modalWidth - doneBtnW) / 2;
+                int doneBtnY = modalY + modalHeight - 26;
+
+                if (isInside(mouseX, mouseY, doneBtnX, doneBtnY, doneBtnW, doneBtnH)) {
+                    closeScreen();
+                    return true;
+                }
+            } else {
+                // TAB 1: Speeds
+                int startY = modalY + 50;
+                int rowH = 34;
+                boolean canEdit = canEditSpeeds();
+
+                for (int i = 0; i < 5; i++) {
+                    int rowY = startY + i * rowH;
+
+                    int trackW = 80;
+                    int trackH = 10;
+                    int trackX = modalX + 140;
+                    int trackY = rowY + 5;
+
+                    int boxW = 46;
+                    int boxH = 16;
+                    int boxX = modalX + 228;
+                    int boxY = rowY + 2;
+
+                    int btnW = 16;
+                    int btnH = 16;
+                    int btnX = modalX + 282;
+                    int btnY = rowY + 2;
+
+                    // Slider track clicked
+                    if (isInside(mouseX, mouseY, trackX - 4, trackY - 2, trackW + 8, trackH + 4)) {
+                        if (canEdit) {
+                            commitSpeedInput();
+                            this.draggingSpeedIndex = i;
+                            updateSpeedFromSlider(i, mouseX, trackX, trackW);
+                        }
+                        return true;
+                    }
+
+                    // Digit box clicked
+                    if (isInside(mouseX, mouseY, boxX, boxY, boxW, boxH)) {
+                        if (canEdit) {
+                            if (this.focusedSpeedIndex != i) {
+                                commitSpeedInput();
+                                this.focusedSpeedIndex = i;
+                                this.inputBuffer = formatSpeedRaw(i, getSpeedValue(i));
+                            }
+                        }
+                        return true;
+                    }
+
+                    // Reset button clicked
+                    if (isInside(mouseX, mouseY, btnX, btnY, btnW, btnH)) {
+                        if (canEdit) {
+                            commitSpeedInput();
+                            resetSpeedValue(i);
+                            TimeStopConfig.save();
+                            sendCurrentSpeedsToServer();
+                            saveAndPlaySound();
+                        }
+                        return true;
+                    }
+                }
+
+                // If user clicked elsewhere, commit any active text edit
+                commitSpeedInput();
+
+                // Reset All Button
+                int rAllW = 90;
+                int rAllH = 20;
+                int rAllX = modalX + 16;
+                int rAllY = modalY + modalHeight - 26;
+                if (isInside(mouseX, mouseY, rAllX, rAllY, rAllW, rAllH)) {
+                    if (canEdit) {
+                        TimeStopConfig.resetSpeedsToDefaults();
+                        TimeStopConfig.save();
+                        ModMessages.sendToServer(UpdateSpeedConfigPacket.reset());
+                        saveAndPlaySound();
+                    }
+                    return true;
+                }
+
+                // Done / Back Button
+                int doneW = 90;
+                int doneH = 20;
+                int doneX = modalX + modalWidth - 16 - doneW;
+                int doneY = modalY + modalHeight - 26;
+                if (isInside(mouseX, mouseY, doneX, doneY, doneW, doneH)) {
+                    closeScreen();
+                    return true;
+                }
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -260,9 +652,16 @@ public class TimeStopSettingsScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0 && this.draggingOpacity) {
-            this.draggingOpacity = false;
-            saveConfig();
+        if (button == 0) {
+            if (this.draggingOpacity) {
+                this.draggingOpacity = false;
+                saveConfig();
+            }
+            if (this.draggingSpeedIndex >= 0) {
+                this.draggingSpeedIndex = -1;
+                TimeStopConfig.save();
+                sendCurrentSpeedsToServer();
+            }
         }
         return super.mouseReleased(mouseX, mouseY, button);
     }
@@ -277,6 +676,14 @@ public class TimeStopSettingsScreen extends Screen {
             updateOpacityFromMouse(mouseX, trackX, trackW);
             return true;
         }
+        if (this.draggingSpeedIndex >= 0) {
+            int modalWidth = 320;
+            int modalX = (this.width - modalWidth) / 2;
+            int trackX = modalX + 140;
+            int trackW = 80;
+            updateSpeedFromSlider(this.draggingSpeedIndex, mouseX, trackX, trackW);
+            return true;
+        }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
@@ -287,15 +694,74 @@ public class TimeStopSettingsScreen extends Screen {
         TimeStopConfig.CLIENT.bubbleOpacity.set(Math.round(val * 100.0) / 100.0);
     }
 
+    private void updateSpeedFromSlider(int index, double mouseX, int trackX, int trackW) {
+        double frac = (mouseX - trackX) / (double) trackW;
+        frac = Math.max(0.0, Math.min(1.0, frac));
+        double min = SPEED_MINS[index];
+        double max = SPEED_MAXS[index];
+        double val = min + frac * (max - min);
+
+        if (index == 0) {
+            val = Math.round(val * 10.0) / 10.0;
+        } else if (index == 1 || index == 2) {
+            val = Math.round(val * 100.0) / 100.0;
+        } else {
+            val = Math.round(val * 1000.0) / 1000.0;
+        }
+        setSpeedValue(index, val);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (this.focusedSpeedIndex >= 0) {
+            if ((codePoint >= '0' && codePoint <= '9') || codePoint == '.') {
+                if (this.inputBuffer.length() < 7) {
+                    this.inputBuffer += codePoint;
+                    return true;
+                }
+            }
+        }
+        return super.charTyped(codePoint, modifiers);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.focusedSpeedIndex >= 0) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                commitSpeedInput();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                cancelSpeedInput();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!this.inputBuffer.isEmpty()) {
+                    this.inputBuffer = this.inputBuffer.substring(0, this.inputBuffer.length() - 1);
+                }
+                return true;
+            }
+        }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE || (this.focusedSpeedIndex < 0 && keyCode == GLFW.GLFW_KEY_E)) {
+            closeScreen();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
     private static boolean isInside(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx <= x + w && my >= y && my <= y + h;
     }
 
-    private void saveAndPlaySound() {
-        saveConfig();
+    private void playClickSound() {
         if (this.minecraft != null && this.minecraft.player != null) {
             this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.2F);
         }
+    }
+
+    private void saveAndPlaySound() {
+        saveConfig();
+        playClickSound();
     }
 
     private void saveConfig() {
@@ -303,6 +769,7 @@ public class TimeStopSettingsScreen extends Screen {
     }
 
     private void closeScreen() {
+        commitSpeedInput();
         if (this.minecraft != null) {
             if (this.parentScreen != null) {
                 this.minecraft.setScreen(this.parentScreen);
@@ -318,14 +785,5 @@ public class TimeStopSettingsScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         // Untinted transparent background: settings panel renders its own bordered dark-glass box
-    }
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_E) {
-            closeScreen();
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

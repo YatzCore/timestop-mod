@@ -57,8 +57,8 @@ public abstract class ProjectileDecelerationMixin {
             Vec3 vel = projectile.getDeltaMovement();
             if (vel.lengthSqr() > 1.0E-5) {
                 this.timestop$preTickVelocity = vel;
-                // Scale displacement for this tick's movement/collision to 20% (80% slowdown)
-                projectile.setDeltaMovement(vel.scale(0.2D));
+                // Scale displacement for this tick's movement/collision to configured drag
+                projectile.setDeltaMovement(vel.scale(com.timestop.config.TimeStopConfig.COMMON.decelerationDrag.get()));
             } else {
                 this.timestop$preTickVelocity = null;
             }

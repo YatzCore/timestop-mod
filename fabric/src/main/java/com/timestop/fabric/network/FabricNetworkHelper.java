@@ -68,6 +68,7 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerServer(KineticPalmActionPacket.ID, KineticPalmActionPacket::new);
         registerServer(FlipCoinPacket.ID, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.ID, ToggleProjectileFlowPacket::new);
+        registerServer(UpdateSpeedConfigPacket.ID, UpdateSpeedConfigPacket::new);
 
         ServerPlayNetworking.registerGlobalReceiver(RawModPayload.TYPE, (payload, context) -> {
             Function<FriendlyByteBuf, IServerboundPacket> decoder = SERVER_DECODERS.get(payload.packetId());
@@ -89,6 +90,7 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(SyncCoinChargesPacket.ID, SyncCoinChargesPacket::new);
         registerClient(KineticCaptureSyncPacket.ID, KineticCaptureSyncPacket::new);
         registerClient(DeadEyeGunFeedbackPacket.ID, DeadEyeGunFeedbackPacket::new);
+        registerClient(SyncSpeedConfigPacket.ID, SyncSpeedConfigPacket::new);
 
         ClientPlayNetworking.registerGlobalReceiver(RawModPayload.TYPE, (payload, context) -> {
             Function<FriendlyByteBuf, IClientboundPacket> decoder = CLIENT_DECODERS.get(payload.packetId());
