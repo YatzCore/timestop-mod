@@ -52,6 +52,7 @@ public class TimeStopConfig {
         public final ConfigValue<Boolean> enableShaders = new ConfigValue<>(true);
         public final ConfigValue<Boolean> enableSounds = new ConfigValue<>(true);
         public final ConfigValue<Boolean> enableTimerHud = new ConfigValue<>(true);
+        public final ConfigValue<String> superhotMobTarget = new ConfigValue<>("HOSTILE");
     }
 
     public static class Common {
@@ -128,6 +129,14 @@ public class TimeStopConfig {
                     if (v.has("enableEquatorRing")) CLIENT.enableEquatorRing.set(v.get("enableEquatorRing").getAsBoolean());
                     if (v.has("enableShaders")) CLIENT.enableShaders.set(v.get("enableShaders").getAsBoolean());
                     if (v.has("enableTimerHud")) CLIENT.enableTimerHud.set(v.get("enableTimerHud").getAsBoolean());
+                    if (v.has("superhotMobTarget")) {
+                        String target = v.get("superhotMobTarget").getAsString().toUpperCase(java.util.Locale.ROOT);
+                        if ("PASSIVE".equals(target) || "ALL".equals(target)) {
+                            CLIENT.superhotMobTarget.set(target);
+                        } else {
+                            CLIENT.superhotMobTarget.set("HOSTILE");
+                        }
+                    }
                 }
                 if (json.has("audio")) {
                     JsonObject a = json.getAsJsonObject("audio");
@@ -191,6 +200,7 @@ public class TimeStopConfig {
             visuals.addProperty("enableEquatorRing", CLIENT.enableEquatorRing.get());
             visuals.addProperty("enableShaders", CLIENT.enableShaders.get());
             visuals.addProperty("enableTimerHud", CLIENT.enableTimerHud.get());
+            visuals.addProperty("superhotMobTarget", CLIENT.superhotMobTarget.get());
             root.add("visuals", visuals);
 
             JsonObject audio = new JsonObject();

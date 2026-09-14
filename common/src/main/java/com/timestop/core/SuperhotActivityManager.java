@@ -17,7 +17,7 @@ public final class SuperhotActivityManager {
 
     public static void report(ServerPlayer player, float activity) {
         if (!player.isAlive() || player.isSpectator() || !Float.isFinite(activity)) return;
-        reports.put(player.getUUID(), new Activity(activity > 0.15f ? 1 : 0, System.currentTimeMillis()));
+        reports.put(player.getUUID(), new Activity(Math.max(0.0F, Math.min(1.0F, activity)), System.currentTimeMillis()));
         update();
     }
 
@@ -53,9 +53,10 @@ public final class SuperhotActivityManager {
                 Activity report = reports.get(player.getUUID());
                 if (player.isAlive() && !player.isSpectator() && report != null) global = Math.max(global, report.value());
             }
-            float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
-            long maxMs = (long) Math.max(50.0F, Math.round(50.0F / idleRate));
-            TimeStopManager.setSuperhotTickMs((long) (maxMs - global * (maxMs - 50L)));
+            float idleRate = Math.max(0.20F, com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue());
+            long maxMs = Math.min(250L, Math.max(50L, Math.round(50.0F / idleRate)));
+            long tickMs = (long) (maxMs - global * (maxMs - 50L));
+            TimeStopManager.setSuperhotTickMs(tickMs);
             ModMessages.sendToClients(new SuperhotActivitySyncPacket(global));
         }
     }

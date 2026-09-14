@@ -10,15 +10,14 @@ out vec4 fragColor;
 void main() {
     vec4 center = texture(DiffuseSampler, texCoord);
 
-    // 1. Detect CRYSTAL RED LIVING ENEMY pixels strictly
-    // Our crystal red entity texture is pure R=1.0, G=0.0, B=0.0 with fullbright lightmap (15728880).
-    // Due to normal directional diffuse shading, R is between 0.35 and 1.00.
-    // Green and Blue are strictly zero (below 0.04 even with GPU color precision limits).
-    // Natural world blocks (dirt, wood, flowers, stone, lava, redstone) ALWAYS have G > 0.07 or B > 0.07 or G+B > 0.12.
+    // 1. Detect CRYSTAL RED ENEMY pixels robustly
+    // The crystal red entity texture is pure red R=1.0, G=0.0, B=0.0.
+    // Under ambient lighting, directional shadows, or caves, R ranges between 0.18 and 1.00,
+    // while green and blue remain low (ambient blue/green tints up to 0.15).
     float maxGB = max(center.g, center.b);
     float sumGB = center.g + center.b;
 
-    bool isCrystalEnemy = (center.r > 0.25) && (maxGB < 0.05) && (sumGB < 0.08) && (center.r > maxGB * 4.0);
+    bool isCrystalEnemy = (center.r > 0.18) && (center.r > maxGB * 2.0) && (center.r > sumGB * 1.1) && (maxGB < 0.22);
 
     if (isCrystalEnemy) {
         // PURE VIBRANT SUPERHOT CRYSTALLINE RED

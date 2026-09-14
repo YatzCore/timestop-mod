@@ -144,7 +144,7 @@ public class TimeStopSettingsScreen extends Screen {
         this.activeTooltip = null;
 
         int modalWidth = 320;
-        int modalHeight = 270;
+        int modalHeight = 285;
         int modalX = (this.width - modalWidth) / 2;
         int modalY = (this.height - modalHeight) / 2;
 
@@ -235,8 +235,12 @@ public class TimeStopSettingsScreen extends Screen {
         renderToggleRow(guiGraphics, modalX, startY + rowH * 7, modalWidth, "Projectiles Flow in Stasis",
                 com.timestop.core.ClientTimeStopManager.getProjectileMode() == TimeStopManager.ProjectileStasisMode.FLOWING, mouseX, mouseY);
 
-        // 9. Opacity Slider
-        int sliderY = startY + rowH * 8 + 2;
+        // 9. Superhot Mob Tint Toggle (HOSTILE / PASSIVE / ALL)
+        renderCycleRow(guiGraphics, modalX, startY + rowH * 8, modalWidth, "Superhot Mob Tint",
+                TimeStopConfig.CLIENT.superhotMobTarget.get(), mouseX, mouseY);
+
+        // 10. Opacity Slider
+        int sliderY = startY + rowH * 9 + 2;
         renderOpacitySlider(guiGraphics, modalX, sliderY, modalWidth, mouseX, mouseY);
 
         // Bottom Done / Back Button
@@ -409,6 +413,38 @@ public class TimeStopSettingsScreen extends Screen {
         guiGraphics.drawString(this.font, text, textX, y + 3, 0xFFFFFFFF, false);
     }
 
+    private void renderCycleRow(GuiGraphics guiGraphics, int modalX, int y, int modalWidth, String label, String value, int mouseX, int mouseY) {
+        guiGraphics.drawString(this.font, label, modalX + 16, y + 4, 0xFFE2E8F0, false);
+
+        int btnW = 60;
+        int btnH = 14;
+        int btnX = modalX + modalWidth - 16 - btnW;
+
+        boolean isHovered = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= y && mouseY <= y + btnH;
+        int bg;
+        int border;
+        if ("HOSTILE".equalsIgnoreCase(value)) {
+            bg = isHovered ? 0xFFB91C1C : 0xFF991B1B;
+            border = isHovered ? 0xFFFFFFFF : 0xFFF87171;
+        } else if ("PASSIVE".equalsIgnoreCase(value)) {
+            bg = isHovered ? 0xFF15803D : 0xFF16A34A;
+            border = isHovered ? 0xFFFFFFFF : 0xFF4ADE80;
+        } else {
+            bg = isHovered ? 0xFFD97706 : 0xFFB45309;
+            border = isHovered ? 0xFFFFFFFF : 0xFFFBBF24;
+        }
+
+        guiGraphics.fill(btnX, y, btnX + btnW, y + btnH, bg);
+        guiGraphics.renderOutline(btnX, y, btnW, btnH, border);
+
+        int textX = btnX + (btnW - this.font.width(value)) / 2;
+        guiGraphics.drawString(this.font, value, textX, y + 3, 0xFFFFFFFF, false);
+
+        if (isHovered) {
+            this.activeTooltip = Component.literal("Crystal red mobs in Superhot: " + value + " (click to cycle)");
+        }
+    }
+
     private void renderOpacitySlider(GuiGraphics guiGraphics, int modalX, int y, int modalWidth, int mouseX, int mouseY) {
         double opacity = TimeStopConfig.CLIENT.bubbleOpacity.get();
         int percent = (int) Math.round(opacity * 100);
@@ -437,7 +473,7 @@ public class TimeStopSettingsScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
             int modalWidth = 320;
-            int modalHeight = 270;
+            int modalHeight = 285;
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
 
@@ -538,8 +574,21 @@ public class TimeStopSettingsScreen extends Screen {
                     return true;
                 }
 
-                // 9. Opacity Slider
-                int sliderY = startY + rowH * 8 + 2;
+                // 9. Superhot Mob Tint
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 8, btnW, btnH)) {
+                    String cur = TimeStopConfig.CLIENT.superhotMobTarget.get().toUpperCase(Locale.ROOT);
+                    String next = switch (cur) {
+                        case "HOSTILE" -> "PASSIVE";
+                        case "PASSIVE" -> "ALL";
+                        default -> "HOSTILE";
+                    };
+                    TimeStopConfig.CLIENT.superhotMobTarget.set(next);
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 10. Opacity Slider
+                int sliderY = startY + rowH * 9 + 2;
                 int trackW = 100;
                 int trackH = 14;
                 int trackX = modalX + modalWidth - 16 - trackW;

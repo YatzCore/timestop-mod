@@ -1,6 +1,7 @@
 package com.timestop.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.timestop.config.TimeStopConfig;
 import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeMode;
 import net.minecraft.client.Minecraft;
@@ -8,10 +9,17 @@ import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
+import net.minecraft.client.renderer.entity.layers.ElytraLayer;
+import net.minecraft.client.renderer.entity.layers.EyesLayer;
+import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.monster.Enemy;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,15 +36,44 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
 
     private static final ResourceLocation CRYSTAL_RED_TEXTURE = ResourceLocation.fromNamespaceAndPath("timestop", "textures/entity/superhot_crystal_red.png");
 
+    private static boolean isHostileEntity(LivingEntity entity) {
+        if (entity instanceof Enemy) {
+            return true;
+        }
+        if (entity instanceof NeutralMob neutral && neutral.isAngry()) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean matchesTargetFilter(LivingEntity entity, String filter) {
+        if ("ALL".equalsIgnoreCase(filter)) {
+            return true;
+        }
+        if ("PASSIVE".equalsIgnoreCase(filter)) {
+            return !isHostileEntity(entity);
+        }
+        // Default: HOSTILE
+        return isHostileEntity(entity);
+    }
+
     private boolean shouldEntityBeCrystalRed(LivingEntity entity) {
         if (entity == Minecraft.getInstance().player) {
+            return false;
+        }
+
+        if (!TimeStopConfig.CLIENT.enableShaders.get()) {
+            return false;
+        }
+
+        String filter = TimeStopConfig.CLIENT.superhotMobTarget.get();
+        if (!matchesTargetFilter(entity, filter)) {
             return false;
         }
 
         if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
             com.timestop.core.ClientBubbleManager.ClientBubble b = com.timestop.core.ClientBubbleManager.getDominantBubble(entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
             if (b != null && b.mode == TimeMode.SUPERHOT) {
-                // Strictly enemies trapped inside the Superhot bubble that cannot act are crystal red!
                 return !b.canEntityAct(entity);
             }
             return false;
@@ -78,24 +115,21 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
     @SuppressWarnings("unchecked")
     private void conditionallyRenderLayer(RenderLayer<T, M> layer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, Entity entity, float limbSwing, float limbSwingAmount, float partialTicks, float ageInTicks, float netHeadYaw, float headPitch) {
         if (entity instanceof LivingEntity living && shouldEntityBeCrystalRed(living)) {
-            // Wrap buffer so all layers (sheep wool, clothing, armor) ALSO render with solid crystal red!
+            // Preserve weapons, bows, shields, custom heads, wings, eyes, and worn armor cleanly without red blob corruption!
+            if (layer instanceof ItemInHandLayer
+                    || layer instanceof EyesLayer
+                    || layer instanceof CustomHeadLayer
+                    || layer instanceof ElytraLayer
+                    || layer instanceof HumanoidArmorLayer) {
+                layer.render(poseStack, buffer, packedLight, (T) entity, limbSwing, limbSwingAmount, partialTicks, ageInTicks, netHeadYaw, headPitch);
+                return;
+            }
+
+            // Wrap mob body features (wool, clothing) in crystal red
             MultiBufferSource crystalBuffer = renderType -> buffer.getBuffer(RenderType.entityCutoutNoCull(CRYSTAL_RED_TEXTURE));
             layer.render(poseStack, crystalBuffer, 15728880, (T) entity, limbSwing, limbSwingAmount, partialTicks, ageInTicks, netHeadYaw, headPitch);
             return;
         }
         layer.render(poseStack, buffer, packedLight, (T) entity, limbSwing, limbSwingAmount, partialTicks, ageInTicks, netHeadYaw, headPitch);
-    }
-
-    @Redirect(
-            method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/LivingEntityRenderer;getOverlayCoords(Lnet/minecraft/world/entity/LivingEntity;F)I")
-    )
-    private int redirectOverlayCoords(LivingEntity entity, float whiteOverlayProgress) {
-        if (shouldEntityBeCrystalRed(entity)) {
-            // In SUPERHOT, crystal enemies are already solid crystal red.
-            // Suppressing the vanilla red hurt overlay prevents chromatic key corruption!
-            return net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
-        }
-        return LivingEntityRenderer.getOverlayCoords(entity, whiteOverlayProgress);
     }
 }

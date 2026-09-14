@@ -43,6 +43,7 @@ public class ClientTimeStopManager {
     private static long lastSuperhotReport;
     private static double prevMouseX = 0.0;
     private static double prevMouseY = 0.0;
+    private static float lastReportedActivity = 0.0F;
     private static boolean wasFastLastFrame = false;
     private static final ResourceLocation DESATURATE_SHADER = ResourceLocation.fromNamespaceAndPath("minecraft", "shaders/post/desaturate.json");
     private static final ResourceLocation SUPERHOT_SHADER = ResourceLocation.fromNamespaceAndPath("minecraft", "shaders/post/superhot.json");
@@ -98,8 +99,10 @@ public class ClientTimeStopManager {
             case MATRIX:
                 return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.matrixRate.get());
             case SUPERHOT:
-                float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
-                return 50.0F / (idleRate + superhotActivity * (1.0F - idleRate));
+                float idleRate = Math.max(0.20F, com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue());
+                float maxMs = Math.min(250.0F, Math.max(50.0F, 50.0F / idleRate));
+                float act = Math.max(0.0F, Math.min(1.0F, superhotActivity));
+                return maxMs - act * (maxMs - 50.0F);
             default:
                 return 50.0F;
         }
@@ -107,7 +110,7 @@ public class ClientTimeStopManager {
 
     public static void setServerSyncedSuperhotActivity(float activity) {
         serverSyncedSuperhotActivity = Float.isFinite(activity) ? Math.max(0, Math.min(1, activity)) : 0;
-        if (activity > 0.15F) {
+        if (activity > 0.05F) {
             superhotActivity = Math.max(superhotActivity, activity);
         }
     }
@@ -157,6 +160,7 @@ public class ClientTimeStopManager {
         clientExemptPlayers.clear();
         superhotActivity = 0.0F;
         serverSyncedSuperhotActivity = 0.0F;
+        lastReportedActivity = 0.0F;
         wasFastLastFrame = false;
         setProjectileFlow(TimeStopManager.ProjectileStasisMode.FLOWING, true);
         removeShader();
@@ -235,20 +239,42 @@ public class ClientTimeStopManager {
                 || mc.player.swinging
                 || mc.player.isUsingItem();
 
-        boolean myLocalFast = mc.screen == null && (hasMovementKey || hasAction);
+        // Mouse look / aiming detection: aiming crosshairs smoothly advances time slightly (~0.35F)
+        double mouseX = mc.mouseHandler.xpos();
+        double mouseY = mc.mouseHandler.ypos();
+        double dMouseX = mouseX - prevMouseX;
+        double dMouseY = mouseY - prevMouseY;
+        prevMouseX = mouseX;
+        prevMouseY = mouseY;
+        double mouseDistSq = dMouseX * dMouseX + dMouseY * dMouseY;
+        boolean hasMouseMotion = mc.screen == null && mouseDistSq > 4.0;
+
+        float localActivity = 0.0F;
+        if (mc.screen == null) {
+            if (hasMovementKey || hasAction) {
+                localActivity = 1.0F;
+            } else if (hasMouseMotion) {
+                localActivity = 0.35F;
+            }
+        }
+
         long now = System.currentTimeMillis();
-        if (myLocalFast != wasFastLastFrame || now - lastSuperhotReport >= 250) {
+        if (Math.abs(localActivity - lastReportedActivity) > 0.05F || now - lastSuperhotReport >= 250) {
             lastSuperhotReport = now;
-            wasFastLastFrame = myLocalFast;
-            ModMessages.sendToServer(new SuperhotSyncPacket(myLocalFast ? 1.0F : 0.0F));
+            lastReportedActivity = localActivity;
+            ModMessages.sendToServer(new SuperhotSyncPacket(localActivity));
         }
 
         // In Superhot: Moving or acting advances time. If any player on server in this sphere is moving, time also advances!
-        float target = (myLocalFast || serverSyncedSuperhotActivity > 0.15F) ? 1.0F : 0.0F;
+        float target = Math.max(localActivity, serverSyncedSuperhotActivity);
 
-        if (target >= 0.9F) {
-            // Immediate real-time acceleration!
-            superhotActivity = 1.0F;
+        if (target > superhotActivity) {
+            if (target >= 0.9F) {
+                // Immediate real-time acceleration!
+                superhotActivity = 1.0F;
+            } else {
+                superhotActivity = Math.min(target, superhotActivity + 0.15F);
+            }
         } else {
             // Smooth decay to standstill (approx 0.3s)
             superhotActivity = Math.max(0.0F, superhotActivity - 0.045F);
