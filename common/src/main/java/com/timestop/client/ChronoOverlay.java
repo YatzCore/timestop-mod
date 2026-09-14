@@ -1,0 +1,100 @@
+package com.timestop.client;
+
+import com.timestop.core.ClientTimeStopManager;
+import com.timestop.core.TimeMode;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.LayeredDraw;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+
+public class ChronoOverlay {
+    public static final LayeredDraw.Layer HUD_CHRONO = (guiGraphics, deltaTracker) -> {
+        int screenWidth = guiGraphics.guiWidth();
+        int screenHeight = guiGraphics.guiHeight();
+        float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+        int remainingTicks = 0;
+        int totalDuration = 0;
+        TimeMode mode = TimeMode.TIME_STOP;
+        boolean active = false;
+
+        if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+            com.timestop.core.ClientBubbleManager.ClientBubble bubble = com.timestop.core.ClientBubbleManager.getCameraBubble();
+            if (bubble != null) {
+                active = true;
+                remainingTicks = bubble.remainingTicks;
+                totalDuration = bubble.totalDuration;
+                mode = bubble.mode;
+            }
+        } else if (ClientTimeStopManager.isTimeStopped()) {
+            active = true;
+            remainingTicks = ClientTimeStopManager.getRemainingTicks();
+            totalDuration = ClientTimeStopManager.getTotalDuration();
+            mode = ClientTimeStopManager.getCurrentMode();
+        }
+
+        if (!active || !com.timestop.config.TimeStopConfig.CLIENT.enableTimerHud.get()) {
+            return;
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        Font font = mc.font;
+
+        int x = screenWidth / 2;
+        int y = 20;
+
+        Component statusComponent;
+        if (totalDuration <= 0) {
+            statusComponent = mode.getFormattedComponent()
+                    .copy()
+                    .append(Component.literal(" [ ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                    .append(Component.literal("ACTIVE").withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
+                    .append(Component.literal(" ]").withStyle(net.minecraft.ChatFormatting.GRAY));
+        } else {
+            float seconds = remainingTicks / 20.0F;
+            statusComponent = mode.getFormattedComponent()
+                    .copy()
+                    .append(Component.literal(" [ ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                    .append(Component.literal(String.format("%.1fs", seconds)).withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
+                    .append(Component.literal(" ]").withStyle(net.minecraft.ChatFormatting.GRAY));
+        }
+
+        int textWidth = font.width(statusComponent);
+        guiGraphics.drawString(font, statusComponent, x - textWidth / 2, y, 0xFFFFFF, true);
+
+        // Render progress bar if finite duration
+        if (totalDuration > 0) {
+            int barWidth = 120;
+            int barHeight = 4;
+            int barX = x - barWidth / 2;
+            int barY = y + 12;
+
+            // Background
+            guiGraphics.fill(barX - 1, barY - 1, barX + barWidth + 1, barY + barHeight + 1, 0x88000000);
+
+            // Fill
+            float progress = Math.max(0.0F, Math.min(1.0F, (float) remainingTicks / totalDuration));
+            int filledWidth = (int) (barWidth * progress);
+            int color;
+            switch (mode) {
+                case SLOW_MOTION:
+                    color = 0xFF00B4D8;
+                    break;
+                case MATRIX:
+                    color = 0xFF2EC4B6;
+                    break;
+                case SUPERHOT:
+                    color = 0xFFFF2A2A;
+                    break;
+                case FAST_FORWARD:
+                    color = 0xFFFF0054;
+                    break;
+                default:
+                    color = 0xFFFFD700; // Gold
+                    break;
+            }
+            guiGraphics.fill(barX, barY, barX + filledWidth, barY + barHeight, color);
+        }
+    };
+}

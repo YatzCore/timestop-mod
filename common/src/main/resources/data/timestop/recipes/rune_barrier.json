@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " I ",
+    "SBS",
+    " I "
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "S": {
+      "item": "minecraft:shield"
+    },
+    "B": {
+      "item": "timestop:blank_rune"
+    }
+  },
+  "result": {
+    "id": "timestop:rune_barrier",
+    "count": 1
+  }
+}

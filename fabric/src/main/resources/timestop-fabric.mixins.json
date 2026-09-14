@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.timestop.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "timestop.refmap.json",
+  "mixins": [
+    "EntityDataSaverMixin",
+    "FabricProjectileImpactMixin"
+  ],
+  "client": [
+    "SoundEngineMixin",
+    "MinecraftClientMixin",
+    "ItemInHandRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
