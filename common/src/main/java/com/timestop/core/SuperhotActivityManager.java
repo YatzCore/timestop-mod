@@ -65,8 +65,9 @@ public final class SuperhotActivityManager {
                     global = Math.max(global, report.value());
                 }
             }
-            // 5% speed idle (1000ms = 1 TPS) to 100% speed active (50ms = 20 TPS)
-            TimeStopManager.setSuperhotTickMs((long) (1000 - global * 950));
+            double idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get();
+            long maxMs = (long) Math.max(50.0, Math.round(50.0 / idleRate));
+            TimeStopManager.setSuperhotTickMs((long) (maxMs - global * (maxMs - 50L)));
 
             for (var player : server.getPlayerList().getPlayers()) {
                 if (activeLevel != null && !player.level().dimension().equals(activeLevel.dimension())) continue;

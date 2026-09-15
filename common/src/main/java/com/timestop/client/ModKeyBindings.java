@@ -46,4 +46,11 @@ public class ModKeyBindings {
             GLFW.GLFW_MOUSE_BUTTON_MIDDLE,
             "key.categories.timestop"
     );
+
+    public static final KeyMapping OPEN_SETTINGS_KEY = new KeyMapping(
+            "key.timestop.open_settings",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_H,
+            "key.categories.timestop"
+    );
 }

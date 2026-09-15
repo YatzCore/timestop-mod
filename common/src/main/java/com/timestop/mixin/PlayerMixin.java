@@ -121,16 +121,16 @@ public abstract class PlayerMixin extends LivingEntity {
         if (player.level().isClientSide) {
             if (!ClientTimeStopManager.isTimeStopped() || !ClientTimeStopManager.isEntityExempt(player)) return false;
             TimeMode mode = ClientTimeStopManager.getCurrentMode();
-            return mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION;
+            return mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION || mode == TimeMode.SUPERHOT;
         } else {
             if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
                 com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
                 if (b == null || !b.canEntityAct(player)) return false;
-                return b.getMode() == TimeMode.MATRIX || b.getMode() == TimeMode.SLOW_MOTION;
+                return b.getMode() == TimeMode.MATRIX || b.getMode() == TimeMode.SLOW_MOTION || b.getMode() == TimeMode.SUPERHOT;
             }
             if (!TimeStopManager.isTimeStopped(player.level()) || !TimeStopManager.isEntityExempt(player)) return false;
             TimeMode mode = TimeStopManager.getCurrentMode();
-            return mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION;
+            return mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION || mode == TimeMode.SUPERHOT;
         }
     }
 

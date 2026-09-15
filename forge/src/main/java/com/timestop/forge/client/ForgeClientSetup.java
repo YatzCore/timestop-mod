@@ -44,6 +44,7 @@ public class ForgeClientSetup {
         }
         event.register(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         event.register(ModKeyBindings.KINETIC_BARRIER_KEY);
+        event.register(ModKeyBindings.OPEN_SETTINGS_KEY);
     }
 
     public static void registerOverlays(RegisterGuiOverlaysEvent event) {

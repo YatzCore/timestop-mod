@@ -18,7 +18,7 @@ void main() {
     float maxGB = max(center.g, center.b);
     float sumGB = center.g + center.b;
 
-    bool isCrystalEnemy = (center.r > 0.25) && (maxGB < 0.05) && (sumGB < 0.08) && (center.r > maxGB * 4.0);
+    bool isCrystalEnemy = (center.r > 0.18) && (center.r > maxGB * 2.0) && (center.r > sumGB * 1.1) && (maxGB < 0.22);
 
     if (isCrystalEnemy) {
         // PURE VIBRANT SUPERHOT CRYSTALLINE RED

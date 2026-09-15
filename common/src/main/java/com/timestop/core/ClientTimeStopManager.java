@@ -95,13 +95,16 @@ public class ClientTimeStopManager {
         if (!active) return 50.0F;
         switch (mode) {
             case FAST_FORWARD:
-                return 10.0F; // 10ms = 100 TPS (5x speed)
+                return (float) Math.max(1.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get());
             case SLOW_MOTION:
+                return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get());
             case MATRIX:
-                return 200.0F; // 200ms = 5 TPS (0.25x speed)
+                return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.matrixRate.get());
             case SUPERHOT:
-                // Match the server: five percent speed while idle and normal speed while active.
-                return 50.0F / (0.05F + superhotActivity * 0.95F);
+                float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
+                float maxMs = Math.max(50.0F, 50.0F / idleRate);
+                float act = Math.max(0.0F, Math.min(1.0F, superhotActivity));
+                return maxMs - act * (maxMs - 50.0F);
             default:
                 return 50.0F;
         }
@@ -228,37 +231,34 @@ public class ClientTimeStopManager {
         }
 
         // Direct key state queries on client options: instantaneous responsiveness!
-        // Respects configured movement bindings; does not hardcode WASD or Space.
-        // Opening a menu (mc.screen != null) or losing window focus (!mc.isWindowActive()) counts as no movement input.
-        boolean inputActive = SuperhotMotion.isMovementInputActive(
-                mc.options.keyUp.isDown(),
-                mc.options.keyDown.isDown(),
-                mc.options.keyLeft.isDown(),
-                mc.options.keyRight.isDown(),
-                mc.options.keyJump.isDown(),
-                mc.screen != null,
-                mc.isWindowActive()
-        );
+        // Moving the mouse cursor does NOT advance time (free cursor aiming).
+        boolean hasMovementKey = mc.options.keyUp.isDown()
+                || mc.options.keyDown.isDown()
+                || mc.options.keyLeft.isDown()
+                || mc.options.keyRight.isDown()
+                || mc.options.keyJump.isDown();
 
-        // Localized SUPERHOT bubble: advances when any living, non-spectating player inside that bubble holds a movement key.
-        // Input from players outside the bubble or in another dimension must not affect it.
-        boolean eligibleInput = inputActive && !mc.player.isSpectator();
+        boolean hasAction = mc.options.keyAttack.isDown()
+                || mc.options.keyUse.isDown()
+                || mc.player.swinging
+                || mc.player.isUsingItem();
+
+        boolean myLocalFast = mc.screen == null && (hasMovementKey || hasAction) && !mc.player.isSpectator();
         if (inBubble && currentBubble != null) {
             if (!currentBubble.contains(mc.player.getX(), mc.player.getY() + mc.player.getBbHeight() * 0.5, mc.player.getZ())) {
-                eligibleInput = false;
+                myLocalFast = false;
             }
         }
 
         long now = System.currentTimeMillis();
-        if (eligibleInput != wasFastLastFrame || now - lastSuperhotReport >= 200) {
+        if (myLocalFast != wasFastLastFrame || now - lastSuperhotReport >= 250) {
             lastSuperhotReport = now;
-            wasFastLastFrame = eligibleInput;
-            ModMessages.sendToServer(new SuperhotSyncPacket(eligibleInput ? 1.0F : 0.0F));
+            wasFastLastFrame = myLocalFast;
+            ModMessages.sendToServer(new SuperhotSyncPacket(myLocalFast ? 1.0F : 0.0F));
         }
 
-        // In Superhot: Holding a movement key makes time flow at normal speed.
-        // If any other eligible player on server in this sphere/world is moving, time also advances!
-        float target = (eligibleInput || serverSyncedSuperhotActivity > 0.15F) ? 1.0F : 0.0F;
+        // In Superhot: Moving or acting advances time. If any player on server in this sphere is moving, time also advances!
+        float target = (myLocalFast || serverSyncedSuperhotActivity > 0.15F) ? 1.0F : 0.0F;
 
         if (target >= 0.9F) {
             // Immediate real-time acceleration!

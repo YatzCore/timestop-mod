@@ -2,6 +2,33 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.4.0] - 2026-09-15
+
+### Added
+- **Speed Calibration System**: In-game calibration tab with real-time sliders, direct numeric input boxes, and multiplier badges for customizing temporal speeds:
+  - Fast Forward (1.1x - 50.0x, default 5.0x)
+  - Slow Motion (0.01x - 0.99x, default 0.25x)
+  - Matrix Dilation (0.01x - 0.99x, default 0.25x)
+  - Superhot Idle Rate (0.005x - 0.80x, default 0.05x)
+  - Deceleration Drag (0.001x - 0.95x, default 0.10x)
+- **Dedicated Mechanics Tab**: Organized the Temporal Engine Settings into a 3-tab layout (`Visuals & FX`, `Mechanics`, and `Speed Calibration`). Added toggles for Water Walking in Stasis, Player Projectiles in Stasis, and Projectile Flow Mode.
+- **Fast Forward Block Entity Acceleration**: Furnaces, blast furnaces, smokers, and brewing stands process at 5x speed during Fast Forward stasis.
+- **Open Settings Keybind**: Bound to `H` by default (`key.timestop.open_settings`) for quick access to temporal settings.
+- **Speed Configuration Command**: Added `/timestop speed` command subtree for viewing, setting, and resetting multiplier values with client synchronization.
+
+### Changed
+- **Superhot Mode Parity & Polish**:
+  - Free cursor aiming: looking around no longer advances time.
+  - Combat action waking: swinging weapons, attacking, or using items advances time to real time.
+  - Weapon cooldowns and eating run at normal 20 TPS during Superhot stasis.
+  - Configurable crystal-red mob tint filter (`HOSTILE`, `PASSIVE`, `ALL`).
+  - Preserved armor, weapons, shields, custom heads, wings, and glowing eyes on crystal-red mobs.
+  - Calibrated shader crystal-red threshold for accurate entity detection in dark shadows and caves.
+  - Reverted Superhot HUD indicator to a clean 2-state display (`TIME FROZEN` vs `TIME IN MOTION`).
+
+### Fixed
+- **Temporal Bubble Clock Dilation**: Synchronized server and client delta trackers when inside localized temporal bubbles, resolving mob stuttering and player desync inside Slow Motion, Matrix, and Superhot fields.
+
 ## [1.3.12] - 2026-09-11
 
 ### Added

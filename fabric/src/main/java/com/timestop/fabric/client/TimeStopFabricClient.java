@@ -30,6 +30,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
         }
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.KINETIC_BARRIER_KEY);
+        KeyBindingHelper.registerKeyBinding(ModKeyBindings.OPEN_SETTINGS_KEY);
 
         // 3. Entity Renderers
         EntityRendererRegistry.register(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);

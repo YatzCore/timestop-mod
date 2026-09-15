@@ -24,6 +24,39 @@ public abstract class LevelMixin {
                     || com.timestop.core.TemporalBubbleManager.isPositionInStasis(level.dimension(), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         if (!stopped) {
             ticker.tick();
+            if (isFastForward(level, pos)) {
+                int extraTicks = Math.max(1, (int) Math.round(com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get())) - 1;
+                for (int i = 0; i < extraTicks && !ticker.isRemoved(); i++) {
+                    ticker.tick();
+                }
+            }
+        }
+    }
+
+    private static boolean isFastForward(Level level, BlockPos pos) {
+        double px = pos.getX() + 0.5;
+        double py = pos.getY() + 0.5;
+        double pz = pos.getZ() + 0.5;
+        if (level.isClientSide) {
+            if (com.timestop.core.ClientTimeStopManager.isGlobalTimeStopActive()
+                    && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.FAST_FORWARD) {
+                return true;
+            }
+            if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
+                var bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(px, py, pz);
+                return bubble != null && bubble.mode == TimeMode.FAST_FORWARD;
+            }
+            return false;
+        } else {
+            if (TimeStopManager.isGlobalTimeStopActive()
+                    && TimeStopManager.getCurrentMode() == TimeMode.FAST_FORWARD) {
+                return true;
+            }
+            if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+                var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(level.dimension(), px, py, pz);
+                return bubble != null && bubble.getMode() == TimeMode.FAST_FORWARD;
+            }
+            return false;
         }
     }
 }

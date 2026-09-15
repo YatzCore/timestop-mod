@@ -1,9 +1,11 @@
 package com.timestop.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.timestop.config.TimeStopConfig;
 import com.timestop.core.TimeStopManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -92,6 +94,7 @@ public class TimeStopCommand {
                 .then(Commands.literal("status")
                         .requires(source -> source.hasPermission(2))
                         .executes(ctx -> showStatus(ctx.getSource())))
+                .then(buildSpeedSubtree())
                 // Time Sync & Resonators (Accessible to ALL players without OP)
                 .then(buildSyncSubtree("sync"))
                 .then(buildSyncSubtree("timesync"))
@@ -236,6 +239,76 @@ public class TimeStopCommand {
         } else {
             source.sendSuccess(() -> Component.literal("§6Time Stop Status: §cINACTIVE"), false);
         }
+        return 1;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> buildSpeedSubtree() {
+        return Commands.literal("speed")
+                .executes(ctx -> showSpeeds(ctx.getSource()))
+                .then(Commands.literal("reset")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> resetSpeeds(ctx.getSource())))
+                .then(Commands.literal("fastforward")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "fastforward", TimeStopConfig.COMMON.fastForwardRate.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(1.1, 50.0))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "fastforward", DoubleArgumentType.getDouble(ctx, "value")))))
+                .then(Commands.literal("slowmotion")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "slowmotion", TimeStopConfig.COMMON.slowMotionRate.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.01, 0.99))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "slowmotion", DoubleArgumentType.getDouble(ctx, "value")))))
+                .then(Commands.literal("matrix")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "matrix", TimeStopConfig.COMMON.matrixRate.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.01, 0.99))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "matrix", DoubleArgumentType.getDouble(ctx, "value")))))
+                .then(Commands.literal("superhot")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "superhot", TimeStopConfig.COMMON.superhotIdleRate.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.005, 0.80))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "superhot", DoubleArgumentType.getDouble(ctx, "value")))))
+                .then(Commands.literal("drag")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "drag", TimeStopConfig.COMMON.decelerationDrag.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.001, 0.95))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "drag", DoubleArgumentType.getDouble(ctx, "value")))));
+    }
+
+    private static int setSpeed(CommandSourceStack source, String key, double value) {
+        switch (key) {
+            case "fastforward" -> TimeStopConfig.COMMON.fastForwardRate.set(TimeStopConfig.clampFastForward(value));
+            case "slowmotion" -> TimeStopConfig.COMMON.slowMotionRate.set(TimeStopConfig.clampSlowMotion(value));
+            case "matrix" -> TimeStopConfig.COMMON.matrixRate.set(TimeStopConfig.clampMatrix(value));
+            case "superhot" -> TimeStopConfig.COMMON.superhotIdleRate.set(TimeStopConfig.clampSuperhotIdle(value));
+            case "drag" -> TimeStopConfig.COMMON.decelerationDrag.set(TimeStopConfig.clampDecelerationDrag(value));
+        }
+        TimeStopConfig.save();
+        com.timestop.network.ModMessages.sendToClients(com.timestop.network.SyncSpeedConfigPacket.current());
+        source.sendSuccess(() -> Component.literal(String.format("§6[TimeStop] %s speed multiplier set to §a%.3fx§6.", key, value)), true);
+        return 1;
+    }
+
+    private static int resetSpeeds(CommandSourceStack source) {
+        TimeStopConfig.resetSpeedsToDefaults();
+        TimeStopConfig.save();
+        com.timestop.network.ModMessages.sendToClients(com.timestop.network.SyncSpeedConfigPacket.current());
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] All speed multipliers reset to default calibration."), true);
+        return 1;
+    }
+
+    private static int showSpeed(CommandSourceStack source, String key, double value) {
+        source.sendSuccess(() -> Component.literal(String.format("§6[TimeStop] %s multiplier: §a%.3fx", key, value)), false);
+        return 1;
+    }
+
+    private static int showSpeeds(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.literal("§6=== TimeStop Speed Multipliers ==="), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §eFast Forward: §a%.2fx §7[1.1x - 50.0x]", TimeStopConfig.COMMON.fastForwardRate.get())), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §eSlow Motion:  §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.slowMotionRate.get())), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §eMatrix:       §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.matrixRate.get())), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §eSuperhot Idle:§a%.3fx §7[0.005x - 0.80x]", TimeStopConfig.COMMON.superhotIdleRate.get())), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §eDecel Drag:   §a%.3fx §7[0.001x - 0.95x]", TimeStopConfig.COMMON.decelerationDrag.get())), false);
         return 1;
     }
 }

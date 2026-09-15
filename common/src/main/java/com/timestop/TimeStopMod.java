@@ -46,6 +46,8 @@ public class TimeStopMod {
                 TimeStopManager.isGlobalTimeStopActive(), TimeStopManager.getRemainingTicks(),
                 TimeStopManager.getInitiatorUuid(), TimeStopManager.getCurrentMode(),
                 TimeStopManager.getExemptPlayers()), serverPlayer);
+        ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
+        ModMessages.sendToPlayer(com.timestop.network.SyncMechanicsConfigPacket.current(), serverPlayer);
     }
 
     public static void onPlayerLoggedOut(ServerPlayer serverPlayer) {

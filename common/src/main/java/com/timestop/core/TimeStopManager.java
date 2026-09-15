@@ -175,14 +175,30 @@ public class TimeStopManager {
         if (timeStopped) {
             switch (currentMode) {
                 case FAST_FORWARD:
-                    return 10L;
+                    return (long) Math.max(1L, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get()));
                 case SLOW_MOTION:
+                    return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get()));
                 case MATRIX:
-                    return 200L;
+                    return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.matrixRate.get()));
                 case SUPERHOT:
                     return superhotTickMs;
                 default:
                     return 50L;
+            }
+        }
+        if (TemporalBubbleManager.hasActiveBubbles()) {
+            for (TemporalBubble bubble : TemporalBubbleManager.getActiveBubbles().values()) {
+                TimeMode bMode = bubble.getMode();
+                if (bMode == TimeMode.SLOW_MOTION) {
+                    return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get()));
+                } else if (bMode == TimeMode.MATRIX) {
+                    return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.matrixRate.get()));
+                } else if (bMode == TimeMode.SUPERHOT) {
+                    float act = Math.max(0.0F, Math.min(1.0F, bubble.getSuperhotActivity()));
+                    float idleRate = com.timestop.config.TimeStopConfig.COMMON.superhotIdleRate.get().floatValue();
+                    long maxMs = (long) Math.max(50.0F, Math.round(50.0F / idleRate));
+                    return (long) (maxMs - act * (maxMs - 50L));
+                }
             }
         }
         return 50L;

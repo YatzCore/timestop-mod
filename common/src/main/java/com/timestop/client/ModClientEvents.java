@@ -51,6 +51,13 @@ public class ModClientEvents {
         while (ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY.consumeClick()) {
             ModMessages.sendToServer(new ToggleProjectileFlowPacket());
         }
+
+        while (ModKeyBindings.OPEN_SETTINGS_KEY.consumeClick()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.screen == null) {
+                mc.setScreen(new com.timestop.client.gui.TimeStopSettingsScreen(null, null));
+            }
+        }
     }
 
     public static void onRenderTick(float partialTick) {
