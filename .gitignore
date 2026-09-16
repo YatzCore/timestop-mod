@@ -30,3 +30,9 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Internal Dev Notes & CurseForge exports
+PORT_FIXES.md
+*.bak
+CURSEFORGE*
+
