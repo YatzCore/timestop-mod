@@ -203,6 +203,12 @@ public class ClientTimeStopManager {
         if (clientTimeStopped && clientRemainingTicks > 0) {
             clientRemainingTicks--;
         }
+        if (shaderActive && currentShader != null && com.timestop.config.TimeStopConfig.CLIENT.enableShaders.get()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.gameRenderer != null && mc.gameRenderer.currentEffect() == null && mc.level != null) {
+                applyShader(currentShader);
+            }
+        }
     }
 
     public static void onRenderFrameMotion() {
@@ -273,8 +279,7 @@ public class ClientTimeStopManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null) {
             try {
-                PostChain activeEffect = ((GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
-                if (activeEffect == null || !shaderActive || !shader.equals(currentShader)) {
+                if (mc.gameRenderer.currentEffect() == null || !shaderActive || !shader.equals(currentShader)) {
                     ((GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(shader);
                     shaderActive = true;
                     currentShader = shader;
@@ -288,8 +293,7 @@ public class ClientTimeStopManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null) {
             try {
-                PostChain activeEffect = ((GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
-                if (activeEffect != null && shaderActive) {
+                if (mc.gameRenderer.currentEffect() != null && shaderActive) {
                     mc.gameRenderer.shutdownEffect();
                 }
                 shaderActive = false;

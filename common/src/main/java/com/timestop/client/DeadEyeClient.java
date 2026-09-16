@@ -33,8 +33,7 @@ public final class DeadEyeClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null) {
             try {
-                net.minecraft.client.renderer.PostChain activeEffect = ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
-                if (activeEffect == null || !deadEyeShaderActive) {
+                if (mc.gameRenderer.currentEffect() == null || !deadEyeShaderActive) {
                     ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(SEPIA_SHADER);
                     deadEyeShaderActive = true;
                 }
@@ -47,8 +46,7 @@ public final class DeadEyeClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null) {
             try {
-                net.minecraft.client.renderer.PostChain activeEffect = ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
-                if (activeEffect != null && deadEyeShaderActive) {
+                if (mc.gameRenderer.currentEffect() != null && deadEyeShaderActive) {
                     mc.gameRenderer.shutdownEffect();
                 }
                 deadEyeShaderActive = false;
@@ -61,6 +59,9 @@ public final class DeadEyeClient {
     }
 
     public static void clientTick(Minecraft mc) {
+        if (deadEyeShaderActive && mc.gameRenderer != null && mc.gameRenderer.currentEffect() == null && mc.level != null) {
+            applyDeadEyeShader();
+        }
         if (mc.player == null || mc.level == null) {
             if (clientAiming) stopClientAiming(false);
             return;
