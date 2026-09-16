@@ -20,13 +20,18 @@ public abstract class MinecraftServerMixin {
     )
     private void adjustTimeStopTickDelay(CallbackInfo ci) {
         long targetTickMs = TimeStopManager.getServerTickMs();
-        if (targetTickMs != 50L) {
+        if (targetTickMs > 50L) {
             long delta = targetTickMs - 50L;
-            if (delta != 0L) {
-                long deltaNanos = delta * 1_000_000L;
-                this.nextTickTimeNanos += deltaNanos;
-                this.delayedTasksMaxNextTickTimeNanos = this.nextTickTimeNanos;
+            long deltaNanos = delta * 1_000_000L;
+            this.nextTickTimeNanos += deltaNanos;
+            this.delayedTasksMaxNextTickTimeNanos = this.nextTickTimeNanos;
+        } else if (targetTickMs < 50L) {
+            long curNanos = net.minecraft.Util.getNanos();
+            long targetNanos = targetTickMs * 1_000_000L;
+            if (this.nextTickTimeNanos > curNanos + targetNanos) {
+                this.nextTickTimeNanos = curNanos + targetNanos;
             }
+            this.delayedTasksMaxNextTickTimeNanos = this.nextTickTimeNanos;
         }
     }
 }

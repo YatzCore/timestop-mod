@@ -11,6 +11,9 @@ All notable changes to the **Ultimate Time Stop** mod are documented in this fil
 - **Configurable Superhot Mob Tint**: Added HOSTILE, PASSIVE, and ALL entity tint filtering options in the Settings GUI.
 
 ### Fixed
+- **Fast Forward Celestial Sky Progression**: The celestial sky (sun, moon, stars) now moves at normal real-time speed (20 TPS) while inside localized Fast Forward bubbles, and flows smoothly at the calibrated speed during global Fast Forward.
+- **Third-Person Perspective Shader**: Prevented vanilla post-processing clearing when cycling camera views (F5) during stasis or Dead Eye aiming. Custom shaders remain continuously active across all camera angles.
+- **Server Tick Timing**: Resolved watchdog overload warnings in `MinecraftServerMixin` during Fast Forward execution.
 - **Superhot Motion Responsiveness**: Free cursor and mouse aiming now maintain full stasis without falsely triggering motion acceleration or displaying motion indicators.
 - **Superhot Idle Stasis**: Restored authentic near-zero crawl idle rate (down to 1 TPS / 1000ms delay) scaling with user configuration.
 - **Bubble Clock Dilation**: Resolved mob jitter, stuttering, and player movement lag during localized bubble time dilation by synchronizing server and client delta trackers.

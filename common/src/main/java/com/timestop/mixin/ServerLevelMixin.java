@@ -141,14 +141,34 @@ public abstract class ServerLevelMixin {
         }
     }
 
+    @Unique
+    private static double timestop$serverDayTimeFraction = 0.0;
+
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
         // World time freezes globally only if global time stop is active
-        if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-            ci.cancel();
-            return;
+        if (TimeStopManager.isGlobalTimeStopActive()) {
+            if (TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+                ci.cancel();
+                return;
+            }
+            if (TimeStopManager.getCurrentMode() == TimeMode.FAST_FORWARD) {
+                if (level.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_DAYLIGHT)) {
+                    double rate = com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get();
+                    long tickMs = TimeStopManager.getServerTickMs();
+                    double ticksPerServerTick = (50.0 / Math.max(1.0, tickMs));
+                    double additionalRate = rate / ticksPerServerTick;
+                    if (additionalRate > 1.0) {
+                        timestop$serverDayTimeFraction += (additionalRate - 1.0);
+                        long toAdd = (long) timestop$serverDayTimeFraction;
+                        if (toAdd > 0) {
+                            timestop$serverDayTimeFraction -= toAdd;
+                            level.setDayTime(level.getDayTime() + toAdd);
+                        }
+                    }
+                }
+            }
         }
-
     }
 }
