@@ -1,0 +1,64 @@
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+base {
+    archivesName = "${project.archives_name}-neoforge-${project.minecraft_version}"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += project(':common').file('src/main/java')
+        }
+        resources {
+            srcDirs += project(':common').file('src/main/resources')
+        }
+    }
+}
+
+neoForge {
+    version = "${project.neoforge_version}"
+    validateAccessTransformers = true
+
+    mods {
+        timestop {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    compileOnly project(':common')
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}
+
+tasks.named('processResources', ProcessResources) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property "version", project.version
+
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": project.version
+    }
+
+    eachFile { details ->
+        if (details.path.startsWith('data/')) {
+            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/')
+        }
+    }
+}
+
+tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes([
+            'Specification-Title': 'timestop',
+            'Specification-Vendor': 'timestop',
+            'Specification-Version': '1',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'timestop',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}

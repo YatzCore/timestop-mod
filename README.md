@@ -8,7 +8,7 @@
   <b>Minecraft Version Branches:</b><br />
   <a href="https://github.com/YatzCore/timestop-mod/tree/main">Minecraft 1.20.1 (main)</a> |
   <a href="https://github.com/YatzCore/timestop-mod/tree/1.20.1-forge-fabric">1.20.1 (Forge / Fabric / NeoForge)</a> |
-  <b><a href="https://github.com/YatzCore/timestop-mod/tree/1.21.1-forge-fabric">1.21.1 (Forge / Fabric) (Current)</a></b>
+  <b><a href="https://github.com/YatzCore/timestop-mod/tree/1.21.1-forge-fabric">1.21.1 (Forge / Fabric / NeoForge) (Current)</a></b>
 </p>
 
 <p align="center">
@@ -16,13 +16,14 @@
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?style=flat-square" alt="Minecraft 1.21.1" />
   <img src="https://img.shields.io/badge/Fabric-0.16.10%2B-lightgrey?style=flat-square" alt="Fabric" />
   <img src="https://img.shields.io/badge/Forge-52.1.16%2B-orange?style=flat-square" alt="Forge" />
+  <img src="https://img.shields.io/badge/NeoForge-21.1.75%2B-blueviolet?style=flat-square" alt="NeoForge" />
   <img src="https://img.shields.io/badge/Java-21-red?style=flat-square" alt="Java 21" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" /></a>
 </p>
 
 ---
 
-A true engine-level temporal manipulation mod for **Minecraft 1.21.1** supporting both **Forge** (52.1.16+) and **Fabric** (0.16.10+), running on Java 21. Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, in-game speed calibration controls, and modern 1.21.1 delta-tracking.
+A true engine-level temporal manipulation mod for **Minecraft 1.21.1** supporting **Forge** (52.1.16+), **Fabric** (0.16.10+), and **NeoForge** (21.1.75+), running on Java 21. Freeze all entities, projectile trajectories, fluids, block updates, and weather across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, tactical combat runes, in-game speed calibration controls, and modern 1.21.1 delta-tracking.
 
 > [!IMPORTANT]
 > **TACZ (Timeless and Classics Zero) Compatibility on 1.21.1**:
@@ -148,6 +149,11 @@ For detailed command breakdowns, syntax, permissions, and tutorials, see [COMMAN
 2. Install **Fabric API** (version 0.116.17+1.21.1 or higher).
 3. Download `timestop-fabric-1.21.1-1.4.0.jar` from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
 4. Place the `.jar` into your `.minecraft/mods` directory.
+
+### NeoForge
+1. Install **Minecraft 1.21.1** with **NeoForge** (version 21.1.75 or higher) running on **Java 21**.
+2. Download `timestop-neoforge-1.21.1-1.4.0.jar` from [GitHub Releases](https://github.com/YatzCore/timestop-mod/releases).
+3. Place the `.jar` into your `.minecraft/mods` directory.
 
 ---
 
