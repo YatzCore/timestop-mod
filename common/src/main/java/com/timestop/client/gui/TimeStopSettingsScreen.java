@@ -5,7 +5,6 @@ import com.timestop.core.ClientTimeStopManager;
 import com.timestop.core.TimeStopManager;
 import com.timestop.network.ModMessages;
 import com.timestop.network.ToggleProjectileFlowPacket;
-import com.timestop.network.UpdateMechanicsConfigPacket;
 import com.timestop.network.UpdateSpeedConfigPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -25,7 +24,7 @@ public class TimeStopSettingsScreen extends Screen {
     @Nullable
     private final InteractionHand hand;
 
-    // Tab state: 0 = Visuals & FX, 1 = Mechanics, 2 = Speed Calibration
+    // Tab state: 0 = Visuals & FX, 1 = Speed Calibration
     private int activeTab = 0;
 
     private boolean draggingOpacity = false;
@@ -69,11 +68,7 @@ public class TimeStopSettingsScreen extends Screen {
         // Automatically reflected by TimeStopConfig.COMMON reads
     }
 
-    public void onMechanicsConfigSynced() {
-        // Automatically reflected by TimeStopConfig.COMMON reads
-    }
-
-    private boolean canEditServerSettings() {
+    private boolean canEditSpeeds() {
         if (this.minecraft == null || this.minecraft.player == null) return false;
         if (this.minecraft.isSingleplayer()) return true;
         return this.minecraft.player.hasPermissions(2);
@@ -145,18 +140,11 @@ public class TimeStopSettingsScreen extends Screen {
         ));
     }
 
-    private void sendCurrentMechanicsToServer() {
-        ModMessages.sendToServer(new UpdateMechanicsConfigPacket(
-                TimeStopConfig.COMMON.enableWaterWalkingInStasis.get(),
-                TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get()
-        ));
-    }
-
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.activeTooltip = null;
 
-        int modalWidth = 330;
+        int modalWidth = 320;
         int modalHeight = 285;
         int modalX = (this.width - modalWidth) / 2;
         int modalY = (this.height - modalHeight) / 2;
@@ -168,32 +156,39 @@ public class TimeStopSettingsScreen extends Screen {
         // Header Title
         guiGraphics.drawString(this.font, "TEMPORAL ENGINE CONFIGURATION", modalX + 16, modalY + 11, 0xFF38BDF8, false);
 
-        // Tab Selector Buttons (3 Tabs)
-        int tabW = 94;
-        int tabGap = 8;
-        int tabsStartX = modalX + 16;
-        int tab0X = tabsStartX;
-        int tab1X = tabsStartX + tabW + tabGap;
-        int tab2X = tabsStartX + (tabW + tabGap) * 2;
-        int tabY = modalY + 25;
+        // Tab Selector Buttons (2 Tabs)
+        int tabW = 140;
         int tabH = 16;
+        int tab0X = modalX + 16;
+        int tab0Y = modalY + 25;
+        int tab1X = modalX + modalWidth - 16 - tabW;
+        int tab1Y = modalY + 25;
 
         // Tab 0 button: Visuals & FX
-        renderTabButton(guiGraphics, tab0X, tabY, tabW, tabH, "Visuals & FX", activeTab == 0, mouseX, mouseY);
+        boolean hoverTab0 = isInside(mouseX, mouseY, tab0X, tab0Y, tabW, tabH);
+        int tab0Bg = (activeTab == 0) ? 0xFF0284C7 : (hoverTab0 ? 0xFF1E293B : 0xFF0F172A);
+        int tab0Border = (activeTab == 0) ? 0xFF38BDF8 : 0xFF334155;
+        int tab0Text = (activeTab == 0) ? 0xFFFFFFFF : (hoverTab0 ? 0xFFE2E8F0 : 0xFF94A3B8);
+        guiGraphics.fill(tab0X, tab0Y, tab0X + tabW, tab0Y + tabH, tab0Bg);
+        guiGraphics.renderOutline(tab0X, tab0Y, tabW, tabH, tab0Border);
+        int t0X = tab0X + (tabW - this.font.width("Visuals & FX")) / 2;
+        guiGraphics.drawString(this.font, "Visuals & FX", t0X, tab0Y + 4, tab0Text, false);
 
-        // Tab 1 button: Mechanics
-        renderTabButton(guiGraphics, tab1X, tabY, tabW, tabH, "Mechanics", activeTab == 1, mouseX, mouseY);
-
-        // Tab 2 button: Speed Calibration
-        renderTabButton(guiGraphics, tab2X, tabY, tabW, tabH, "Calibration", activeTab == 2, mouseX, mouseY);
+        // Tab 1 button: Speed Calibration
+        boolean hoverTab1 = isInside(mouseX, mouseY, tab1X, tab1Y, tabW, tabH);
+        int tab1Bg = (activeTab == 1) ? 0xFF0284C7 : (hoverTab1 ? 0xFF1E293B : 0xFF0F172A);
+        int tab1Border = (activeTab == 1) ? 0xFF38BDF8 : 0xFF334155;
+        int tab1Text = (activeTab == 1) ? 0xFFFFFFFF : (hoverTab1 ? 0xFFE2E8F0 : 0xFF94A3B8);
+        guiGraphics.fill(tab1X, tab1Y, tab1X + tabW, tab1Y + tabH, tab1Bg);
+        guiGraphics.renderOutline(tab1X, tab1Y, tabW, tabH, tab1Border);
+        int t1X = tab1X + (tabW - this.font.width("Speed Calibration")) / 2;
+        guiGraphics.drawString(this.font, "Speed Calibration", t1X, tab1Y + 4, tab1Text, false);
 
         // Horizontal divider under tabs
         guiGraphics.fill(modalX + 12, modalY + 44, modalX + modalWidth - 12, modalY + 45, 0x33FFFFFF);
 
         if (activeTab == 0) {
             renderVisualsTab(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
-        } else if (activeTab == 1) {
-            renderMechanicsTab(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
         } else {
             renderSpeedsTab(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
         }
@@ -205,21 +200,9 @@ public class TimeStopSettingsScreen extends Screen {
         }
     }
 
-    private void renderTabButton(GuiGraphics guiGraphics, int x, int y, int w, int h, String text, boolean active, int mouseX, int mouseY) {
-        boolean hovered = isInside(mouseX, mouseY, x, y, w, h);
-        int bg = active ? 0xFF0284C7 : (hovered ? 0xFF1E293B : 0xFF0F172A);
-        int border = active ? 0xFF38BDF8 : 0xFF334155;
-        int textColor = active ? 0xFFFFFFFF : (hovered ? 0xFFE2E8F0 : 0xFF94A3B8);
-
-        guiGraphics.fill(x, y, x + w, y + h, bg);
-        guiGraphics.renderOutline(x, y, w, h, border);
-        int tX = x + (w - this.font.width(text)) / 2;
-        guiGraphics.drawString(this.font, text, tX, y + 4, textColor, false);
-    }
-
     private void renderVisualsTab(GuiGraphics guiGraphics, int modalX, int modalY, int modalWidth, int modalHeight, int mouseX, int mouseY) {
-        int startY = modalY + 49;
-        int rowH = 20;
+        int startY = modalY + 48;
+        int rowH = 19;
 
         // 1. Render Sphere Toggle
         renderToggleRow(guiGraphics, modalX, startY, modalWidth, "Render Temporal Spheres",
@@ -249,111 +232,38 @@ public class TimeStopSettingsScreen extends Screen {
         renderToggleRow(guiGraphics, modalX, startY + rowH * 6, modalWidth, "Floating Timer HUD",
                 TimeStopConfig.CLIENT.enableTimerHud.get(), mouseX, mouseY);
 
-        // 8. Superhot Mob Tint (HOSTILE / PASSIVE / ALL)
-        renderCycleRow(guiGraphics, modalX, startY + rowH * 7, modalWidth, "Superhot Mob Tint",
+        // 8. Projectile Stasis Mode Toggle
+        renderToggleRow(guiGraphics, modalX, startY + rowH * 7, modalWidth, "Projectiles Flow in Stasis",
+                ClientTimeStopManager.getProjectileMode() == TimeStopManager.ProjectileStasisMode.FLOWING, mouseX, mouseY);
+
+        // 9. Superhot Mob Tint Toggle (HOSTILE / PASSIVE / ALL)
+        renderCycleRow(guiGraphics, modalX, startY + rowH * 8, modalWidth, "Superhot Mob Tint",
                 TimeStopConfig.CLIENT.superhotMobTarget.get(), mouseX, mouseY);
 
-        // 9. Opacity Slider
-        int sliderY = startY + rowH * 8 + 2;
+        // 10. Opacity Slider
+        int sliderY = startY + rowH * 9 + 2;
         renderOpacitySlider(guiGraphics, modalX, sliderY, modalWidth, mouseX, mouseY);
 
         // Bottom Done / Back Button
-        renderDoneButton(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
-    }
+        int btnW = 100;
+        int btnH = 20;
+        int btnX = modalX + (modalWidth - btnW) / 2;
+        int btnY = modalY + modalHeight - 26;
 
-    private void renderMechanicsTab(GuiGraphics guiGraphics, int modalX, int modalY, int modalWidth, int modalHeight, int mouseX, int mouseY) {
-        int startY = modalY + 54;
-        int rowH = 42;
-        boolean canEdit = canEditServerSettings();
+        boolean isBtnHovered = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
+        int btnBg = isBtnHovered ? 0xFF0284C7 : 0xFF0369A1;
+        guiGraphics.fill(btnX, btnY, btnX + btnW, btnY + btnH, btnBg);
+        guiGraphics.renderOutline(btnX, btnY, btnW, btnH, 0xFF38BDF8);
 
-        // Row 1: Water Walking in Stasis
-        renderMechanicRow(guiGraphics, modalX, startY, modalWidth,
-                "Water Walking in Stasis",
-                "Walk across water and lava during temporal stasis",
-                TimeStopConfig.COMMON.enableWaterWalkingInStasis.get(),
-                canEdit, mouseX, mouseY);
-
-        // Row 2: Player Projectiles in Stasis
-        renderMechanicRow(guiGraphics, modalX, startY + rowH, modalWidth,
-                "Player Projectiles in Stasis",
-                "Allow players to fire arrows & shots while frozen",
-                TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get(),
-                canEdit, mouseX, mouseY);
-
-        // Row 3: Projectile Flow Mode
-        boolean isFlowing = ClientTimeStopManager.getProjectileMode() == TimeStopManager.ProjectileStasisMode.FLOWING;
-        renderMechanicModeRow(guiGraphics, modalX, startY + rowH * 2, modalWidth,
-                "Projectiles Flow in Stasis",
-                "Instant ballistic flight (FLOW) vs suspended matrix (SUSPEND)",
-                isFlowing ? "FLOWING" : "SUSPENDED",
-                isFlowing, mouseX, mouseY);
-
-        // Informational tip line
-        if (canEdit) {
-            guiGraphics.drawString(this.font, "Tip: Mechanics apply universally across server stasis", modalX + 16, modalY + 224, 0xFF64748B, false);
-        } else {
-            guiGraphics.drawString(this.font, "Notice: Read-only mode (Server Operator level 2 required)", modalX + 16, modalY + 224, 0xFFEF4444, false);
-        }
-
-        // Bottom Done / Back Button
-        renderDoneButton(guiGraphics, modalX, modalY, modalWidth, modalHeight, mouseX, mouseY);
-    }
-
-    private void renderMechanicRow(GuiGraphics guiGraphics, int modalX, int y, int modalWidth, String title, String subtitle, boolean enabled, boolean canEdit, int mouseX, int mouseY) {
-        guiGraphics.drawString(this.font, title, modalX + 16, y + 2, 0xFFE2E8F0, false);
-        guiGraphics.drawString(this.font, subtitle, modalX + 16, y + 14, 0xFF64748B, false);
-
-        int btnW = 60;
-        int btnH = 16;
-        int btnX = modalX + modalWidth - 16 - btnW;
-        int btnY = y + 4;
-
-        boolean isHovered = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        int bg = canEdit
-                ? (enabled ? (isHovered ? 0xFF15803D : 0xFF16A34A) : (isHovered ? 0xFF991B1B : 0xFFDC2626))
-                : (enabled ? 0xFF166534 : 0xFF7F1D1D);
-        int border = isHovered && canEdit ? 0xFFFFFFFF : (enabled ? 0xFF4ADE80 : 0xFFF87171);
-
-        guiGraphics.fill(btnX, btnY, btnX + btnW, btnY + btnH, bg);
-        guiGraphics.renderOutline(btnX, btnY, btnW, btnH, border);
-
-        String text = enabled ? "ON" : "OFF";
-        int textX = btnX + (btnW - this.font.width(text)) / 2;
-        guiGraphics.drawString(this.font, text, textX, btnY + 4, canEdit ? 0xFFFFFFFF : 0xFF94A3B8, false);
-
-        if (isHovered && !canEdit) {
-            this.activeTooltip = Component.literal("Requires Server Operator (Level 2) permissions");
-        }
-    }
-
-    private void renderMechanicModeRow(GuiGraphics guiGraphics, int modalX, int y, int modalWidth, String title, String subtitle, String modeText, boolean isFlowing, int mouseX, int mouseY) {
-        guiGraphics.drawString(this.font, title, modalX + 16, y + 2, 0xFFE2E8F0, false);
-        guiGraphics.drawString(this.font, subtitle, modalX + 16, y + 14, 0xFF64748B, false);
-
-        int btnW = 76;
-        int btnH = 16;
-        int btnX = modalX + modalWidth - 16 - btnW;
-        int btnY = y + 4;
-
-        boolean isHovered = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        int bg = isFlowing ? (isHovered ? 0xFF0284C7 : 0xFF0369A1) : (isHovered ? 0xFF0D9488 : 0xFF0F766E);
-        int border = isHovered ? 0xFFFFFFFF : (isFlowing ? 0xFF38BDF8 : 0xFF2DD4BF);
-
-        guiGraphics.fill(btnX, btnY, btnX + btnW, btnY + btnH, bg);
-        guiGraphics.renderOutline(btnX, btnY, btnW, btnH, border);
-
-        int textX = btnX + (btnW - this.font.width(modeText)) / 2;
-        guiGraphics.drawString(this.font, modeText, textX, btnY + 4, 0xFFFFFFFF, false);
-
-        if (isHovered) {
-            this.activeTooltip = Component.literal("Toggle projectile flow state (Keybind: K)");
-        }
+        String btnText = this.parentScreen != null ? "BACK" : "DONE";
+        int textX = btnX + (btnW - this.font.width(btnText)) / 2;
+        guiGraphics.drawString(this.font, btnText, textX, btnY + 6, 0xFFFFFFFF, false);
     }
 
     private void renderSpeedsTab(GuiGraphics guiGraphics, int modalX, int modalY, int modalWidth, int modalHeight, int mouseX, int mouseY) {
         int startY = modalY + 50;
         int rowH = 34;
-        boolean canEdit = canEditServerSettings();
+        boolean canEdit = canEditSpeeds();
 
         for (int i = 0; i < 5; i++) {
             int rowY = startY + i * rowH;
@@ -365,7 +275,7 @@ public class TimeStopSettingsScreen extends Screen {
 
             int trackW = 80;
             int trackH = 10;
-            int trackX = modalX + 145;
+            int trackX = modalX + 140;
             int trackY = rowY + 5;
 
             // Slider track
@@ -388,9 +298,9 @@ public class TimeStopSettingsScreen extends Screen {
             }
 
             // Digit Box
-            int boxW = 48;
+            int boxW = 46;
             int boxH = 16;
-            int boxX = modalX + 235;
+            int boxX = modalX + 228;
             int boxY = rowY + 2;
 
             boolean isFocused = (this.focusedSpeedIndex == i);
@@ -421,7 +331,7 @@ public class TimeStopSettingsScreen extends Screen {
             // Reset Button
             int btnW = 16;
             int btnH = 16;
-            int btnX = modalX + 293;
+            int btnX = modalX + 282;
             int btnY = rowY + 2;
 
             boolean isResetHovered = isInside(mouseX, mouseY, btnX, btnY, btnW, btnH);
@@ -483,22 +393,6 @@ public class TimeStopSettingsScreen extends Screen {
         String btnText = this.parentScreen != null ? "BACK" : "DONE";
         int textX = doneX + (doneW - this.font.width(btnText)) / 2;
         guiGraphics.drawString(this.font, btnText, textX, doneY + 6, 0xFFFFFFFF, false);
-    }
-
-    private void renderDoneButton(GuiGraphics guiGraphics, int modalX, int modalY, int modalWidth, int modalHeight, int mouseX, int mouseY) {
-        int btnW = 100;
-        int btnH = 20;
-        int btnX = modalX + (modalWidth - btnW) / 2;
-        int btnY = modalY + modalHeight - 26;
-
-        boolean isBtnHovered = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        int btnBg = isBtnHovered ? 0xFF0284C7 : 0xFF0369A1;
-        guiGraphics.fill(btnX, btnY, btnX + btnW, btnY + btnH, btnBg);
-        guiGraphics.renderOutline(btnX, btnY, btnW, btnH, 0xFF38BDF8);
-
-        String btnText = this.parentScreen != null ? "BACK" : "DONE";
-        int textX = btnX + (btnW - this.font.width(btnText)) / 2;
-        guiGraphics.drawString(this.font, btnText, textX, btnY + 6, 0xFFFFFFFF, false);
     }
 
     private void renderToggleRow(GuiGraphics guiGraphics, int modalX, int y, int modalWidth, String label, boolean enabled, int mouseX, int mouseY) {
@@ -579,22 +473,20 @@ public class TimeStopSettingsScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            int modalWidth = 330;
+            int modalWidth = 320;
             int modalHeight = 285;
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
 
             // Tab headers
-            int tabW = 94;
-            int tabGap = 8;
-            int tabsStartX = modalX + 16;
-            int tab0X = tabsStartX;
-            int tab1X = tabsStartX + tabW + tabGap;
-            int tab2X = tabsStartX + (tabW + tabGap) * 2;
-            int tabY = modalY + 25;
+            int tabW = 140;
             int tabH = 16;
+            int tab0X = modalX + 16;
+            int tab0Y = modalY + 25;
+            int tab1X = modalX + modalWidth - 16 - tabW;
+            int tab1Y = modalY + 25;
 
-            if (isInside(mouseX, mouseY, tab0X, tabY, tabW, tabH)) {
+            if (isInside(mouseX, mouseY, tab0X, tab0Y, tabW, tabH)) {
                 if (this.activeTab != 0) {
                     commitSpeedInput();
                     this.activeTab = 0;
@@ -603,7 +495,7 @@ public class TimeStopSettingsScreen extends Screen {
                 return true;
             }
 
-            if (isInside(mouseX, mouseY, tab1X, tabY, tabW, tabH)) {
+            if (isInside(mouseX, mouseY, tab1X, tab1Y, tabW, tabH)) {
                 if (this.activeTab != 1) {
                     commitSpeedInput();
                     this.activeTab = 1;
@@ -612,19 +504,9 @@ public class TimeStopSettingsScreen extends Screen {
                 return true;
             }
 
-            if (isInside(mouseX, mouseY, tab2X, tabY, tabW, tabH)) {
-                if (this.activeTab != 2) {
-                    commitSpeedInput();
-                    this.activeTab = 2;
-                    playClickSound();
-                }
-                return true;
-            }
-
             if (this.activeTab == 0) {
-                // TAB 0: Visuals & FX
-                int startY = modalY + 49;
-                int rowH = 20;
+                int startY = modalY + 48;
+                int rowH = 19;
                 int btnW = 60;
                 int btnH = 14;
                 int btnX = modalX + modalWidth - 16 - btnW;
@@ -681,8 +563,20 @@ public class TimeStopSettingsScreen extends Screen {
                     return true;
                 }
 
-                // 8. Superhot Mob Tint
+                // 8. Projectile Stasis Mode
                 if (isInside(mouseX, mouseY, btnX, startY + rowH * 7, btnW, btnH)) {
+                    TimeStopManager.ProjectileStasisMode current = ClientTimeStopManager.getProjectileMode();
+                    TimeStopManager.ProjectileStasisMode next = (current == TimeStopManager.ProjectileStasisMode.FLOWING)
+                            ? TimeStopManager.ProjectileStasisMode.SUSPENDED
+                            : TimeStopManager.ProjectileStasisMode.FLOWING;
+                    ClientTimeStopManager.setProjectileFlow(next, TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get());
+                    ModMessages.sendToServer(new ToggleProjectileFlowPacket(next));
+                    saveAndPlaySound();
+                    return true;
+                }
+
+                // 9. Superhot Mob Tint
+                if (isInside(mouseX, mouseY, btnX, startY + rowH * 8, btnW, btnH)) {
                     String cur = TimeStopConfig.CLIENT.superhotMobTarget.get().toUpperCase(Locale.ROOT);
                     String next = switch (cur) {
                         case "HOSTILE" -> "PASSIVE";
@@ -694,8 +588,8 @@ public class TimeStopSettingsScreen extends Screen {
                     return true;
                 }
 
-                // 9. Opacity Slider
-                int sliderY = startY + rowH * 8 + 2;
+                // 10. Opacity Slider
+                int sliderY = startY + rowH * 9 + 2;
                 int trackW = 100;
                 int trackH = 14;
                 int trackX = modalX + modalWidth - 16 - trackW;
@@ -715,87 +609,28 @@ public class TimeStopSettingsScreen extends Screen {
                     closeScreen();
                     return true;
                 }
-            } else if (this.activeTab == 1) {
-                // TAB 1: Mechanics
-                int startY = modalY + 54;
-                int rowH = 42;
-                boolean canEdit = canEditServerSettings();
-
-                // 1. Water Walking
-                int btn1W = 60;
-                int btn1H = 16;
-                int btn1X = modalX + modalWidth - 16 - btn1W;
-                int btn1Y = startY + 4;
-                if (isInside(mouseX, mouseY, btn1X, btn1Y, btn1W, btn1H)) {
-                    if (canEdit) {
-                        TimeStopConfig.COMMON.enableWaterWalkingInStasis.set(!TimeStopConfig.COMMON.enableWaterWalkingInStasis.get());
-                        TimeStopConfig.save();
-                        sendCurrentMechanicsToServer();
-                        saveAndPlaySound();
-                    }
-                    return true;
-                }
-
-                // 2. Player Projectiles
-                int btn2Y = startY + rowH + 4;
-                if (isInside(mouseX, mouseY, btn1X, btn2Y, btn1W, btn1H)) {
-                    if (canEdit) {
-                        TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.set(!TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get());
-                        TimeStopConfig.save();
-                        sendCurrentMechanicsToServer();
-                        saveAndPlaySound();
-                    }
-                    return true;
-                }
-
-                // 3. Projectile Flow Mode
-                int btn3W = 76;
-                int btn3H = 16;
-                int btn3X = modalX + modalWidth - 16 - btn3W;
-                int btn3Y = startY + rowH * 2 + 4;
-                if (isInside(mouseX, mouseY, btn3X, btn3Y, btn3W, btn3H)) {
-                    TimeStopManager.ProjectileStasisMode current = ClientTimeStopManager.getProjectileMode();
-                    TimeStopManager.ProjectileStasisMode next = (current == TimeStopManager.ProjectileStasisMode.FLOWING)
-                            ? TimeStopManager.ProjectileStasisMode.SUSPENDED
-                            : TimeStopManager.ProjectileStasisMode.FLOWING;
-                    ClientTimeStopManager.setProjectileFlow(next, TimeStopConfig.COMMON.allowPlayerProjectilesInStasis.get());
-                    ModMessages.sendToServer(new ToggleProjectileFlowPacket(next));
-                    saveAndPlaySound();
-                    return true;
-                }
-
-                // Done / Back Button
-                int doneBtnW = 100;
-                int doneBtnH = 20;
-                int doneBtnX = modalX + (modalWidth - doneBtnW) / 2;
-                int doneBtnY = modalY + modalHeight - 26;
-
-                if (isInside(mouseX, mouseY, doneBtnX, doneBtnY, doneBtnW, doneBtnH)) {
-                    closeScreen();
-                    return true;
-                }
             } else {
-                // TAB 2: Speeds
+                // TAB 1: Speeds
                 int startY = modalY + 50;
                 int rowH = 34;
-                boolean canEdit = canEditServerSettings();
+                boolean canEdit = canEditSpeeds();
 
                 for (int i = 0; i < 5; i++) {
                     int rowY = startY + i * rowH;
 
                     int trackW = 80;
                     int trackH = 10;
-                    int trackX = modalX + 145;
+                    int trackX = modalX + 140;
                     int trackY = rowY + 5;
 
-                    int boxW = 48;
+                    int boxW = 46;
                     int boxH = 16;
-                    int boxX = modalX + 235;
+                    int boxX = modalX + 228;
                     int boxY = rowY + 2;
 
                     int btnW = 16;
                     int btnH = 16;
-                    int btnX = modalX + 293;
+                    int btnX = modalX + 282;
                     int btnY = rowY + 2;
 
                     // Slider track clicked
@@ -884,7 +719,7 @@ public class TimeStopSettingsScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (this.draggingOpacity) {
-            int modalWidth = 330;
+            int modalWidth = 320;
             int modalX = (this.width - modalWidth) / 2;
             int trackW = 100;
             int trackX = modalX + modalWidth - 16 - trackW;
@@ -892,9 +727,9 @@ public class TimeStopSettingsScreen extends Screen {
             return true;
         }
         if (this.draggingSpeedIndex >= 0) {
-            int modalWidth = 330;
+            int modalWidth = 320;
             int modalX = (this.width - modalWidth) / 2;
-            int trackX = modalX + 145;
+            int trackX = modalX + 140;
             int trackW = 80;
             updateSpeedFromSlider(this.draggingSpeedIndex, mouseX, trackX, trackW);
             return true;

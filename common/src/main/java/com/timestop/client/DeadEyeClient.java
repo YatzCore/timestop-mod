@@ -37,10 +37,13 @@ public final class DeadEyeClient {
 
     public static void applyDeadEyeShader() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gameRenderer != null && !deadEyeShaderActive) {
+        if (mc.gameRenderer != null) {
             try {
-                ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(SEPIA_SHADER);
-                deadEyeShaderActive = true;
+                net.minecraft.client.renderer.PostChain activeEffect = ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
+                if (activeEffect == null || !deadEyeShaderActive) {
+                    ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(SEPIA_SHADER);
+                    deadEyeShaderActive = true;
+                }
             } catch (Exception ignored) {
             }
         }
@@ -48,9 +51,12 @@ public final class DeadEyeClient {
 
     public static void removeDeadEyeShader() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gameRenderer != null && deadEyeShaderActive) {
+        if (mc.gameRenderer != null) {
             try {
-                mc.gameRenderer.shutdownEffect();
+                net.minecraft.client.renderer.PostChain activeEffect = ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
+                if (activeEffect != null && deadEyeShaderActive) {
+                    mc.gameRenderer.shutdownEffect();
+                }
                 deadEyeShaderActive = false;
                 if (com.timestop.core.ClientTimeStopManager.isTimeStopped() && com.timestop.core.ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
                     com.timestop.core.ClientTimeStopManager.applyShader();

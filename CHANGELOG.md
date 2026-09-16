@@ -11,12 +11,12 @@ All notable changes to the **Ultimate Time Stop** mod are documented in this fil
   - Matrix Dilation (0.01x - 0.99x, default 0.25x)
   - Superhot Idle Rate (0.005x - 0.80x, default 0.05x)
   - Deceleration Drag (0.001x - 0.95x, default 0.10x)
-- **Dedicated Mechanics Tab**: Organized the Temporal Engine Settings into a 3-tab layout (`Visuals & FX`, `Mechanics`, and `Speed Calibration`). Added toggles for Water Walking in Stasis, Player Projectiles in Stasis, and Projectile Flow Mode.
 - **Fast Forward Block Entity Acceleration**: Furnaces, blast furnaces, smokers, and brewing stands process at 5x speed during Fast Forward stasis.
 - **Open Settings Keybind**: Bound to `H` by default (`key.timestop.open_settings`) for quick access to temporal settings.
 - **Speed Configuration Command**: Added `/timestop speed` command subtree for viewing, setting, and resetting multiplier values with client synchronization.
 
 ### Changed
+- **Settings Screen Layout**: Reverted Temporal Engine Settings to a clean 2-tab layout (`Visuals & FX` and `Speed Calibration`), with Projectiles Flow in Stasis cleanly integrated into Visuals.
 - **Superhot Mode Parity & Polish**:
   - Free cursor aiming: looking around no longer advances time.
   - Combat action waking: swinging weapons, attacking, or using items advances time to real time.
@@ -27,6 +27,7 @@ All notable changes to the **Ultimate Time Stop** mod are documented in this fil
   - Reverted Superhot HUD indicator to a clean 2-state display (`TIME FROZEN` vs `TIME IN MOTION`).
 
 ### Fixed
+- **Third-Person Perspective Shader**: Fixed an issue where cycling to third person perspective cleared the stasis and Dead Eye shaders. Custom post-processing effects are now maintained continuously across all camera perspectives.
 - **Temporal Bubble Clock Dilation**: Synchronized server and client delta trackers when inside localized temporal bubbles, resolving mob stuttering and player desync inside Slow Motion, Matrix, and Superhot fields.
 
 ## [1.3.12] - 2026-09-11

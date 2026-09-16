@@ -36,13 +36,11 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerServer(FlipCoinPacket.ID, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.ID, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.ID, UpdateSpeedConfigPacket::new);
-        registerServer(UpdateMechanicsConfigPacket.ID, UpdateMechanicsConfigPacket::new);
     }
 
     public static void registerClientReceivers() {
         registerClient(TimeStopSyncPacket.ID, TimeStopSyncPacket::new);
         registerClient(SyncSpeedConfigPacket.ID, SyncSpeedConfigPacket::new);
-        registerClient(SyncMechanicsConfigPacket.ID, SyncMechanicsConfigPacket::new);
         registerClient(SyncOrbitCountPacket.ID, SyncOrbitCountPacket::new);
         registerClient(SyncOrbitalEntityPacket.ID, SyncOrbitalEntityPacket::new);
         registerClient(SyncRuneSocketPacket.ID, SyncRuneSocketPacket::new);

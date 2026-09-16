@@ -2,7 +2,9 @@ package com.timestop.core;
 
 import com.timestop.network.ModMessages;
 import com.timestop.network.SuperhotSyncPacket;
+import com.timestop.mixin.GameRendererAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -52,6 +54,10 @@ public class ClientTimeStopManager {
 
     public static boolean isGlobalTimeStopActive() {
         return clientTimeStopped;
+    }
+
+    public static boolean isShaderActive() {
+        return shaderActive;
     }
 
     public static boolean isTimeStopped() {
@@ -281,8 +287,9 @@ public class ClientTimeStopManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameRenderer != null) {
             try {
-                if (!shaderActive || !shader.equals(currentShader)) {
-                    ((com.timestop.mixin.GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(shader);
+                PostChain activeEffect = ((GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
+                if (activeEffect == null || !shaderActive || !shader.equals(currentShader)) {
+                    ((GameRendererAccessor) mc.gameRenderer).timestop$loadEffect(shader);
                     shaderActive = true;
                     currentShader = shader;
                 }
@@ -293,9 +300,12 @@ public class ClientTimeStopManager {
 
     public static void removeShader() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gameRenderer != null && shaderActive) {
+        if (mc.gameRenderer != null) {
             try {
-                mc.gameRenderer.shutdownEffect();
+                PostChain activeEffect = ((GameRendererAccessor) mc.gameRenderer).timestop$getPostEffect();
+                if (activeEffect != null && shaderActive) {
+                    mc.gameRenderer.shutdownEffect();
+                }
                 shaderActive = false;
                 currentShader = null;
             } catch (Exception ignored) {

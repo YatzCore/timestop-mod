@@ -33,7 +33,8 @@
     "TimerMixin",
     "TextureAtlasMixin",
     "PlayerModelMixin",
-    "GameRendererAccessor"
+    "GameRendererAccessor",
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

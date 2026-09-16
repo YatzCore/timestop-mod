@@ -44,12 +44,10 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerServer(FlipCoinPacket.class, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.class, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.class, UpdateSpeedConfigPacket::new);
-        registerServer(UpdateMechanicsConfigPacket.class, UpdateMechanicsConfigPacket::new);
 
         // Clientbound packets
         registerClient(TimeStopSyncPacket.class, TimeStopSyncPacket::new);
         registerClient(SyncSpeedConfigPacket.class, SyncSpeedConfigPacket::new);
-        registerClient(SyncMechanicsConfigPacket.class, SyncMechanicsConfigPacket::new);
         registerClient(SyncOrbitCountPacket.class, SyncOrbitCountPacket::new);
         registerClient(SyncOrbitalEntityPacket.class, SyncOrbitalEntityPacket::new);
         registerClient(SyncRuneSocketPacket.class, SyncRuneSocketPacket::new);

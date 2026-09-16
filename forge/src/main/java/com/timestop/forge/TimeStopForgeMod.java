@@ -139,7 +139,6 @@ public class TimeStopForgeMod {
                         TimeStopManager.getInitiatorUuid(), TimeStopManager.getCurrentMode(),
                         TimeStopManager.getExemptPlayers()), serverPlayer);
                 com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
-                com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncMechanicsConfigPacket.current(), serverPlayer);
                 com.timestop.combat.CoinManager.onPlayerLoggedIn(serverPlayer);
                 com.timestop.combat.OrbitalProjectileManager.onPlayerLoggedIn(serverPlayer);
             }
