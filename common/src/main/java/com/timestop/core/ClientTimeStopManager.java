@@ -101,7 +101,7 @@ public class ClientTimeStopManager {
         if (!active) return 50.0F;
         switch (mode) {
             case FAST_FORWARD:
-                return (float) Math.max(1.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get());
+                return (float) Math.max(10.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get());
             case SLOW_MOTION:
                 return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get());
             case MATRIX:

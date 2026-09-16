@@ -175,7 +175,7 @@ public class TimeStopManager {
         if (timeStopped) {
             switch (currentMode) {
                 case FAST_FORWARD:
-                    return (long) Math.max(1L, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get()));
+                    return (long) Math.max(10L, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get()));
                 case SLOW_MOTION:
                     return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get()));
                 case MATRIX:
