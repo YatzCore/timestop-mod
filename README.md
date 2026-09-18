@@ -156,6 +156,7 @@ Requires Operator permission (Level 2):
 - `/timestop speed <get|set|reset>`: Inspect or configure speed dilation multipliers for Slow Motion, Matrix, Superhot, and Fast Forward.
 - `/timestop rewind [seconds]`: Rewind the world timeline backwards (respects configured continuous or burst mode).
 - `/timestop rewind mode <burst|continuous>`: Set active rewind playback mode.
+- `/timestop rewind ondeath [true|false]`: Toggle or inspect server-wide auto death rewind without requiring a rune.
 - `/timestop buffer`: Inspect the timeline recording buffer status and memory usage.
 - `/timestop buffer reset`: Clear timeline history, reset capacity to 30s defaults, and cancel active rewinds.
 - `/timestop buffer clear`: Clear recorded frames while preserving configured capacity.

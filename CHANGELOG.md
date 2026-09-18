@@ -21,6 +21,7 @@ All notable changes to the **Ultimate Time Stop** mod are documented in this fil
   - `/timestop buffer clear` / `/timestop rewind buffer clear`: Clear recorded history frames while keeping the configured capacity.
   - `/timestop rewind [seconds]`: Trigger immediate rewind, respecting configured burst or continuous mode.
   - `/timestop rewind mode <burst|continuous>`: Switch between Burst and Continuous rewind modes.
+  - `/timestop rewind ondeath [true|false]`: Toggle or inspect automatic death rewind. When enabled (`true`), any player taking fatal damage is automatically rewound to safety without requiring or consuming a Rune of Rewind.
 
 ### Changed
 - **Empty Buffer Handling**: Continuous rewind now cleanly terminates immediately when recorded history is exhausted, preventing players from being stuck frozen in stasis.
