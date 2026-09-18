@@ -127,6 +127,7 @@ public class ClientBubbleManager {
             }
 
             switch (mode) {
+                case REWIND:
                 case TIME_STOP:
                     return 0.0F;
                 case SLOW_MOTION:
@@ -206,6 +207,11 @@ public class ClientBubbleManager {
             }
         }
         return dominant;
+    }
+
+    public static boolean isRewinding(Vec3 pos) {
+        ClientBubble bubble = getDominantBubble(pos.x,pos.y,pos.z);
+        return bubble != null && bubble.mode == TimeMode.REWIND;
     }
 
     public static boolean isPositionInStasis(Vec3 pos) {

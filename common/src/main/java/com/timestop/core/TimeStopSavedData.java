@@ -10,6 +10,7 @@ public class TimeStopSavedData extends SavedData {
     public enum WatchScope { WATCH, GLOBAL, SPHERE }
     private WatchScope watchScope = WatchScope.WATCH;
     private boolean redirectToLook;
+    private boolean autoDeathRewind;
     private TimeStopManager.ProjectileStasisMode projectileStasisMode = TimeStopManager.ProjectileStasisMode.FLOWING;
 
     public TimeStopSavedData() {
@@ -25,6 +26,7 @@ public class TimeStopSavedData extends SavedData {
             catch (IllegalArgumentException ignored) { data.watchScope = WatchScope.WATCH; }
         }
         data.redirectToLook = tag.getBoolean("RedirectToLook");
+        data.autoDeathRewind = tag.getBoolean("AutoDeathRewind");
         if (tag.contains("ProjectileStasisMode")) {
             try { data.projectileStasisMode = TimeStopManager.ProjectileStasisMode.valueOf(tag.getString("ProjectileStasisMode")); }
             catch (IllegalArgumentException ignored) { data.projectileStasisMode = TimeStopManager.ProjectileStasisMode.FLOWING; }
@@ -37,6 +39,7 @@ public class TimeStopSavedData extends SavedData {
         tag.putBoolean("ServerForceGlobalMode", isServerForceGlobalMode());
         tag.putString("WatchScope", watchScope.name());
         tag.putBoolean("RedirectToLook", redirectToLook);
+        tag.putBoolean("AutoDeathRewind", autoDeathRewind);
         tag.putString("ProjectileStasisMode", projectileStasisMode.name());
         return tag;
     }
@@ -51,6 +54,8 @@ public class TimeStopSavedData extends SavedData {
 
     public WatchScope getWatchScope() { return watchScope; }
     public void setWatchScope(WatchScope scope) { watchScope = scope; setDirty(); }
+    public boolean isAutoDeathRewind() { return autoDeathRewind; }
+    public void setAutoDeathRewind(boolean enabled) { autoDeathRewind = enabled; setDirty(); }
     public boolean isRedirectToLook() { return redirectToLook; }
     public void setRedirectToLook(boolean look) { redirectToLook = look; setDirty(); }
     public TimeStopManager.ProjectileStasisMode getProjectileStasisMode() { return projectileStasisMode; }

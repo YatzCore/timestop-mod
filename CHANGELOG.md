@@ -2,6 +2,31 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.4.5] - 2026-09-18
+
+### Added
+- **Temporal Rewind Engine**:
+  - Full server-wide timeline recording and rollback system across all loaded dimensions.
+  - **Burst Mode**: Instantaneous time reversal for rapid tactical resets.
+  - **Continuous Mode**: Smooth reverse temporal playback at 1 recorded tick per server tick, pausing world simulation while rewinding.
+  - **Rune of Rewind & Auto Death Protection**: Socketable rune that intercepts fatal damage and rewinds the timeline before death, restoring player inventory, health, and reversing the fatal event.
+  - **Comprehensive State Rollback**:
+    - Block & Block Entity restoration: containers, furnaces, hoppers, and pistons reverse in true chronological order without dropping duplicate items.
+    - TNT & Explosion reversal: un-ignites lit TNT, cancels blast block damage, and coalesces multi-explosion shockwaves.
+    - Living Entity restoration: revives dead mobs with original equipment, health, NBT, and position.
+  - **Visual & Audio Effects**: Inward-imploding animated block reconstruction, particle spirals, reverse audio chimes, and smooth player/mob unfolding animations.
+- **Administrative Buffer & Rewind Commands**:
+  - `/timestop buffer` / `/timestop rewind buffer`: Inspect buffer status (recorded frames, memory usage, and capacity).
+  - `/timestop buffer reset` / `/timestop rewind buffer reset`: Reset timeline buffer to 30s default, clear history frames, cancel active rewinds, and save configuration.
+  - `/timestop buffer clear` / `/timestop rewind buffer clear`: Clear recorded history frames while keeping the configured capacity.
+  - `/timestop rewind [seconds]`: Trigger immediate rewind, respecting configured burst or continuous mode.
+  - `/timestop rewind mode <burst|continuous>`: Switch between Burst and Continuous rewind modes.
+
+### Changed
+- **Empty Buffer Handling**: Continuous rewind now cleanly terminates immediately when recorded history is exhausted, preventing players from being stuck frozen in stasis.
+- **Zero-Frame Guard**: Initiating rewind with 0 recorded frames cancels stasis immediately without consuming watch cooldown, notifying the player.
+- **Localized Bubble Safety**: Fixed initiator boundary filtering so players rewinding within localized bubbles do not freeze upon reaching the sphere edge.
+
 ## [1.4.0] - 2026-09-15
 
 ### Added

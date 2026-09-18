@@ -133,6 +133,10 @@ public class TemporalBubbleManager {
     }
 
     public static TemporalBubble startBubble(ServerLevel level, Player player, int durationTicks, TimeMode mode) {
+        if (mode == TimeMode.REWIND) {
+            TimeStopManager.startTimeStop(level, player, durationTicks, mode);
+            return null;
+        }
         if (TimeStopManager.isGlobalTimeStopActive() || hasCreativeBubble()) {
             if (!player.isCreative() && !player.hasPermissions(2) && !player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("The temporal continuum is locked by an almighty force (Admin/Creative Clock)!").withStyle(net.minecraft.ChatFormatting.RED), true);
@@ -401,6 +405,7 @@ public class TemporalBubbleManager {
     }
 
     public static void syncAllToPlayer(ServerPlayer player) {
+        com.timestop.core.rewind.LocalRewind.syncTo(player);
         for (TemporalBubble b : activeBubbles.values()) {
             Vec3 c = b.getCenter();
             ModMessages.sendToPlayer(new TemporalBubbleSyncPacket(

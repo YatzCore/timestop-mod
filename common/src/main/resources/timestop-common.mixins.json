@@ -17,7 +17,18 @@
     "AbstractArrowMixin",
     "AbstractArrowAccessor",
     "ProjectileDecelerationMixin",
-    "ItemEntityMixin"
+    "ItemEntityMixin",
+    "BlockEntityMixin",
+    "ServerPlayerGameModeMixin",
+    "ServerEntityMixin",
+    "TntBlockMixin",
+    "PrimedTntMixin",
+    "ExplosionMixin",
+    "MovingPistonBlockRewindMixin",
+    "PistonHeadBlockRewindMixin",
+    "PistonBaseRewindMixin",
+    "PistonMotionRewindMixin",
+    "LocalRewindTicksMixin"
   ],
   "client": [
     "AgeableListModelAccessor",

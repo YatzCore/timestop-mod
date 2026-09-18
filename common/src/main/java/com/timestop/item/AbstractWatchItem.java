@@ -207,6 +207,7 @@ public abstract class AbstractWatchItem extends Item {
                 }
             }
 
+            if (com.timestop.core.rewind.LocalRewind.cancel(player.getUUID())) return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
             com.timestop.core.TemporalBubble existing = com.timestop.core.TemporalBubbleManager.getPlayerBubble(player.getUUID());
             if (existing != null) {
                 com.timestop.core.TemporalBubbleManager.stopBubble(serverLevel, existing);

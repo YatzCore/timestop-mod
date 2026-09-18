@@ -49,6 +49,10 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(SyncCoinChargesPacket.ID, SyncCoinChargesPacket::new);
         registerClient(KineticCaptureSyncPacket.ID, KineticCaptureSyncPacket::new);
         registerClient(DeadEyeGunFeedbackPacket.ID, DeadEyeGunFeedbackPacket::new);
+        registerClient(RewindBlocksPacket.ID, RewindBlocksPacket::new);
+        registerClient(RewindMobPacket.ID, RewindMobPacket::new);
+        registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
+        registerClient(RewindFadePacket.ID, RewindFadePacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(ResourceLocation id, net.minecraft.network.FriendlyByteBuf.Reader<T> decoder) {

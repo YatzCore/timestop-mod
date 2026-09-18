@@ -54,6 +54,11 @@ public class TimeStopFabricMod implements ModInitializer {
             entry.bind(entity);
             TimeStopMod.LOGGER.info("[TimeStop] Registered entity: {}", id);
         });
+        com.timestop.sound.ModSounds.SOUNDS.forEach((id, entry) -> {
+            var sound = Registry.register(BuiltInRegistries.SOUND_EVENT, id, entry.get());
+            entry.bind(sound);
+            TimeStopMod.LOGGER.info("[TimeStop] Registered sound: {}", id);
+        });
 
         // 2. Creative Tab
         net.minecraft.resources.ResourceKey<net.minecraft.world.item.CreativeModeTab> tabKey = net.minecraft.resources.ResourceKey.create(
@@ -72,6 +77,7 @@ public class TimeStopFabricMod implements ModInitializer {
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, tabKey, timeStopTab);
 
         // 3. Config
+        com.timestop.config.TimeStopConfig.setConfigFile(net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("timestop.json").toFile());
         com.timestop.config.TimeStopConfig.load();
 
         // 4. Networking
@@ -143,6 +149,7 @@ public class TimeStopFabricMod implements ModInitializer {
             com.timestop.combat.KineticPalmManager.dischargeDrop(serverPlayer);
             TimeStopManager.removeMatrixAttributes(serverPlayer);
             com.timestop.combat.RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
+            com.timestop.combat.RewindRuneManager.clearPlayer(serverPlayer.getUUID());
             com.timestop.combat.TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
         });
 
@@ -165,8 +172,19 @@ public class TimeStopFabricMod implements ModInitializer {
             }
         });
 
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
-                !com.timestop.combat.RuneManager.onLivingAttack(entity, source));
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
+            if (entity instanceof ServerPlayer player) {
+                return !com.timestop.combat.RewindRuneManager.tryTriggerDeathRewind(player, damageSource);
+            }
+            return true;
+        });
+
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayer player && com.timestop.combat.RewindRuneManager.isPlayerInvulnerable(player)) {
+                return false;
+            }
+            return !com.timestop.combat.RuneManager.onLivingAttack(entity, source);
+        });
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (com.timestop.combat.TemporalInteractionEvents.onAttackEntity(player, entity)) {

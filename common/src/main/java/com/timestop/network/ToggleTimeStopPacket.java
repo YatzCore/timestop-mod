@@ -29,6 +29,7 @@ public class ToggleTimeStopPacket implements IServerboundPacket {
     @Override
     public void handle(ServerPlayer player) {
         if (player != null && player.level() instanceof ServerLevel serverLevel) {
+            if (com.timestop.core.rewind.LocalRewind.cancel(player.getUUID())) return;
             boolean isOmnipotentActive = TimeStopManager.isGlobalTimeStopActive() || com.timestop.core.TemporalBubbleManager.hasCreativeBubble();
             if (isOmnipotentActive) {
                 if (!player.isCreative() && !player.hasPermissions(2) && !player.getUUID().equals(TimeStopManager.getInitiatorUuid())) {

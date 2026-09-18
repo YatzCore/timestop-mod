@@ -355,19 +355,59 @@ public class TimeStopManager {
             }
         }
 
+        if (mode == TimeMode.REWIND && initiator instanceof ServerPlayer player && !usesGlobalWatchScope(player)) {
+            var scope = com.timestop.core.rewind.RewindScope.forPlayer(player);
+            net.minecraft.world.item.ItemStack watch = com.timestop.item.AbstractWatchItem.findActivationWatch(player);
+            com.timestop.item.AbstractWatchItem watchItem = watch.getItem() instanceof com.timestop.item.AbstractWatchItem w ? w : null;
+            int cooldownTicks = watchItem != null ? watchItem.getTier().getCooldownTicks() : 300;
+
+            if ("CONTINUOUS".equalsIgnoreCase(com.timestop.config.TimeStopConfig.COMMON.rewindMode.get())) {
+                int ticks = com.timestop.config.TimeStopConfig.COMMON.rewindHistorySeconds.get() * 20;
+                com.timestop.core.rewind.LocalRewind.start(player, scope, ticks, () -> {
+                    if (!player.isCreative() && watchItem != null && cooldownTicks > 0) {
+                        player.getCooldowns().addCooldown(watchItem, cooldownTicks);
+                    }
+                });
+            } else {
+                var old = TemporalBubbleManager.getPlayerBubble(player.getUUID());
+                if (old != null) TemporalBubbleManager.stopBubble(level, old);
+
+                level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS, 2.0F, 0.6F);
+                level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.PORTAL_TRAVEL, SoundSource.PLAYERS, 1.5F, 1.5F);
+                com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.RewindFadePacket(true), player);
+
+                var result = com.timestop.core.rewind.RewindExecutor.execute(level.getServer(),
+                        com.timestop.config.TimeStopConfig.rewindDurationSeconds(),
+                        player, com.timestop.config.TimeStopConfig.COMMON.rollbackPlayerInventory.get(), scope);
+                player.displayClientMessage(result.toComponent(), false);
+
+                if (result.success() && !player.isCreative() && watchItem != null && cooldownTicks > 0) {
+                    player.getCooldowns().addCooldown(watchItem, cooldownTicks);
+                }
+            }
+            return;
+        }
         if (initiator != null && !usesGlobalWatchScope(initiator)) {
-            if (timeStopped) {
-                initiator.displayClientMessage(Component.literal("Cannot spawn localized bubbles while global server stasis is active!").withStyle(ChatFormatting.RED), true);
+            if (mode != TimeMode.REWIND) {
+                if (timeStopped) {
+                    initiator.displayClientMessage(Component.literal("Cannot spawn localized bubbles while global server stasis is active!").withStyle(ChatFormatting.RED), true);
+                    return;
+                }
+                TemporalBubbleManager.startBubble(level, initiator, durationTicks, mode);
                 return;
             }
-            TemporalBubbleManager.startBubble(level, initiator, durationTicks, mode);
-            return;
         }
 
         startGlobalTimeStop(level, initiator, durationTicks, mode);
     }
 
     public static void startGlobalTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks, TimeMode mode) {
+        if (mode == TimeMode.REWIND && "CONTINUOUS".equalsIgnoreCase(com.timestop.config.TimeStopConfig.COMMON.rewindMode.get())) {
+            startContinuousRewind(level, initiator, durationTicks, null);
+            return;
+        }
         if (timeStopped) {
             if (initiator != null && !initiator.isCreative() && !initiator.hasPermissions(2) && (initiatorUuid == null || !initiatorUuid.equals(initiator.getUUID()))) {
                 return;
@@ -375,6 +415,7 @@ public class TimeStopManager {
             resumeTime(level);
         }
 
+        com.timestop.core.rewind.LocalRewind.clear();
         // Collapse all localized bubbles because global server time stop takes absolute precedence!
         TemporalBubbleManager.stopAllBubbles(level);
 
@@ -447,6 +488,12 @@ public class TimeStopManager {
                     level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
                             SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 2.0F, 0.6F);
                     break;
+                case REWIND:
+                    level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
+                            SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, SoundSource.PLAYERS, 2.0F, 0.6F);
+                    level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
+                            SoundEvents.PORTAL_TRAVEL, SoundSource.PLAYERS, 1.5F, 1.5F);
+                    break;
             }
             Component msg = Component.literal("[Global Temporal Engine] ").withStyle(net.minecraft.ChatFormatting.GOLD)
                     .append(mode.getFormattedComponent())
@@ -461,6 +508,87 @@ public class TimeStopManager {
 
         // Broadcast to all clients
         ModMessages.sendToClients(new TimeStopSyncPacket(true, durationTicks, initiatorUuid, mode, exemptPlayers));
+
+        // Burst Rewind Execution
+        if (mode == TimeMode.REWIND) {
+            String rewindMode = com.timestop.config.TimeStopConfig.COMMON.rewindMode.get();
+            if ("BURST".equalsIgnoreCase(rewindMode)) {
+                int burstSec = com.timestop.config.TimeStopConfig.rewindDurationSeconds();
+                ServerPlayer sPlayer = initiator instanceof ServerPlayer sp ? sp : null;
+                boolean rollbackInv = com.timestop.config.TimeStopConfig.COMMON.rollbackPlayerInventory.get();
+                if (sPlayer != null) {
+                    com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.RewindFadePacket(true), sPlayer);
+                }
+                com.timestop.core.rewind.RewindExecutor.RewindResult result =
+                        com.timestop.core.rewind.RewindExecutor.execute(level.getServer(), burstSec, sPlayer, rollbackInv, null);
+                if (initiator != null) {
+                    initiator.displayClientMessage(result.toComponent(), false);
+                }
+                resumeTime(level);
+            }
+        }
+    }
+
+    public static void startContinuousRewind(ServerLevel level, @Nullable Player initiator, int durationTicks) {
+        startContinuousRewind(level, initiator, durationTicks, com.timestop.core.rewind.RewindScope.forPlayer(initiator));
+    }
+
+    public static void startContinuousRewind(ServerLevel level, @Nullable Player initiator, int durationTicks,
+            @Nullable com.timestop.core.rewind.RewindScope scope) {
+        var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
+        recorder.finishFrame(level.getServer());
+        int available = recorder.getTimelineBuffer().getFrameCount();
+        if (available <= 0) {
+            if (initiator != null) {
+                initiator.displayClientMessage(Component.literal("§c[TimeStop] Rewind buffer is empty. History records as the world runs."), true);
+            }
+            return;
+        }
+        int requested = (durationTicks > 0) ? durationTicks : com.timestop.config.TimeStopConfig.rewindDurationSeconds() * 20;
+        durationTicks = Math.min(requested, available);
+
+        if (scope != null && initiator instanceof ServerPlayer player) {
+            com.timestop.core.rewind.LocalRewind.start(player, scope, durationTicks, () -> {});
+            return;
+        }
+        if (timeStopped) {
+            resumeTime(level);
+        }
+
+        com.timestop.core.rewind.LocalRewind.clear();
+        // Collapse all localized bubbles because global rewind takes precedence
+        TemporalBubbleManager.stopAllBubbles(level);
+
+        timeStopped = true;
+        activeServerLevel = new java.lang.ref.WeakReference<>(level);
+        totalDuration = durationTicks;
+        remainingTicks = durationTicks;
+        accumulatedVampirismBonus = 0;
+        currentMode = TimeMode.REWIND;
+        initiatorUuid = initiator != null ? initiator.getUUID() : null;
+        initiatorWatchItem = null;
+        initiatorCooldownTicks = 0;
+        exemptPlayers.clear();
+
+        if (initiator != null) {
+            exemptPlayers.addAll(com.timestop.sync.SyncManager.getResonators(initiator.getUUID()));
+            if (initiator.getTeam() != null) {
+                for (ServerPlayer other : level.getServer().getPlayerList().getPlayers()) {
+                    if (other.getTeam() != null && other.getTeam().isAlliedTo(initiator.getTeam())) {
+                        exemptPlayers.add(other.getUUID());
+                    }
+                }
+            }
+        }
+
+        // Broadcast to all clients
+        ModMessages.sendToClients(new TimeStopSyncPacket(true, durationTicks, initiatorUuid, TimeMode.REWIND, exemptPlayers));
+
+        // Start continuous recording playback
+        com.timestop.core.rewind.RewindPlaybackFeedback.started(initiator, durationTicks, available, "global");
+        recorder.getTimelineBuffer().setRewinding(true);
+        recorder.getTimelineBuffer().setRecording(false);
+        recorder.clearTrackingData();
     }
 
     public static void startTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks) {
@@ -495,6 +623,13 @@ public class TimeStopManager {
     public static void resumeTime(ServerLevel level) {
         if (!timeStopped) return;
 
+        if (currentMode == TimeMode.REWIND) {
+            var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
+            recorder.clearTrackingData();
+            recorder.getTimelineBuffer().setRewinding(false);
+            recorder.getTimelineBuffer().setRecording(true);
+            com.timestop.combat.RewindRuneManager.onRewindFinished(level.getServer());
+        }
         timeStopped = false;
         activeServerLevel = new java.lang.ref.WeakReference<>(null);
         remainingTicks = 0;
@@ -545,6 +680,7 @@ public class TimeStopManager {
     }
 
     public static void toggleTimeStop(ServerLevel level, Player player, int durationTicks, TimeMode mode) {
+        if (com.timestop.core.rewind.LocalRewind.cancel(player.getUUID())) return;
         TemporalBubble existing = TemporalBubbleManager.getPlayerBubble(player.getUUID());
         if (existing != null) {
             TemporalBubbleManager.stopBubble(level, existing);
@@ -556,9 +692,75 @@ public class TimeStopManager {
     }
 
     public static void serverTick() {
+        com.timestop.core.rewind.RewindExplosionEffects.tick();
         TemporalKineticBlockManager.serverTick();
 
+        var currentServer = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (currentServer != null) {
+            com.timestop.core.rewind.LocalRewind.tick(currentServer);
+            com.timestop.combat.RewindRuneManager.serverTick(currentServer);
+        }
+
         if (!timeStopped) return;
+
+        // Continuous Rewind handling
+        if (currentMode == TimeMode.REWIND) {
+            ServerLevel level = activeServerLevel.get();
+            if (level == null) {
+                var server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+                if (server != null) resumeTime(server.overworld());
+                else reset();
+                return;
+            }
+            if (level != null) {
+                var buffer = com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer();
+                if (buffer.getFrameCount() == 0) {
+                    if (initiatorUuid != null) {
+                        ServerPlayer initiator = level.getServer().getPlayerList().getPlayer(initiatorUuid);
+                        if (initiator != null) {
+                            initiator.displayClientMessage(Component.literal("§e[TimeStop] Rewind buffer exhausted; normal time resumed."), true);
+                        }
+                    }
+                    resumeTime(level);
+                    return;
+                }
+                boolean rollbackInv = com.timestop.config.TimeStopConfig.COMMON.rollbackPlayerInventory.get();
+                var frames = buffer.getFramesForRewind(1);
+                if (!frames.isEmpty()) {
+                    var plan = com.timestop.core.rewind.RewindExecutor.buildPlan(frames);
+                    buffer.setRewinding(true);
+                    buffer.setRecording(false);
+                    try {
+                        com.timestop.core.rewind.RewindExecutor.applyPlan(level.getServer(), plan, rollbackInv);
+                        buffer.removeRecentFrames(1);
+                    } catch (Exception error) {
+                        org.slf4j.LoggerFactory.getLogger("TimeStopRewind").error("Continuous rewind failed", error);
+                        buffer.clear();
+                        resumeTime(level);
+                        return;
+                    }
+                    if (buffer.getFrameCount() == 0) {
+                        if (initiatorUuid != null) {
+                            ServerPlayer initiator = level.getServer().getPlayerList().getPlayer(initiatorUuid);
+                            if (initiator != null) {
+                                initiator.displayClientMessage(Component.literal("§e[TimeStop] Rewind complete: all recorded history restored."), true);
+                            }
+                        }
+                        resumeTime(level);
+                        return;
+                    }
+                } else {
+                    if (initiatorUuid != null) {
+                        ServerPlayer initiator = level.getServer().getPlayerList().getPlayer(initiatorUuid);
+                        if (initiator != null) {
+                            initiator.displayClientMessage(Component.literal("§e[TimeStop] Rewind buffer exhausted; normal time resumed."), true);
+                        }
+                    }
+                    resumeTime(level);
+                    return;
+                }
+            }
+        }
 
         if (remainingTicks > 0) {
             remainingTicks--;
@@ -585,6 +787,9 @@ public class TimeStopManager {
     }
 
     public static void reset() {
+        com.timestop.core.rewind.LocalRewind.clear();
+        com.timestop.combat.RewindRuneManager.clearAllConsumptions();
+        com.timestop.core.rewind.TickRecorder.getInstance().reset();
         timeStopped = false;
         remainingTicks = 0;
         totalDuration = 0;

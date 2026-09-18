@@ -75,6 +75,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
             DeadEyeRenderer.renderWorld(context.matrixStack(), context.camera(), context.tickDelta());
             TemporalBubbleRenderer.renderLevel(context.matrixStack(), context.camera(), context.tickDelta());
             KineticPalmRenderer.renderLevel(context.matrixStack(), context.camera(), context.tickDelta());
+            com.timestop.client.RewindBlockRenderer.render(context.matrixStack(), context.camera(), context.tickDelta());
         });
     }
 }

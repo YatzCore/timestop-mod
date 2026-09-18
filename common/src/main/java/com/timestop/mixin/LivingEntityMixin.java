@@ -17,6 +17,14 @@ public abstract class LivingEntityMixin {
     private void onHurt(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
 
+        if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
+            if (com.timestop.combat.RewindRuneManager.isPlayerInvulnerable(player)) {
+                cir.setReturnValue(false);
+                return;
+            }
+
+        }
+
         boolean isStasis = !entity.level().isClientSide && com.timestop.core.TemporalBubbleManager.isEntityInStasis(entity);
 
         // Damage accumulation and hit suspension is EXCLUSIVELY for TIME_STOP stasis!
@@ -66,6 +74,26 @@ public abstract class LivingEntityMixin {
             }
 
             entity.setDeltaMovement(clampedX, clampedY, clampedZ);
+        }
+    }
+
+    @Inject(method = "checkTotemDeathProtection", at = @At("HEAD"), cancellable = true)
+    private void onCheckTotemDeathProtection(DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity entity = (LivingEntity) (Object) this;
+        if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
+            if (com.timestop.combat.RewindRuneManager.tryTriggerDeathRewind(player, damageSource)) {
+                cir.setReturnValue(true);
+            }
+        }
+    }
+
+    @Inject(method = "die", at = @At("HEAD"), cancellable = true)
+    private void onDie(DamageSource damageSource, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        LivingEntity entity = (LivingEntity) (Object) this;
+        if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
+            if (com.timestop.combat.RewindRuneManager.tryTriggerDeathRewind(player, damageSource)) {
+                ci.cancel();
+            }
         }
     }
 }

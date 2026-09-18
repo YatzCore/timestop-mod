@@ -30,6 +30,7 @@ public class ChronoOverlay {
         }
 
         if (!active || !com.timestop.config.TimeStopConfig.CLIENT.enableTimerHud.get()) {
+            RewindFadeOverlay.render(guiGraphics, partialTick, screenWidth, screenHeight);
             return;
         }
 
@@ -41,17 +42,19 @@ public class ChronoOverlay {
 
         Component statusComponent;
         if (totalDuration <= 0) {
+            String label = (mode == TimeMode.REWIND) ? "« REWINDING »" : "ACTIVE";
             statusComponent = mode.getFormattedComponent()
                     .copy()
                     .append(Component.literal(" [ ").withStyle(net.minecraft.ChatFormatting.GRAY))
-                    .append(Component.literal("ACTIVE").withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
+                    .append(Component.literal(label).withStyle(mode == TimeMode.REWIND ? net.minecraft.ChatFormatting.LIGHT_PURPLE : net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
                     .append(Component.literal(" ]").withStyle(net.minecraft.ChatFormatting.GRAY));
         } else {
             float seconds = remainingTicks / 20.0F;
+            String timeStr = (mode == TimeMode.REWIND) ? String.format("-%.1fs", seconds) : String.format("%.1fs", seconds);
             statusComponent = mode.getFormattedComponent()
                     .copy()
                     .append(Component.literal(" [ ").withStyle(net.minecraft.ChatFormatting.GRAY))
-                    .append(Component.literal(String.format("%.1fs", seconds)).withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
+                    .append(Component.literal(timeStr).withStyle(mode == TimeMode.REWIND ? net.minecraft.ChatFormatting.LIGHT_PURPLE : net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
                     .append(Component.literal(" ]").withStyle(net.minecraft.ChatFormatting.GRAY));
         }
 
@@ -85,11 +88,16 @@ public class ChronoOverlay {
                 case FAST_FORWARD:
                     color = 0xFFFF0054;
                     break;
+                case REWIND:
+                    color = 0xFFC084FC; // Twilight Purple
+                    break;
                 default:
                     color = 0xFFFFD700; // Gold
                     break;
             }
             guiGraphics.fill(barX, barY, barX + filledWidth, barY + barHeight, color);
         }
+
+        RewindFadeOverlay.render(guiGraphics, partialTick, screenWidth, screenHeight);
     }
 }

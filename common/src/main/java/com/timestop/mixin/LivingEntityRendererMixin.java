@@ -34,6 +34,8 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
     @Inject(method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V", at = @At("HEAD"))
     private void timestop$beginHead(T entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffer, int light,
                                    org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        pose.pushPose();
+        com.timestop.client.RewindMobAnimation.transform(entity, pose, partialTick);
         if (com.timestop.client.DeadEyeClient.clientAiming)
             com.timestop.client.DeadEyeHeadGeometry.begin(entity, model, pose);
     }
@@ -42,6 +44,7 @@ public abstract class LivingEntityRendererMixin<T extends LivingEntity, M extend
     private void timestop$endHead(T entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffer, int light,
                                  org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         com.timestop.client.DeadEyeHeadGeometry.end();
+        pose.popPose();
     }
 
     @Shadow

@@ -143,7 +143,7 @@ public class TimeModeSelectionScreen extends Screen {
         } else if (this.currentTier == WatchTier.GILDED) {
             return 224; // 2x2 grid + socket row
         } else {
-            return 264; // 2x3 grid + socket row
+            return 298; // 2x4 grid + socket row
         }
     }
 
@@ -416,6 +416,7 @@ public class TimeModeSelectionScreen extends Screen {
             case SUPERHOT -> "Time moves only when you physically move or attack.";
             case DECELERATION_FIELD -> "Creates an 80% projectile slowing field around you.";
             case FAST_FORWARD -> "Accelerates world time and crop growth by 500%.";
+            case REWIND -> "Rewinds blocks, entities, and player state backwards in time.";
         };
     }
 

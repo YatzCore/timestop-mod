@@ -18,9 +18,20 @@ public abstract class ServerLevelMixin {
     @Unique
     private boolean timestop$extraTick;
 
+    @Inject(method = "addFreshEntity", at = @At("RETURN"))
+    private void timestop$recordSpawn(Entity entity, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue()) com.timestop.core.rewind.TickRecorder.getInstance().recordEntitySpawn(entity);
+    }
+
+
     @Inject(method = "tickNonPassenger", at = @At("HEAD"), cancellable = true)
     private void onTickNonPassenger(Entity entity, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (com.timestop.core.rewind.LocalRewind.contains(entity)) { ci.cancel(); return; }
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile) {
             com.timestop.combat.KineticPalmManager.interceptIncoming(projectile);
             com.timestop.combat.OrbitalProjectileManager.interceptIncoming(projectile);
@@ -99,6 +110,11 @@ public abstract class ServerLevelMixin {
     @Inject(method = "tickPassenger", at = @At("HEAD"), cancellable = true)
     private void onTickPassenger(Entity vehicle, Entity passenger, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (com.timestop.core.rewind.LocalRewind.contains(passenger)) { ci.cancel(); return; }
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         
         if (com.timestop.core.TemporalBubbleManager.isEntityInStasis(passenger)) {
             passenger.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
@@ -115,6 +131,10 @@ public abstract class ServerLevelMixin {
     @Inject(method = "tickChunk", at = @At("HEAD"), cancellable = true)
     private void onTickChunk(LevelChunk chunk, int randomTickSpeed, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             ci.cancel();
             return;
@@ -129,6 +149,10 @@ public abstract class ServerLevelMixin {
     @Inject(method = "advanceWeatherCycle", at = @At("HEAD"), cancellable = true)
     private void onAdvanceWeatherCycle(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         // Weather freezes globally only if global time stop is active
         if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             ci.cancel();
@@ -141,6 +165,10 @@ public abstract class ServerLevelMixin {
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         // World time freezes globally only if global time stop is active
         if (TimeStopManager.isGlobalTimeStopActive()) {
             if (TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {

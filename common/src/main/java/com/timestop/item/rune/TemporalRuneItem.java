@@ -51,8 +51,13 @@ public class TemporalRuneItem extends Item {
 
             tooltipComponents.add(Component.literal("Socketing: ").withStyle(ChatFormatting.YELLOW)
                     .append(Component.literal("Insert into Chronos Watch (Tier 2+) via Shift+Right-Click menu.").withStyle(ChatFormatting.WHITE)));
-            tooltipComponents.add(Component.literal("Trigger: ").withStyle(ChatFormatting.AQUA)
-                    .append(Component.literal("Active in Off-Hand or during Time Control.").withStyle(ChatFormatting.WHITE)));
+            if (type == RuneType.REWIND) {
+                tooltipComponents.add(Component.literal("Trigger: ").withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal("Active only when inserted into a Chronos Watch.").withStyle(ChatFormatting.WHITE)));
+            } else {
+                tooltipComponents.add(Component.literal("Trigger: ").withStyle(ChatFormatting.AQUA)
+                        .append(Component.literal("Active in Off-Hand or during Time Control.").withStyle(ChatFormatting.WHITE)));
+            }
         }
     }
 

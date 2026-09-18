@@ -31,6 +31,7 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -73,6 +74,7 @@ public class TimeStopForgeMod {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::addCreative);
 
+        com.timestop.config.TimeStopConfig.setConfigFile(net.minecraftforge.fml.loading.FMLPaths.CONFIGDIR.get().resolve("timestop.json").toFile());
         com.timestop.config.TimeStopConfig.load();
 
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ForgeClientSetup.init(modEventBus));
@@ -94,6 +96,12 @@ public class TimeStopForgeMod {
                 var entity = entry.get();
                 event.register(Registries.ENTITY_TYPE, id, () -> entity);
                 entry.bind(entity);
+            });
+        } else if (event.getRegistryKey().equals(Registries.SOUND_EVENT)) {
+            com.timestop.sound.ModSounds.SOUNDS.forEach((id, entry) -> {
+                var sound = entry.get();
+                event.register(Registries.SOUND_EVENT, id, () -> sound);
+                entry.bind(sound);
             });
         }
     }
@@ -155,6 +163,7 @@ public class TimeStopForgeMod {
                 com.timestop.combat.KineticPalmManager.dischargeDrop(serverPlayer);
                 TimeStopManager.removeMatrixAttributes(serverPlayer);
                 com.timestop.combat.RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
+            com.timestop.combat.RewindRuneManager.clearPlayer(serverPlayer.getUUID());
                 com.timestop.combat.TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
             }
         }
@@ -167,8 +176,14 @@ public class TimeStopForgeMod {
             }
         }
 
-        @SubscribeEvent
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
         public void onLivingDeath(LivingDeathEvent event) {
+            if (event.getEntity() instanceof ServerPlayer player) {
+                if (com.timestop.combat.RewindRuneManager.tryTriggerDeathRewind(player, event.getSource())) {
+                    event.setCanceled(true);
+                    return;
+                }
+            }
             com.timestop.combat.CoinManager.onLivingDeath(event.getEntity(), event.getSource());
             if (event.getEntity() instanceof ServerPlayer serverPlayer) {
                 TemporalBubbleManager.stopPlayerBubble(serverPlayer.serverLevel(), serverPlayer.getUUID());
@@ -181,10 +196,22 @@ public class TimeStopForgeMod {
             }
         }
 
-        @SubscribeEvent
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
         public void onLivingAttack(LivingAttackEvent event) {
+            if (event.getEntity() instanceof ServerPlayer player && com.timestop.combat.RewindRuneManager.isPlayerInvulnerable(player)) {
+                event.setCanceled(true);
+                return;
+            }
             if (com.timestop.combat.RuneManager.onLivingAttack(event.getEntity(), event.getSource())) {
                 event.setCanceled(true);
+            }
+        }
+
+        @SubscribeEvent(priority = EventPriority.HIGHEST)
+        public void onLivingHurt(LivingHurtEvent event) {
+            if (event.getEntity() instanceof ServerPlayer player && com.timestop.combat.RewindRuneManager.isPlayerInvulnerable(player)) {
+                event.setCanceled(true);
+                event.setAmount(0.0F);
             }
         }
 

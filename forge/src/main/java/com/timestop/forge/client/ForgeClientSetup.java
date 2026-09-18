@@ -122,6 +122,7 @@ public class ForgeClientSetup {
                 DeadEyeRenderer.renderWorld(event.getPoseStack(), event.getCamera(), event.getPartialTick());
                 TemporalBubbleRenderer.renderLevel(event.getPoseStack(), event.getCamera(), event.getPartialTick());
                 KineticPalmRenderer.renderLevel(event.getPoseStack(), event.getCamera(), event.getPartialTick());
+                com.timestop.client.RewindBlockRenderer.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
             }
         }
 
