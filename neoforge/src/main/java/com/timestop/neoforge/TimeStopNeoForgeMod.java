@@ -60,6 +60,13 @@ public class TimeStopNeoForgeMod {
                 event.register(Registries.ENTITY_TYPE, id, () -> entity);
                 entry.bind(entity);
             });
+        } else if (event.getRegistryKey().equals(Registries.SOUND_EVENT)) {
+            TimeStopMod.LOGGER.info("[TimeStop] Registering {} sounds...", com.timestop.sound.ModSounds.SOUNDS.size());
+            com.timestop.sound.ModSounds.SOUNDS.forEach((id, entry) -> {
+                var sound = entry.get();
+                event.register(Registries.SOUND_EVENT, id, () -> sound);
+                entry.bind(sound);
+            });
         } else if (event.getRegistryKey().equals(Registries.CREATIVE_MODE_TAB)) {
             ResourceLocation tabId = ResourceLocation.fromNamespaceAndPath(TimeStopMod.MOD_ID, "main");
             CreativeModeTab tab = CreativeModeTab.builder()

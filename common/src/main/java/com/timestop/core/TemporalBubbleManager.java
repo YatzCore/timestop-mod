@@ -419,6 +419,7 @@ public class TemporalBubbleManager {
                             b.getExemptPlayers()
                     ), player);
         }
+        com.timestop.core.rewind.LocalRewind.syncTo(player);
     }
 
     private static void applyMatrixAttributes(Player player) {

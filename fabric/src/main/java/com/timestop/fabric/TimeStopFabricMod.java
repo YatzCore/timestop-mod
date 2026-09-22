@@ -55,6 +55,10 @@ public class TimeStopFabricMod implements ModInitializer {
             var entity = Registry.register(BuiltInRegistries.ENTITY_TYPE, id, entry.get());
             entry.bind(entity);
         });
+        com.timestop.sound.ModSounds.SOUNDS.forEach((id, entry) -> {
+            var sound = Registry.register(BuiltInRegistries.SOUND_EVENT, id, entry.get());
+            entry.bind(sound);
+        });
 
         // 2. Creative Tab
         ResourceKey<CreativeModeTab> tabKey = ResourceKey.create(
@@ -144,6 +148,7 @@ public class TimeStopFabricMod implements ModInitializer {
             com.timestop.combat.KineticPalmManager.dischargeDrop(serverPlayer);
             TimeStopManager.removeMatrixAttributes(serverPlayer);
             com.timestop.combat.RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
+            com.timestop.combat.RewindRuneManager.clearPlayer(serverPlayer.getUUID());
             com.timestop.combat.TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
         });
 
@@ -166,8 +171,19 @@ public class TimeStopFabricMod implements ModInitializer {
             }
         });
 
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) ->
-                !com.timestop.combat.RuneManager.onLivingAttack(entity, source));
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
+            if (entity instanceof ServerPlayer player) {
+                return !com.timestop.combat.RewindRuneManager.tryTriggerDeathRewind(player, damageSource);
+            }
+            return true;
+        });
+
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayer player && com.timestop.combat.RewindRuneManager.isPlayerInvulnerable(player)) {
+                return false;
+            }
+            return !com.timestop.combat.RuneManager.onLivingAttack(entity, source);
+        });
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (com.timestop.combat.TemporalInteractionEvents.onAttackEntity(player, entity)) {

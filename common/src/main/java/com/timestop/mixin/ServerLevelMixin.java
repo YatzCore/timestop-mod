@@ -18,9 +18,19 @@ public abstract class ServerLevelMixin {
     @Unique
     private boolean timestop$extraTick;
 
+    @Inject(method = "addFreshEntity", at = @At("RETURN"))
+    private void timestop$recordSpawn(Entity entity, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue()) com.timestop.core.rewind.TickRecorder.getInstance().recordEntitySpawn(entity);
+    }
+
     @Inject(method = "tickNonPassenger", at = @At("HEAD"), cancellable = true)
     private void onTickNonPassenger(Entity entity, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (com.timestop.core.rewind.LocalRewind.contains(entity)) { ci.cancel(); return; }
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile) {
             com.timestop.combat.KineticPalmManager.interceptIncoming(projectile);
             com.timestop.combat.OrbitalProjectileManager.interceptIncoming(projectile);

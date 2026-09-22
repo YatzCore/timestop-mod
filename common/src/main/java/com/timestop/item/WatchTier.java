@@ -46,7 +46,7 @@ public enum WatchTier {
             0x06B6D4, // Electric Cyan
             true,
             true, // 1 Rune Socket
-            Set.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP)
+            Set.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
     ),
     NETHERITE(
             4,

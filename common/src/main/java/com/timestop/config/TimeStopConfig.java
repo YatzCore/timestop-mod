@@ -84,6 +84,13 @@ public class TimeStopConfig {
         public final ConfigValue<Double> matrixRate = new ConfigValue<>(0.25);
         public final ConfigValue<Double> superhotIdleRate = new ConfigValue<>(0.05);
         public final ConfigValue<Double> decelerationDrag = new ConfigValue<>(0.10);
+
+        // Rewind Mechanics
+        public final ConfigValue<Integer> rewindHistorySeconds = new ConfigValue<>(30);
+        public final ConfigValue<Integer> rewindBurstSeconds = new ConfigValue<>(10);
+        public final ConfigValue<Integer> rewindMemoryCapMB = new ConfigValue<>(50);
+        public final ConfigValue<Boolean> rollbackPlayerInventory = new ConfigValue<>(true);
+        public final ConfigValue<String> rewindMode = new ConfigValue<>("BURST");
     }
 
     public static double clampFastForward(double val) { return Math.max(1.1, Math.min(50.0, val)); }
@@ -98,6 +105,12 @@ public class TimeStopConfig {
         COMMON.matrixRate.set(COMMON.matrixRate.getDefault());
         COMMON.superhotIdleRate.set(COMMON.superhotIdleRate.getDefault());
         COMMON.decelerationDrag.set(COMMON.decelerationDrag.getDefault());
+        save();
+    }
+
+    /** Shared default for watch, command and death-triggered playback. */
+    public static int rewindDurationSeconds() {
+        return Math.max(1, Math.min(60, COMMON.rewindHistorySeconds.get()));
     }
 
     public static final Client CLIENT = new Client();
@@ -180,6 +193,14 @@ public class TimeStopConfig {
                     if (s.has("superhotIdleRate")) COMMON.superhotIdleRate.set(clampSuperhotIdle(s.get("superhotIdleRate").getAsDouble()));
                     if (s.has("decelerationDrag")) COMMON.decelerationDrag.set(clampDecelerationDrag(s.get("decelerationDrag").getAsDouble()));
                 }
+                if (json.has("rewind")) {
+                    JsonObject rw = json.getAsJsonObject("rewind");
+                    if (rw.has("rewindHistorySeconds")) COMMON.rewindHistorySeconds.set(Math.max(1, Math.min(60, rw.get("rewindHistorySeconds").getAsInt())));
+                    if (rw.has("rewindBurstSeconds")) COMMON.rewindBurstSeconds.set(rw.get("rewindBurstSeconds").getAsInt());
+                    if (rw.has("rewindMemoryCapMB")) COMMON.rewindMemoryCapMB.set(rw.get("rewindMemoryCapMB").getAsInt());
+                    if (rw.has("rollbackPlayerInventory")) COMMON.rollbackPlayerInventory.set(rw.get("rollbackPlayerInventory").getAsBoolean());
+                    if (rw.has("rewindMode")) COMMON.rewindMode.set(rw.get("rewindMode").getAsString());
+                }
             }
         } catch (Exception e) {
             TimeStopMod.LOGGER.error("Failed to load timestop configuration", e);
@@ -244,6 +265,14 @@ public class TimeStopConfig {
             speeds.addProperty("superhotIdleRate", COMMON.superhotIdleRate.get());
             speeds.addProperty("decelerationDrag", COMMON.decelerationDrag.get());
             root.add("speed_multipliers", speeds);
+
+            JsonObject rewind = new JsonObject();
+            rewind.addProperty("rewindHistorySeconds", COMMON.rewindHistorySeconds.get());
+            rewind.addProperty("rewindBurstSeconds", COMMON.rewindBurstSeconds.get());
+            rewind.addProperty("rewindMemoryCapMB", COMMON.rewindMemoryCapMB.get());
+            rewind.addProperty("rollbackPlayerInventory", COMMON.rollbackPlayerInventory.get());
+            rewind.addProperty("rewindMode", COMMON.rewindMode.get());
+            root.add("rewind", rewind);
 
             try (FileWriter writer = new FileWriter(configFile)) {
                 GSON.toJson(root, writer);

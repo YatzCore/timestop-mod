@@ -9,7 +9,8 @@ public enum TimeMode {
     MATRIX("Matrix", ChatFormatting.GREEN, "World slows to 20% speed while you move at hyper-speed.", ChatFormatting.DARK_GREEN),
     SUPERHOT("SUPERHOT", ChatFormatting.RED, "Time moves only when you move.", ChatFormatting.DARK_RED),
     DECELERATION_FIELD("Deceleration Field", ChatFormatting.AQUA, "Normal world speed. Projectiles in 4m radius slow by 80%.", ChatFormatting.DARK_AQUA),
-    FAST_FORWARD("Fast Forward", ChatFormatting.LIGHT_PURPLE, "Accelerates time, smelting, and crop growth by 5x.", ChatFormatting.DARK_PURPLE);
+    FAST_FORWARD("Fast Forward", ChatFormatting.LIGHT_PURPLE, "Accelerates time, smelting, and crop growth by 5x.", ChatFormatting.DARK_PURPLE),
+    REWIND("Rewind", ChatFormatting.DARK_PURPLE, "Rewinds the world, mobs, and player state backwards in time.", ChatFormatting.LIGHT_PURPLE);
 
     private final String displayName;
     private final ChatFormatting titleColor;

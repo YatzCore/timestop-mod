@@ -15,6 +15,9 @@ import net.minecraft.client.Minecraft;
 public class ModClientEvents {
 
     public static void onClientTick() {
+        RewindBlockRenderer.tick();
+        RewindMobAnimation.tick();
+        RewindFadeOverlay.tick();
         ClientTimeStopManager.clientTick();
         ClientTimeStopManager.onRenderFrameMotion();
         ClientBubbleManager.clientTick();
@@ -59,6 +62,9 @@ public class ModClientEvents {
     }
 
     public static void onLoggingOut() {
+        RewindBlockRenderer.clear();
+        RewindMobAnimation.clear();
+        RewindFadeOverlay.clear();
         ClientBubbleManager.reset();
         ClientTimeStopManager.reset();
         ClientOrbitalHandler.onClientLogout();

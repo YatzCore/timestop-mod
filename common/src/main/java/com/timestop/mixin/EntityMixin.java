@@ -15,6 +15,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Entity.class)
 public abstract class EntityMixin {
 
+    @Inject(method = "remove", at = @At("HEAD"))
+    private void timestop$onEntityRemoval(Entity.RemovalReason reason, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        Entity entity = (Entity) (Object) this;
+        if (reason.shouldDestroy()) com.timestop.core.rewind.TickRecorder.getInstance().recordEntityRemoval(entity);
+    }
+
     @Inject(method = "isPickable", at = @At("HEAD"), cancellable = true)
     private void onIsPickable(CallbackInfoReturnable<Boolean> cir) {
         Entity entity = (Entity) (Object) this;

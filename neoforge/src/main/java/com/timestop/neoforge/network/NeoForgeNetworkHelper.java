@@ -74,6 +74,10 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         registerClient(KineticCaptureSyncPacket.ID, KineticCaptureSyncPacket::new);
         registerClient(DeadEyeGunFeedbackPacket.ID, DeadEyeGunFeedbackPacket::new);
         registerClient(SyncSpeedConfigPacket.ID, SyncSpeedConfigPacket::new);
+        registerClient(RewindBlocksPacket.ID, RewindBlocksPacket::new);
+        registerClient(RewindMobPacket.ID, RewindMobPacket::new);
+        registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
+        registerClient(RewindFadePacket.ID, RewindFadePacket::new);
 
         registrar.playBidirectional(
                 RawModPayload.TYPE,

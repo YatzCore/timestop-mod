@@ -60,6 +60,7 @@ public class TimeStopMod {
         TimeStopManager.removeMatrixAttributes(serverPlayer);
         RuneManager.clearPlayerCooldowns(serverPlayer.getUUID());
         TranspositionManager.clearPlayerCooldown(serverPlayer.getUUID());
+        com.timestop.combat.RewindRuneManager.clearPlayer(serverPlayer.getUUID());
     }
 
     public static void onLivingDeath(ServerPlayer serverPlayer) {
@@ -71,6 +72,7 @@ public class TimeStopMod {
         KineticPalmManager.dischargeDrop(serverPlayer);
         OrbitalProjectileManager.onPlayerRespawn(serverPlayer);
         TimeStopManager.removeMatrixAttributes(serverPlayer);
+        com.timestop.combat.RewindRuneManager.clearPlayer(serverPlayer.getUUID());
     }
 
     public static void onServerStopping(MinecraftServer server) {

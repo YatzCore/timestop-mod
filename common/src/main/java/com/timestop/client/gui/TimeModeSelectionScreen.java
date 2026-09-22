@@ -414,6 +414,7 @@ public class TimeModeSelectionScreen extends Screen {
             case SUPERHOT -> "Time moves only when you physically move or attack.";
             case DECELERATION_FIELD -> "Creates an 80% projectile slowing field around you.";
             case FAST_FORWARD -> "Accelerates world time and crop growth by 500%.";
+            case REWIND -> "Rewinds blocks, entities, and player state backwards in time.";
         };
     }
 

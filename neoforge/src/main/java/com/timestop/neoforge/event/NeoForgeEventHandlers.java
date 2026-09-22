@@ -105,6 +105,7 @@ public class NeoForgeEventHandlers {
             KineticPalmManager.dischargeDrop(player);
             TimeStopManager.removeMatrixAttributes(player);
             RuneManager.clearPlayerCooldowns(player.getUUID());
+            com.timestop.combat.RewindRuneManager.clearPlayer(player.getUUID());
             TranspositionManager.clearPlayerCooldown(player.getUUID());
         }
     }
@@ -119,6 +120,12 @@ public class NeoForgeEventHandlers {
 
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            if (com.timestop.combat.RewindRuneManager.tryTriggerDeathRewind(player, event.getSource())) {
+                event.setCanceled(true);
+                return;
+            }
+        }
         CoinManager.onLivingDeath(event.getEntity(), event.getSource());
         if (event.getEntity() instanceof ServerPlayer player) {
             TemporalBubbleManager.stopPlayerBubble(player.serverLevel(), player.getUUID());
@@ -128,11 +135,16 @@ public class NeoForgeEventHandlers {
             KineticPalmManager.setGuarding(player, false);
             KineticPalmManager.dischargeDrop(player);
             TimeStopManager.removeMatrixAttributes(player);
+            com.timestop.combat.RewindRuneManager.clearPlayer(player.getUUID());
         }
     }
 
     @SubscribeEvent
     public static void onLivingIncomingDamage(LivingIncomingDamageEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && com.timestop.combat.RewindRuneManager.isPlayerInvulnerable(player)) {
+            event.setCanceled(true);
+            return;
+        }
         if (RuneManager.onLivingAttack(event.getEntity(), event.getSource())) {
             event.setCanceled(true);
         }

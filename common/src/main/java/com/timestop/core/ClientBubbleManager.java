@@ -212,6 +212,11 @@ public class ClientBubbleManager {
         return dominant;
     }
 
+    public static boolean isRewinding(Vec3 pos) {
+        ClientBubble bubble = getDominantBubble(pos.x, pos.y, pos.z);
+        return bubble != null && bubble.mode == TimeMode.REWIND;
+    }
+
     public static boolean isPositionInStasis(Vec3 pos) {
         return isPositionInStasis(pos.x, pos.y, pos.z);
     }

@@ -93,6 +93,12 @@ public enum RuneType {
             "Rune of Vector Control",
             "Redirect struck projectiles and kinetic barrier volleys along your look direction. Works with native gun bullets.",
             ChatFormatting.GREEN
+    ),
+    REWIND(
+            "rune_rewind",
+            "Rune of Rewind",
+            "Reverses time upon death, rising from the dead and rewinding the timeline before shattering.",
+            ChatFormatting.LIGHT_PURPLE
     );
 
     private final String id;

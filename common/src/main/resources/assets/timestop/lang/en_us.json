@@ -28,5 +28,9 @@
   "key.timestop.toggle_projectile_flow": "Toggle Projectile Flow / Suspended Stasis",
   "key.timestop.kinetic_barrier": "Hold Kinetic Barrier (Neo's Palm)",
   "key.categories.timestop": "Ultimate Time Stop",
-  "item.timestop.rune_vector": "Rune of Vector Control"
+  "item.timestop.rune_vector": "Rune of Vector Control",
+  "item.timestop.rune_rewind": "Rune of Rewind",
+  "item.timestop.rune_rewind.desc": "Reverses time upon death, rising from the dead and rewinding the timeline before shattering.",
+  "timestop.mode.rewind": "Rewind",
+  "subtitles.timestop.ramiel_scream": "Ramiel Scream"
 }

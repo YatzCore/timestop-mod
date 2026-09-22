@@ -91,6 +91,10 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(KineticCaptureSyncPacket.ID, KineticCaptureSyncPacket::new);
         registerClient(DeadEyeGunFeedbackPacket.ID, DeadEyeGunFeedbackPacket::new);
         registerClient(SyncSpeedConfigPacket.ID, SyncSpeedConfigPacket::new);
+        registerClient(RewindBlocksPacket.ID, RewindBlocksPacket::new);
+        registerClient(RewindMobPacket.ID, RewindMobPacket::new);
+        registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
+        registerClient(RewindFadePacket.ID, RewindFadePacket::new);
 
         ClientPlayNetworking.registerGlobalReceiver(RawModPayload.TYPE, (payload, context) -> {
             Function<FriendlyByteBuf, IClientboundPacket> decoder = CLIENT_DECODERS.get(payload.packetId());

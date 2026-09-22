@@ -11,6 +11,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
 
+    @Inject(method = "tickServer", at = @At("HEAD"))
+    private void timestop$recordServerTick(java.util.function.BooleanSupplier hasTimeLeft, CallbackInfo ci) {
+        com.timestop.core.rewind.TickRecorder.getInstance().serverTick((MinecraftServer) (Object) this);
+    }
+
     @Shadow private long nextTickTimeNanos;
     @Shadow private long delayedTasksMaxNextTickTimeNanos;
 

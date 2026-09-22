@@ -7,7 +7,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.timestop.config.TimeStopConfig;
 import com.timestop.core.TimeStopManager;
-import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -49,7 +48,52 @@ public class TimeStopCommand {
                         .then(Commands.literal("deceleration")
                                 .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.DECELERATION_FIELD))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 3600))
-                                        .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.DECELERATION_FIELD)))))
+                                        .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.DECELERATION_FIELD))))
+                        .then(Commands.literal("rewind")
+                                .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.REWIND))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 60))
+                                        .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.REWIND)))))
+                .then(Commands.literal("rewind")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> executeDirectRewind(ctx.getSource(), TimeStopConfig.rewindDurationSeconds()))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 60))
+                                .executes(ctx -> executeDirectRewind(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds"))))
+                        .then(Commands.literal("mode")
+                                .then(Commands.literal("burst")
+                                        .executes(ctx -> setRewindMode(ctx.getSource(), "BURST")))
+                                .then(Commands.literal("continuous")
+                                        .executes(ctx -> setRewindMode(ctx.getSource(), "CONTINUOUS"))))
+                        .then(Commands.literal("ondeath")
+                                .executes(ctx -> showDeathRewind(ctx.getSource()))
+                                .then(Commands.argument("enabled", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> {
+                                             com.timestop.core.TimeStopSavedData.get().setAutoDeathRewind(
+                                                     com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "enabled"));
+                                             return showDeathRewind(ctx.getSource());
+                                        })))
+                        .then(Commands.literal("buffer")
+                                .executes(ctx -> showRewindStatus(ctx.getSource()))
+                                .then(Commands.literal("reset")
+                                        .executes(ctx -> resetRewindBuffer(ctx.getSource())))
+                                .then(Commands.literal("clear")
+                                        .executes(ctx -> clearRewindBuffer(ctx.getSource())))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 60))
+                                        .executes(ctx -> setRewindBuffer(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds")))))
+                        .then(Commands.literal("reset")
+                                .executes(ctx -> resetRewindBuffer(ctx.getSource())))
+                        .then(Commands.literal("clear")
+                                .executes(ctx -> clearRewindBuffer(ctx.getSource())))
+                        .then(Commands.literal("status")
+                                .executes(ctx -> showRewindStatus(ctx.getSource()))))
+                .then(Commands.literal("buffer")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> showRewindStatus(ctx.getSource()))
+                        .then(Commands.literal("reset")
+                                .executes(ctx -> resetRewindBuffer(ctx.getSource())))
+                        .then(Commands.literal("clear")
+                                .executes(ctx -> clearRewindBuffer(ctx.getSource())))
+                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 60))
+                                .executes(ctx -> setRewindBuffer(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds")))))
                 .then(Commands.literal("stop")
                         .requires(source -> source.hasPermission(2))
                         .executes(ctx -> stopTimeStop(ctx.getSource())))
@@ -138,15 +182,32 @@ public class TimeStopCommand {
     }
 
     private static int startTimeStop(CommandSourceStack source, int durationTicks, com.timestop.core.TimeMode mode) {
+        if (mode == com.timestop.core.TimeMode.REWIND) {
+            int ticks = durationTicks > 0 ? durationTicks : com.timestop.config.TimeStopConfig.rewindDurationSeconds() * 20;
+            if ("BURST".equalsIgnoreCase(TimeStopConfig.COMMON.rewindMode.get()))
+                return executeDirectRewind(source, Math.max(1, ticks / 20));
+            var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
+            recorder.finishFrame(source.getServer());
+            var buffer = recorder.getTimelineBuffer();
+            int available = buffer.getFrameCount();
+            if (available <= 0) {
+                source.sendFailure(Component.literal("§c[TimeStop] Rewind buffer is empty. History records as the world runs."));
+                return 0;
+            }
+            int playableTicks = Math.min(ticks, available);
+            TimeStopManager.startContinuousRewind(source.getLevel(), source.getPlayer(), playableTicks);
+            source.sendSuccess(() -> Component.literal("Rewinding " + String.format(java.util.Locale.ROOT, "%.1f", playableTicks / 20.0) + "s of available history."), true);
+            return 1;
+        }
         ServerLevel level = source.getLevel();
         ServerPlayer player = source.getPlayer();
 
-        if (TimeStopManager.isTimeStopped(level) && !com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+        if (TimeStopManager.isTimeStopped(level) && !com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && !com.timestop.core.rewind.LocalRewind.hasActive()) {
             source.sendFailure(Component.literal("Time distortion is already active!"));
             return 0;
         }
 
-        TimeStopManager.startGlobalTimeStop(level, player, durationTicks, mode);
+        TimeStopManager.startTimeStop(level, player, durationTicks, mode);
         String durationStr = durationTicks > 0 ? (durationTicks / 20) + " seconds" : "indefinitely";
         source.sendSuccess(() -> Component.literal("§6[TimeStop] Global " + mode.name() + " activated for " + durationStr + " across the server."), true);
         return 1;
@@ -155,11 +216,12 @@ public class TimeStopCommand {
     private static int stopTimeStop(CommandSourceStack source) {
         ServerLevel level = source.getLevel();
 
-        if (!TimeStopManager.isTimeStopped(level) && !com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+        if (!TimeStopManager.isTimeStopped(level) && !com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && !com.timestop.core.rewind.LocalRewind.hasActive()) {
             source.sendFailure(Component.literal("Time is not currently stopped!"));
             return 0;
         }
 
+        com.timestop.core.rewind.LocalRewind.clear();
         com.timestop.core.TemporalBubbleManager.stopAllBubbles(level);
         TimeStopManager.resumeTime(level);
         source.sendSuccess(() -> Component.literal("§bAll temporal bubbles collapsed and time resumed."), true);
@@ -168,7 +230,7 @@ public class TimeStopCommand {
 
     private static int toggleTimeStop(CommandSourceStack source, int durationTicks, com.timestop.core.TimeMode mode) {
         ServerLevel level = source.getLevel();
-        if (TimeStopManager.isTimeStopped(level) || com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
+        if (TimeStopManager.isTimeStopped(level) || com.timestop.core.TemporalBubbleManager.hasActiveBubbles() || com.timestop.core.rewind.LocalRewind.hasActive()) {
             return stopTimeStop(source);
         } else {
             return startTimeStop(source, durationTicks, mode);
@@ -311,6 +373,100 @@ public class TimeStopCommand {
         source.sendSuccess(() -> Component.literal(String.format(" §eMatrix:       §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.matrixRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eSuperhot Idle:§a%.3fx §7[0.005x - 0.80x]", TimeStopConfig.COMMON.superhotIdleRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eDecel Drag:   §a%.3fx §7[0.001x - 0.95x]", TimeStopConfig.COMMON.decelerationDrag.get())), false);
+        return 1;
+    }
+
+    private static int executeDirectRewind(CommandSourceStack source, int seconds) {
+        if ("CONTINUOUS".equalsIgnoreCase(TimeStopConfig.COMMON.rewindMode.get())) {
+            var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
+            recorder.finishFrame(source.getServer());
+            var buffer = recorder.getTimelineBuffer();
+            int available = buffer.getFrameCount();
+            if (available <= 0) {
+                source.sendFailure(Component.literal("§c[TimeStop] Rewind buffer is empty. History records as the world runs."));
+                return 0;
+            }
+            int requestedTicks = seconds * 20;
+            int playableTicks = Math.min(requestedTicks, available);
+            TimeStopManager.startContinuousRewind(source.getLevel(), source.getPlayer(), playableTicks);
+            source.sendSuccess(() -> Component.literal("Rewinding " + String.format(java.util.Locale.ROOT, "%.1f", playableTicks / 20.0) + "s of available history."), true);
+            return 1;
+        }
+        ServerPlayer player = source.getPlayer();
+        boolean rollbackInv = TimeStopConfig.COMMON.rollbackPlayerInventory.get();
+        var result = com.timestop.core.rewind.RewindExecutor.execute(source.getServer(), seconds, player, rollbackInv, null);
+        source.sendSuccess(result::toComponent, true);
+        return result.success() ? 1 : 0;
+    }
+
+    private static int resetRewindBuffer(CommandSourceStack source) {
+        com.timestop.core.rewind.LocalRewind.clear();
+        if (TimeStopManager.isTimeStopped(source.getLevel())) {
+            TimeStopManager.resumeTime(source.getLevel());
+        }
+        var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
+        recorder.reset();
+        var buffer = recorder.getTimelineBuffer();
+        buffer.resizeSeconds(30);
+        TimeStopConfig.COMMON.rewindHistorySeconds.set(30);
+        TimeStopConfig.save();
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind buffer reset to default (30s, 0 recorded frames retained)."), true);
+        return 1;
+    }
+
+    private static int clearRewindBuffer(CommandSourceStack source) {
+        com.timestop.core.rewind.LocalRewind.clear();
+        if (TimeStopManager.isTimeStopped(source.getLevel())) {
+            TimeStopManager.resumeTime(source.getLevel());
+        }
+        var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
+        recorder.clearTrackingData();
+        var buffer = recorder.getTimelineBuffer();
+        buffer.clear();
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind buffer cleared (0 recorded frames retained, capacity " + (buffer.getCapacity() / 20) + "s retained)."), true);
+        return 1;
+    }
+
+    private static int showDeathRewind(CommandSourceStack source) {
+        boolean enabled = com.timestop.core.TimeStopSavedData.get().isAutoDeathRewind();
+        source.sendSuccess(() -> Component.literal("Automatic death rewind: " + (enabled ? "ON" : "OFF")
+                + (enabled ? ". Applies to all players; no rune is required or consumed. Uses the configured rewind mode and scope."
+                           : ". Socketed rewind runes still work normally.")), true);
+        return 1;
+    }
+
+    private static int setRewindBuffer(CommandSourceStack source, int seconds) {
+        var buffer = com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer();
+        buffer.resizeSeconds(seconds);
+        TimeStopConfig.COMMON.rewindHistorySeconds.set(seconds);
+        TimeStopConfig.save();
+        source.sendSuccess(() -> Component.literal("Rewind buffer set to " + seconds + "s (" + buffer.getFrameCount()
+                + " recorded ticks retained); default rewind " + seconds + "s, memory budget " + buffer.getMaxMemoryBytes() / (1024 * 1024) + " MB. Longer history fills as you play."), true);
+        return 1;
+    }
+
+    private static int setRewindMode(CommandSourceStack source, String mode) {
+        TimeStopConfig.COMMON.rewindMode.set(mode.toUpperCase());
+        TimeStopConfig.save();
+        source.sendSuccess(() -> Component.literal("§a[TimeStop] Rewind mode set to: §e" + mode.toUpperCase()), true);
+        return 1;
+    }
+
+    private static int showRewindStatus(CommandSourceStack source) {
+        var buffer = com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer();
+        int frames = buffer.getFrameCount();
+        long mb = buffer.getTotalEstimatedBytes() / (1024 * 1024);
+        String mode = TimeStopConfig.COMMON.rewindMode.get();
+        source.sendSuccess(() -> Component.literal(String.format(
+                "§d[TimeStop Rewind Status]\n" +
+                "§7• Frames Recorded: §e%d / %d §7(%.1fs)\n" +
+                "§7• Memory Used: §e%d / %d MB\n" +
+                "§7• Default rewind: §e%ds §7| Memory-evicted frames: §e%d\n" +
+                "§7• Mode: §e%s\n" +
+                "§7• Recording: §a%b",
+                frames, buffer.getCapacity(), frames / 20.0, mb, buffer.getMaxMemoryBytes() / (1024 * 1024),
+                TimeStopConfig.rewindDurationSeconds(), buffer.getMemoryEvictedFrames(), mode, buffer.isRecording()
+        )), false);
         return 1;
     }
 }

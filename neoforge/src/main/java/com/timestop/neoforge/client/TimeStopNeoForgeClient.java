@@ -89,6 +89,7 @@ public class TimeStopNeoForgeClient {
                 DeadEyeRenderer.renderWorld(event.getPoseStack(), event.getCamera(), tickDelta);
                 TemporalBubbleRenderer.renderLevel(event.getPoseStack(), event.getCamera(), tickDelta);
                 KineticPalmRenderer.renderLevel(event.getPoseStack(), event.getCamera(), tickDelta);
+                RewindBlockRenderer.render(event.getPoseStack(), event.getCamera(), tickDelta);
             }
         }
 

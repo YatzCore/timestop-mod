@@ -87,6 +87,9 @@ public class ModItems {
     public static final RegistryEntry<Item> RUNE_COIN = register("rune_coin",
             () -> new TemporalRuneItem(new Item.Properties().stacksTo(1), RuneType.RICOSHOT));
 
+    public static final RegistryEntry<Item> RUNE_REWIND = register("rune_rewind",
+            () -> new TemporalRuneItem(new Item.Properties().stacksTo(1), RuneType.REWIND));
+
     public static final RegistryEntry<Item> CHRONO_COIN = register("chrono_coin",
             () -> new ChronoCoinItem(new Item.Properties().stacksTo(64)));
 
@@ -108,6 +111,7 @@ public class ModItems {
             case VECTOR -> RUNE_VECTOR.get();
             case KINETIC_BARRIER -> RUNE_BARRIER.get();
             case RICOSHOT -> RUNE_COIN.get();
+            case REWIND -> RUNE_REWIND.get();
         };
     }
 }

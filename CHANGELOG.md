@@ -2,6 +2,19 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.4.5] - 2026-09-22
+
+### Added
+- **Multi-Loader 1.21.1 Port**: Complete port to Minecraft 1.21.1 across **Fabric**, **Forge**, and **NeoForge** using the unified multi-loader architecture with Java 21.
+- **Rewind Engine**: High-performance continuous and burst rewind timeline replay engine.
+  - Granular entity and block state tracking with delta compression.
+  - Support for moving pistons, block entities, inventory stasis, and explosion rollback.
+  - Smooth block reconstruction animations with fading particle effects.
+- **Rune of Rewind**: Socketable temporal rune granting death rewind protection and localized time reversal.
+- **Auto Death Rewind**: Automatically initiates a cinematic temporal rewind upon fatal damage, saving the player from demise.
+- **Rewind Commands**: Added `/timestop rewind <seconds> [player]`, `/timestop buffer set <seconds>`, `/timestop buffer reset`, `/timestop buffer status`, and `/timestop rewind autodeath <enable|disable>`.
+- **Cinematic Audio & Visuals**: Added Ramiel geometric scream sound cue, dynamic fade-to-black viewport overlay, and reconstructed block rendering across all loaders.
+
 ## [1.4.0] - 2026-09-14
 
 ### Added
