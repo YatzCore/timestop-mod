@@ -12,7 +12,7 @@ All notable changes to the **Ultimate Time Stop** mod are documented in this fil
   - Smooth block reconstruction animations with fading particle effects.
 - **Rune of Rewind**: Socketable temporal rune granting death rewind protection and localized time reversal.
 - **Auto Death Rewind**: Automatically initiates a cinematic temporal rewind upon fatal damage, saving the player from demise.
-- **Rewind Commands**: Added `/timestop rewind <seconds> [player]`, `/timestop buffer set <seconds>`, `/timestop buffer reset`, `/timestop buffer status`, and `/timestop rewind autodeath <enable|disable>`.
+- **Rewind Commands**: Added `/timestop rewind <seconds> [player]`, `/timestop buffer set <seconds>`, `/timestop buffer reset`, `/timestop buffer status`, and `/timestop rewind ondeath [true|false]`.
 - **Cinematic Audio & Visuals**: Added Ramiel geometric scream sound cue, dynamic fade-to-black viewport overlay, and reconstructed block rendering across all loaders.
 
 ## [1.4.0] - 2026-09-14

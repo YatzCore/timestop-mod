@@ -146,7 +146,7 @@ Requires Operator permission (Level 2):
 - `/timestop exempt <add|remove> <player>`: Manage player whitelist for global time stop immunity.
 - `/timestop speed <get|set|reset>`: Inspect or configure speed dilation multipliers for Slow Motion, Matrix, Superhot, and Fast Forward.
 - `/timestop rewind <seconds> [player]`: Trigger an immediate temporal rollback (respects configured Burst or Continuous mode).
-- `/timestop rewind autodeath <enable|disable>`: Toggle server-wide auto death rewind protection.
+- `/timestop rewind ondeath [true|false]`: Toggle or inspect server-wide automatic death rewind protection.
 - `/timestop rewind mode <burst|continuous>`: Switch between immediate Burst and smooth Continuous rewind playback.
 - `/timestop buffer <set|reset|clear|status>`: Manage timeline recording capacity, clear history, or inspect buffer diagnostics.
 - `/timestop status`: Display diagnostics (active bubbles, remaining duration, tick rates, and scoping mode).

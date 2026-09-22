@@ -71,6 +71,14 @@ public class TimeStopCommand {
                                                      com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "enabled"));
                                              return showDeathRewind(ctx.getSource());
                                         })))
+                        .then(Commands.literal("autodeath")
+                                .executes(ctx -> showDeathRewind(ctx.getSource()))
+                                .then(Commands.argument("enabled", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> {
+                                             com.timestop.core.TimeStopSavedData.get().setAutoDeathRewind(
+                                                     com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "enabled"));
+                                             return showDeathRewind(ctx.getSource());
+                                        })))
                         .then(Commands.literal("buffer")
                                 .executes(ctx -> showRewindStatus(ctx.getSource()))
                                 .then(Commands.literal("reset")
