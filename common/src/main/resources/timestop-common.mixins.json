@@ -19,6 +19,7 @@
     "ProjectileDecelerationMixin",
     "ItemEntityMixin",
     "BlockEntityMixin",
+    "RandomizableContainerAccessor",
     "ServerPlayerGameModeMixin",
     "ServerEntityMixin",
     "TntBlockMixin",

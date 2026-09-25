@@ -243,6 +243,9 @@ public class RewindRuneManager {
     }
 
     public static void identifyInventory(Object holder) {
+        // Reading an unopened loot container rolls its table. Observation must leave it deferred.
+        if (holder instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
+                && ((com.timestop.mixin.RandomizableContainerAccessor) container).timestop$getLootTable() != null) return;
         if (holder instanceof net.minecraft.world.Container inventory) {
             for (int slot = 0; slot < inventory.getContainerSize(); slot++) identifyRunes(inventory.getItem(slot));
         }

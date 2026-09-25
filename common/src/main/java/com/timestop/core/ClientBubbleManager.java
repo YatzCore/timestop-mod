@@ -28,6 +28,9 @@ public class ClientBubbleManager {
         public final int totalDuration;
         public final WatchTier tier;
         public final Set<UUID> exemptPlayers = ConcurrentHashMap.newKeySet();
+        public boolean stationary;
+        public boolean affectsPlayers = true;
+        public double activationTicks = -1;
 
         public ClientBubble(UUID bubbleId, @Nullable UUID ownerUuid, String dimensionId, Vec3 center,
                             double radius, TimeMode mode, int remainingTicks, int totalDuration,
@@ -48,7 +51,7 @@ public class ClientBubbleManager {
         }
 
         public Vec3 getCenter(float partialTick) {
-            if (ownerUuid != null) {
+            if (!stationary && ownerUuid != null) {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.level != null) {
                     if (mc.player != null && ownerUuid.equals(mc.player.getUUID())) {
@@ -74,6 +77,8 @@ public class ClientBubbleManager {
         }
 
         public boolean contains(double px, double py, double pz) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level == null || !mc.level.dimension().location().toString().equals(dimensionId)) return false;
             double dx = px - this.center.x;
             double dy = py - this.center.y;
             double dz = pz - this.center.z;
@@ -95,6 +100,7 @@ public class ClientBubbleManager {
                 return false;
             }
 
+            if (stationary && !affectsPlayers) return true;
             if (player.isCreative() || player.isSpectator()) return true;
             if (mode == TimeMode.SUPERHOT) return true;
             if (ownerUuid != null && ownerUuid.equals(player.getUUID())) return true;
@@ -103,7 +109,7 @@ public class ClientBubbleManager {
             // Self-Generated Temporal Field Shielding:
             // If player is inside ANY active bubble they own, they are free to act!
             for (ClientBubble cb : clientBubbles.values()) {
-                if (cb.ownerUuid != null && cb.ownerUuid.equals(player.getUUID()) && cb.contains(player.getX(), player.getY() + player.getBbHeight() * 0.5, player.getZ())) {
+                if (!cb.stationary && cb.ownerUuid != null && cb.ownerUuid.equals(player.getUUID()) && cb.contains(player.getX(), player.getY() + player.getBbHeight() * 0.5, player.getZ())) {
                     return true;
                 }
             }
@@ -118,6 +124,8 @@ public class ClientBubbleManager {
 
         public float getTimeDilationFactor(Entity entity) {
             if (canEntityAct(entity)) return 1.0F;
+            if (stationary && mode == TimeMode.SLOW_MOTION) return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
+            if (stationary && mode == TimeMode.FAST_FORWARD) return com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue();
 
             if (entity instanceof Player player) {
                 WatchTier playerTier = TemporalBubble.getBestEquippedTier(player);
@@ -178,6 +186,21 @@ public class ClientBubbleManager {
         }
     }
 
+    public static void handleSyncBubble(UUID bubbleId, @Nullable UUID ownerUuid, String dimensionId,
+                                       double x, double y, double z, double radius, TimeMode mode,
+                                       int remainingTicks, int totalDuration, WatchTier tier, Set<UUID> exempt,
+                                       boolean stationary, boolean affectsPlayers) {
+        ClientBubble existing = clientBubbles.get(bubbleId);
+        ClientBubble bubble = new ClientBubble(bubbleId, ownerUuid, dimensionId, new Vec3(x,y,z), radius,
+                mode, remainingTicks, totalDuration, tier, exempt);
+        bubble.stationary = stationary;
+        bubble.affectsPlayers = affectsPlayers;
+        if (existing != null) {
+            bubble.activationTicks = existing.activationTicks;
+        }
+        clientBubbles.put(bubbleId, bubble);
+    }
+
     public static void reset() {
         superhotActivities.clear();
         clientBubbles.clear();
@@ -199,9 +222,7 @@ public class ClientBubbleManager {
             if (b.contains(px, py, pz)) {
                 if (dominant == null) {
                     dominant = b;
-                } else if (b.tier.getTierLevel() > dominant.tier.getTierLevel()) {
-                    dominant = b;
-                } else if (b.tier.getTierLevel() == dominant.tier.getTierLevel() && b.mode == TimeMode.TIME_STOP) {
+                } else if (BubblePriority.compare(b.tier, b.mode, b.bubbleId, dominant.tier, dominant.mode, dominant.bubbleId) > 0) {
                     dominant = b;
                 }
             }
@@ -242,7 +263,7 @@ public class ClientBubbleManager {
         Vec3 camPos = mc.gameRenderer.getMainCamera().getPosition();
         if (mc.player != null) {
             for (ClientBubble b : clientBubbles.values()) {
-                if (b.ownerUuid != null && b.ownerUuid.equals(mc.player.getUUID()) && b.contains(camPos)) {
+                if (!b.stationary && b.ownerUuid != null && b.ownerUuid.equals(mc.player.getUUID()) && b.contains(camPos)) {
                     return b;
                 }
             }

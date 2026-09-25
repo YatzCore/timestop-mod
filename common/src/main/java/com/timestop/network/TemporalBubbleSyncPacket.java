@@ -31,6 +31,8 @@ public class TemporalBubbleSyncPacket implements IClientboundPacket {
     private final int totalDuration;
     private final WatchTier tier;
     private final Set<UUID> exemptPlayers;
+    private boolean stationary;
+    private boolean affectsPlayers = true;
 
     public static TemporalBubbleSyncPacket remove(UUID bubbleId) {
         return new TemporalBubbleSyncPacket(Action.REMOVE, bubbleId, null, "", 0, 0, 0, 0, TimeMode.TIME_STOP, 0, 0, WatchTier.COPPER, Collections.emptySet());
@@ -88,12 +90,23 @@ public class TemporalBubbleSyncPacket implements IClientboundPacket {
             for (int i = 0; i < count; i++) {
                 this.exemptPlayers.add(buf.readUUID());
             }
+            this.stationary = buf.readBoolean();
+            this.affectsPlayers = buf.readBoolean();
         }
     }
 
     @Override
     public ResourceLocation getId() {
         return ID;
+    }
+
+    public TemporalBubbleSyncPacket(Action action, UUID bubbleId, UUID ownerUuid, String dimensionId,
+                                   double x, double y, double z, double radius, TimeMode mode,
+                                   int remainingTicks, int totalDuration, WatchTier tier, Set<UUID> exemptPlayers,
+                                   boolean stationary, boolean affectsPlayers) {
+        this(action, bubbleId, ownerUuid, dimensionId, x, y, z, radius, mode, remainingTicks, totalDuration, tier, exemptPlayers);
+        this.stationary = stationary;
+        this.affectsPlayers = affectsPlayers;
     }
 
     @Override
@@ -118,6 +131,8 @@ public class TemporalBubbleSyncPacket implements IClientboundPacket {
             for (UUID uuid : this.exemptPlayers) {
                 buf.writeUUID(uuid);
             }
+            buf.writeBoolean(stationary);
+            buf.writeBoolean(affectsPlayers);
         }
     }
 
@@ -127,7 +142,7 @@ public class TemporalBubbleSyncPacket implements IClientboundPacket {
             ClientBubbleManager.handleRemoveBubble(bubbleId);
         } else {
             ClientBubbleManager.handleSyncBubble(bubbleId, ownerUuid, dimensionId, x, y, z, radius,
-                    mode, remainingTicks, totalDuration, tier, exemptPlayers);
+                    mode, remainingTicks, totalDuration, tier, exemptPlayers, stationary, affectsPlayers);
         }
     }
 }

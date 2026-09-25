@@ -1,5 +1,9 @@
 # Ultimate Time Stop
 
+**New in 1.6.0:** explore [Ruined Observatories](OBSERVATORY.md) in highlands and forests, discover their hidden archives, and recover watches, runes, and abandoned armillary pedestals.
+
+**New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation. Editable models and previews are in `art/pedestals`.
+
 <p align="center">
   <img src="logo.png" alt="Ultimate Time Stop" width="240" />
 </p>
@@ -155,9 +159,10 @@ Requires Operator permission (Level 2):
 - `/timestop exempt <add|remove> <player>`: Manage player whitelist for global time stop immunity.
 - `/timestop speed <get|set|reset>`: Inspect or configure speed dilation multipliers for Slow Motion, Matrix, Superhot, and Fast Forward.
 - `/timestop rewind [seconds]`: Rewind the world timeline backwards (respects configured continuous or burst mode).
+- `/timestop rewind include <true|false>`: Enable or disable Rewind mode inclusion across all watches and commands (aliases: `/timestop allowrewind [true|false]`, `/timestop rewind on|off|enable|disable`). When disabled, Rewind mode completely disappears from watches and selection menus.
 - `/timestop rewind mode <burst|continuous>`: Set active rewind playback mode.
 - `/timestop rewind ondeath [true|false]`: Toggle or inspect server-wide auto death rewind without requiring a rune.
-- `/timestop buffer`: Inspect the timeline recording buffer status and memory usage.
+- `/timestop buffer`: Inspect the timeline recording buffer status, memory usage, and watch inclusion state.
 - `/timestop buffer reset`: Clear timeline history, reset capacity to 30s defaults, and cancel active rewinds.
 - `/timestop buffer clear`: Clear recorded frames while preserving configured capacity.
 - `/timestop status`: Display diagnostics (active bubbles, remaining duration, tick rates, and scoping mode).

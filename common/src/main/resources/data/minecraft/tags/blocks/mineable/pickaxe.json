@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "timestop:copper_pedestal",
+    "timestop:golden_pedestal",
+    "timestop:diamond_pedestal",
+    "timestop:netherite_pedestal",
+    "timestop:creative_pedestal"
+  ]
+}

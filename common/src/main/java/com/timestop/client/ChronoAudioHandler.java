@@ -33,6 +33,10 @@ public class ChronoAudioHandler {
             return false;
         }
 
+        if (sound.getLocation() != null && com.timestop.TimeStopMod.MOD_ID.equals(sound.getLocation().getNamespace())) {
+            return false;
+        }
+
         SoundSource source = sound.getSource();
 
         // Deafening Silence: Mute ambient world audio, weather, flowing fluids, and mob vocalizations

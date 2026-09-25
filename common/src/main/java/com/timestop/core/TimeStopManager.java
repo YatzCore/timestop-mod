@@ -188,6 +188,7 @@ public class TimeStopManager {
         }
         if (TemporalBubbleManager.hasActiveBubbles()) {
             for (TemporalBubble bubble : TemporalBubbleManager.getActiveBubbles().values()) {
+                if (bubble.isStationary()) continue;
                 TimeMode bMode = bubble.getMode();
                 if (bMode == TimeMode.SLOW_MOTION) {
                     return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get()));
@@ -226,6 +227,34 @@ public class TimeStopManager {
             TimeStopSavedData.get().setProjectileStasisMode(mode);
         }
         syncLegacyState();
+    }
+
+    private static boolean clientRewindAllowed = true;
+
+    public static boolean isRewindAllowed() {
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server != null) {
+            return TimeStopSavedData.get().isRewindModeAllowed();
+        }
+        return clientRewindAllowed;
+    }
+
+    public static void setClientRewindAllowed(boolean allowed) {
+        clientRewindAllowed = allowed;
+    }
+
+    public static void setRewindAllowed(boolean allowed) {
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server != null) {
+            TimeStopSavedData.get().setRewindModeAllowed(allowed);
+            if (!allowed) {
+                if (currentMode == TimeMode.REWIND && isTimeStopped(server.overworld())) {
+                    resumeTime(server.overworld());
+                }
+                com.timestop.core.rewind.LocalRewind.clear();
+            }
+            ModMessages.sendToClients(new com.timestop.network.SyncRewindAllowedPacket(allowed));
+        }
     }
 
     public static boolean isProjectileExempt(Projectile projectile) {
@@ -348,6 +377,13 @@ public class TimeStopManager {
     }
 
     public static void startTimeStop(ServerLevel level, @Nullable Player initiator, int durationTicks, TimeMode mode) {
+        if (mode == TimeMode.REWIND && !isRewindAllowed()) {
+            if (initiator != null) {
+                initiator.displayClientMessage(Component.literal("Rewind mode has been disabled by the server administrator!").withStyle(ChatFormatting.RED), true);
+            }
+            return;
+        }
+
         if (timeStopped) {
             if (initiator != null && !initiator.isCreative() && !initiator.hasPermissions(2) && (initiatorUuid == null || !initiatorUuid.equals(initiator.getUUID()))) {
                 initiator.displayClientMessage(Component.literal("The universe is locked in global temporal stasis!").withStyle(ChatFormatting.RED), true);
@@ -535,6 +571,12 @@ public class TimeStopManager {
 
     public static void startContinuousRewind(ServerLevel level, @Nullable Player initiator, int durationTicks,
             @Nullable com.timestop.core.rewind.RewindScope scope) {
+        if (!isRewindAllowed()) {
+            if (initiator != null) {
+                initiator.displayClientMessage(Component.literal("§c[TimeStop] Rewind mode has been disabled by the server administrator!"), true);
+            }
+            return;
+        }
         var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
         recorder.finishFrame(level.getServer());
         int available = recorder.getTimelineBuffer().getFrameCount();
@@ -803,6 +845,7 @@ public class TimeStopManager {
         exemptPlayers.clear();
         projectileData.clear();
         projectileEntities.clear();
+        clientRewindAllowed = true;
         activeServerLevel = new java.lang.ref.WeakReference<>(null);
     }
 
@@ -1004,7 +1047,8 @@ public class TimeStopManager {
     public static void registerSuspendedProjectile(Projectile projectile, Vec3 originalVelocity) {
         boolean isStasis = false;
         if (TemporalBubbleManager.hasActiveBubbles()) {
-            TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(projectile.level().dimension(), projectile.position());
+            TemporalBubble dominant = TemporalBubbleManager.getDominantBubble(projectile.level().dimension(),
+                    projectile.getX(), projectile.getY() + projectile.getBbHeight() * .5, projectile.getZ());
             if (dominant != null && dominant.getMode() == TimeMode.TIME_STOP) {
                 isStasis = true;
             }
@@ -1123,7 +1167,7 @@ public class TimeStopManager {
                 Entity found = level.getEntity(uuid);
                 if (found instanceof Projectile proj) p = proj;
             }
-            if (p != null && p.level() == level && p.distanceToSqr(center) <= rSq
+            if (p != null && p.level() == level && p.position().add(0, p.getBbHeight() * .5, 0).distanceToSqr(center) <= rSq
                     && !TemporalBubbleManager.isEntityInStasis(p)) {
                 toResume.add(uuid);
             }

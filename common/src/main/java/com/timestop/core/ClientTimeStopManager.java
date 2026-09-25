@@ -92,6 +92,7 @@ public class ClientTimeStopManager {
         if (ClientBubbleManager.hasActiveBubbles()) {
             ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
             if (b != null) {
+                if (b.stationary && b.canEntityAct(mc.player)) return 50.0F;
                 active = true;
                 mode = b.mode;
             } else if (!clientTimeStopped) {

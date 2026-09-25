@@ -12,7 +12,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public class ForgeNetworkHelper implements INetworkHelper {
-    private static final String PROTOCOL_VERSION = "8";
+    private static final String PROTOCOL_VERSION = "9";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TimeStopMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -24,6 +24,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
     private static int nextId() { return packetId++; }
 
     public static void register() {
+        registerServer(SetPedestalRadiusPacket.class, SetPedestalRadiusPacket::new);
         // Serverbound packets
         registerServer(ToggleTimeStopPacket.class, ToggleTimeStopPacket::new);
         registerServer(SuperhotSyncPacket.class, SuperhotSyncPacket::new);
@@ -60,6 +61,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerClient(RewindMobPacket.class, RewindMobPacket::new);
         registerClient(RewindPistonPacket.class, RewindPistonPacket::new);
         registerClient(RewindFadePacket.class, RewindFadePacket::new);
+        registerClient(SyncRewindAllowedPacket.class, SyncRewindAllowedPacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(Class<T> type, net.minecraft.network.FriendlyByteBuf.Reader<T> decoder) {

@@ -67,5 +67,30 @@ loom {
             vmArg '-Dfabric-api.gametest'
             runDir 'build/gametest-run'
         }
+        pedestalVisual {
+            client()
+            name 'Pedestal visual QA (isolated world)'
+            source sourceSets.gametest
+            vmArg '-Dtimestop.pedestalVisualQa=true'
+            programArgs '--width', '1600', '--height', '900'
+            runDir 'build/pedestal-visual-run'
+        }
+        observatoryVisual {
+            client()
+            name 'Observatory visual QA (isolated world)'
+            source sourceSets.gametest
+            vmArg '-Dtimestop.observatoryVisualQa=true'
+            programArgs '--width', '1600', '--height', '900'
+            runDir 'build/observatory-visual-run'
+        }
+        observatoryNatural {
+            client()
+            name 'Observatory natural generation QA (isolated world)'
+            source sourceSets.gametest
+            vmArg '-Dtimestop.observatoryVisualQa=true'
+            vmArg '-Dtimestop.observatoryNaturalQa=true'
+            programArgs '--width', '1600', '--height', '900'
+            runDir 'build/observatory-natural-run'
+        }
     }
 }

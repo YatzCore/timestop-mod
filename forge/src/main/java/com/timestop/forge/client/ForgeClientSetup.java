@@ -25,6 +25,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 public class ForgeClientSetup {
 
     public static void init(IEventBus modEventBus) {
+        modEventBus.addListener(ForgeClientSetup::clientSetup);
         modEventBus.addListener(ForgeClientSetup::registerKeys);
         modEventBus.addListener(ForgeClientSetup::registerOverlays);
         modEventBus.addListener(ForgeClientSetup::registerEntityRenderers);
@@ -32,7 +33,12 @@ public class ForgeClientSetup {
     }
 
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(com.timestop.pedestal.ModPedestals.ENTITY.get(), com.timestop.client.renderer.PedestalRenderer::new);
         event.registerEntityRenderer(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);
+    }
+
+    private static void clientSetup(net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent event) {
+        event.enqueueWork(() -> net.minecraft.client.gui.screens.MenuScreens.register(com.timestop.pedestal.ModPedestals.MENU.get(), com.timestop.client.gui.PedestalScreen::new));
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {

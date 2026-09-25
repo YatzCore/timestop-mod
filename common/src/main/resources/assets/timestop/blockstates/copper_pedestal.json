@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "active=false": {
+      "model": "timestop:block/copper_pedestal"
+    },
+    "active=true": {
+      "model": "timestop:block/copper_pedestal_active"
+    }
+  }
+}

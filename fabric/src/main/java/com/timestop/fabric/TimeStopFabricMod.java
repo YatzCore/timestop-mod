@@ -42,6 +42,17 @@ public class TimeStopFabricMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        Registry.register(BuiltInRegistries.STRUCTURE_TYPE, com.timestop.worldgen.ModObservatories.ID, com.timestop.worldgen.ModObservatories.TYPE);
+        Registry.register(BuiltInRegistries.STRUCTURE_PIECE, com.timestop.worldgen.ModObservatories.ID, com.timestop.worldgen.ModObservatories.PIECE);
+        com.timestop.pedestal.ModPedestals.bootstrap();
+        com.timestop.pedestal.ModPedestals.BLOCKS.forEach((id, entry) -> entry.bind(Registry.register(BuiltInRegistries.BLOCK, id, entry.get())));
+        var pedestalEntity = com.timestop.pedestal.ModPedestals.ENTITY;
+        pedestalEntity.bind(Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, pedestalEntity.getId(),
+                net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder.create(
+                        com.timestop.pedestal.PedestalBlockEntity::new, com.timestop.pedestal.ModPedestals.BLOCKS.values().stream()
+                                .map(com.timestop.registry.RegistryEntry::get).toArray(net.minecraft.world.level.block.Block[]::new)).build()));
+        var pedestalMenu = com.timestop.pedestal.ModPedestals.MENU;
+        pedestalMenu.bind(net.fabricmc.fabric.api.screenhandler.v1.ScreenHandlerRegistry.registerSimple(pedestalMenu.getId(), com.timestop.pedestal.PedestalMenu::new));
         // 1. Items & Entities
         TimeStopMod.LOGGER.info("[TimeStop] Registering {} items...", ModItems.ITEMS.size());
         ModItems.ITEMS.forEach((id, entry) -> {
@@ -135,6 +146,7 @@ public class TimeStopFabricMod implements ModInitializer {
                     TimeStopManager.getInitiatorUuid(), TimeStopManager.getCurrentMode(),
                     TimeStopManager.getExemptPlayers()), serverPlayer);
             com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
+            com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(com.timestop.core.TimeStopManager.isRewindAllowed()), serverPlayer);
             com.timestop.combat.CoinManager.onPlayerLoggedIn(serverPlayer);
             com.timestop.combat.OrbitalProjectileManager.onPlayerLoggedIn(serverPlayer);
         });

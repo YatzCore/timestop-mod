@@ -20,7 +20,7 @@ public enum WatchTier {
             0xD97706, // Amber
             false,
             false, // No rune socket
-            Set.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD)
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD)
     ),
     GILDED(
             2,
@@ -33,7 +33,7 @@ public enum WatchTier {
             0xF59E0B, // Luminous Gold
             true,
             true, // 1 Rune Socket
-            Set.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT)
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT)
     ),
     DIAMOND(
             3,
@@ -46,7 +46,7 @@ public enum WatchTier {
             0x06B6D4, // Electric Cyan
             true,
             true, // 1 Rune Socket
-            Set.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
     ),
     NETHERITE(
             4,
@@ -59,7 +59,7 @@ public enum WatchTier {
             0x8B5CF6, // Twilight Purple
             true,
             true, // 1 Rune Socket
-            Set.of(TimeMode.values()) // All modes unlocked
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
     ),
     CREATIVE(
             5,
@@ -72,7 +72,7 @@ public enum WatchTier {
             0xEC4899, // Cosmic Pink
             true,
             true, // 1 Rune Socket
-            Set.of(TimeMode.values())
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
     );
 
     private final int tierLevel;
@@ -88,7 +88,7 @@ public enum WatchTier {
     private final Set<TimeMode> unlockedModes;
 
     WatchTier(int tierLevel, String displayName, ChatFormatting titleColor, int durationTicks, int cooldownTicks,
-              double decelerationRadius, double bubbleRadius, int themeColorHex, boolean hasOffhandPassive, boolean hasRuneSocket, Set<TimeMode> unlockedModes) {
+              double decelerationRadius, double bubbleRadius, int themeColorHex, boolean hasOffhandPassive, boolean hasRuneSocket, java.util.Collection<TimeMode> unlockedModes) {
         this.tierLevel = tierLevel;
         this.displayName = displayName;
         this.titleColor = titleColor;
@@ -174,10 +174,18 @@ public enum WatchTier {
     }
 
     public Set<TimeMode> getUnlockedModes() {
+        if (!com.timestop.core.TimeStopManager.isRewindAllowed()) {
+            Set<TimeMode> filtered = new LinkedHashSet<>(unlockedModes);
+            filtered.remove(TimeMode.REWIND);
+            return Collections.unmodifiableSet(filtered);
+        }
         return unlockedModes;
     }
 
     public boolean isModeUnlocked(TimeMode mode) {
+        if (mode == TimeMode.REWIND && !com.timestop.core.TimeStopManager.isRewindAllowed()) {
+            return false;
+        }
         return unlockedModes.contains(mode);
     }
 

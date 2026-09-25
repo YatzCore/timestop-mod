@@ -30,9 +30,11 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+__pycache__/
 
 # Internal Dev Notes & CurseForge exports
 PORT_FIXES.md
 *.bak
 CURSEFORGE*
-
+scratch/
+art/

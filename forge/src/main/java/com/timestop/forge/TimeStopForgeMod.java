@@ -67,6 +67,7 @@ public class TimeStopForgeMod {
     );
 
     public TimeStopForgeMod() {
+        com.timestop.pedestal.ModPedestals.bootstrap();
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         CREATIVE_MODE_TABS.register(modEventBus);
@@ -85,7 +86,24 @@ public class TimeStopForgeMod {
     }
 
     private void onRegister(RegisterEvent event) {
-        if (event.getRegistryKey().equals(Registries.ITEM)) {
+        if (event.getRegistryKey().equals(Registries.STRUCTURE_TYPE)) {
+            event.register(Registries.STRUCTURE_TYPE, com.timestop.worldgen.ModObservatories.ID, () -> com.timestop.worldgen.ModObservatories.TYPE);
+        } else if (event.getRegistryKey().equals(Registries.STRUCTURE_PIECE)) {
+            event.register(Registries.STRUCTURE_PIECE, com.timestop.worldgen.ModObservatories.ID, () -> com.timestop.worldgen.ModObservatories.PIECE);
+        }
+        if (event.getRegistryKey().equals(Registries.BLOCK)) {
+            com.timestop.pedestal.ModPedestals.BLOCKS.forEach((id, entry) -> event.register(Registries.BLOCK, id, entry));
+        } else if (event.getRegistryKey().equals(Registries.BLOCK_ENTITY_TYPE)) {
+            var entry = com.timestop.pedestal.ModPedestals.ENTITY;
+            entry.bind(net.minecraft.world.level.block.entity.BlockEntityType.Builder.of(com.timestop.pedestal.PedestalBlockEntity::new,
+                    com.timestop.pedestal.ModPedestals.BLOCKS.values().stream().map(com.timestop.registry.RegistryEntry::get)
+                            .toArray(net.minecraft.world.level.block.Block[]::new)).build(null));
+            event.register(Registries.BLOCK_ENTITY_TYPE, entry.getId(), entry::get);
+        } else if (event.getRegistryKey().equals(Registries.MENU)) {
+            var entry = com.timestop.pedestal.ModPedestals.MENU;
+            entry.bind(net.minecraftforge.common.extensions.IForgeMenuType.create((id, inventory, data) -> new com.timestop.pedestal.PedestalMenu(id, inventory)));
+            event.register(Registries.MENU, entry.getId(), entry::get);
+        } else if (event.getRegistryKey().equals(Registries.ITEM)) {
             ModItems.ITEMS.forEach((id, entry) -> {
                 Item item = entry.get();
                 event.register(Registries.ITEM, id, () -> item);
@@ -147,6 +165,7 @@ public class TimeStopForgeMod {
                         TimeStopManager.getInitiatorUuid(), TimeStopManager.getCurrentMode(),
                         TimeStopManager.getExemptPlayers()), serverPlayer);
                 com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
+                com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(com.timestop.core.TimeStopManager.isRewindAllowed()), serverPlayer);
                 com.timestop.combat.CoinManager.onPlayerLoggedIn(serverPlayer);
                 com.timestop.combat.OrbitalProjectileManager.onPlayerLoggedIn(serverPlayer);
             }

@@ -20,9 +20,9 @@ public abstract class TaczDeadEyeBulletMixin {
     private void beforeNativeTick(CallbackInfo ci) {
         timestop$handledImpact = false;
         Projectile bullet = (Projectile) (Object) this;
-        if (TaczProjectileCompat.beforeTick(bullet)) { ci.cancel(); return; }
         timestop$fullVelocity = null;
         com.timestop.combat.TaczPrecision.guide(bullet);
+        if (TaczProjectileCompat.beforeTick(bullet)) { ci.cancel(); return; }
         if (com.timestop.combat.DecelerationFieldManager.isDecelerated(bullet)) {
             timestop$fullVelocity = bullet.getDeltaMovement();
             bullet.setDeltaMovement(timestop$fullVelocity.scale(0.2));
@@ -39,13 +39,11 @@ public abstract class TaczDeadEyeBulletMixin {
         timestop$fullVelocity = null;
     }
 
-    @Inject(method = "onBulletTick", at = @At("HEAD"), remap = false)
-    private void guideMarkedBullet(CallbackInfo ci) {
-        com.timestop.combat.TaczPrecision.guide((Projectile) (Object) this);
-    }
-
     @Inject(method = "onHitEntity", at = @At("HEAD"), cancellable = true, remap = false)
     private void entityImpact(@Coerce EntityHitResult hit, Vec3 start, Vec3 end, CallbackInfo ci) {
+        if (com.timestop.combat.ProjectileStasisSweep.beforeImpact((Projectile) (Object) this, hit.getLocation())) {
+            timestop$handledImpact = true; ci.cancel(); return;
+        }
         timestop$handledImpact = ForgeEventFactory.onProjectileImpact((Projectile) (Object) this, hit);
         if (timestop$handledImpact) ci.cancel();
     }
@@ -53,6 +51,9 @@ public abstract class TaczDeadEyeBulletMixin {
     @Inject(method = "onHitBlock", at = @At("HEAD"), cancellable = true, remap = false)
     private void blockImpact(BlockHitResult hit, Vec3 start, Vec3 end, CallbackInfo ci) {
         if (hit.getType() == HitResult.Type.MISS) return;
+        if (com.timestop.combat.ProjectileStasisSweep.beforeImpact((Projectile) (Object) this, hit.getLocation())) {
+            timestop$handledImpact = true; ci.cancel(); return;
+        }
         timestop$handledImpact = ForgeEventFactory.onProjectileImpact((Projectile) (Object) this, hit);
         if (timestop$handledImpact) ci.cancel();
     }
@@ -64,6 +65,8 @@ public abstract class TaczDeadEyeBulletMixin {
 
     @Inject(method = {"tick", "m_8119_"}, at = @At(value = "INVOKE", target = "Lcom/tacz/guns/entity/EntityKineticBullet;onBulletTick()V", shift = At.Shift.AFTER), cancellable = true, remap = false)
     private void stopHandledMovement(CallbackInfo ci) {
-        if (timestop$handledImpact || !((Projectile) (Object) this).isAlive()) ci.cancel();
+        Projectile bullet = (Projectile) (Object) this;
+        if (timestop$handledImpact || !bullet.isAlive()
+                || com.timestop.combat.ProjectileStasisSweep.beforeImpact(bullet, bullet.position().add(bullet.getDeltaMovement()))) ci.cancel();
     }
 }

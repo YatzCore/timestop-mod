@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "active=false": {
+      "model": "timestop:block/diamond_pedestal"
+    },
+    "active=true": {
+      "model": "timestop:block/diamond_pedestal_active"
+    }
+  }
+}

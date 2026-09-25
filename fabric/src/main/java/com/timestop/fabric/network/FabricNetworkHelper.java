@@ -17,6 +17,7 @@ import net.minecraft.world.entity.Entity;
 public class FabricNetworkHelper implements INetworkHelper {
 
     public static void registerServerReceivers() {
+        registerServer(SetPedestalRadiusPacket.ID, SetPedestalRadiusPacket::new);
         registerServer(ToggleTimeStopPacket.ID, ToggleTimeStopPacket::new);
         registerServer(SuperhotSyncPacket.ID, SuperhotSyncPacket::new);
         registerServer(SlapProjectilePacket.ID, SlapProjectilePacket::new);
@@ -53,6 +54,7 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(RewindMobPacket.ID, RewindMobPacket::new);
         registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
         registerClient(RewindFadePacket.ID, RewindFadePacket::new);
+        registerClient(SyncRewindAllowedPacket.ID, SyncRewindAllowedPacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(ResourceLocation id, net.minecraft.network.FriendlyByteBuf.Reader<T> decoder) {

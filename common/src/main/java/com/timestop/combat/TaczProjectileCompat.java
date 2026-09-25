@@ -20,6 +20,7 @@ public final class TaczProjectileCompat {
         var data = com.timestop.platform.EntityDataHelper.getPersistentData(bullet);
         if (!bullet.isAlive() || data.getBoolean("KineticPalmCaptured") || data.getBoolean("InStasisOrbit")) return true;
         if (!(bullet.level() instanceof ServerLevel level)) return false;
+        if (ProjectileStasisSweep.intercept(bullet)) return true;
         KineticPalmManager.interceptIncoming(bullet);
         OrbitalProjectileManager.interceptIncoming(bullet);
         if (data.getBoolean("KineticPalmCaptured") || data.getBoolean("InStasisOrbit")) return true;

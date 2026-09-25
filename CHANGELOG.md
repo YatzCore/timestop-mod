@@ -2,6 +2,77 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.6.1] - 2026-09-25
+
+### Added
+- Three new redesigned Ruined Observatory variants:
+  - **Cherry** (`timestop:ruined_observatory_cherry`): tailored for Cherry Groves with cherry wood timber, pink petal scatter, calcite accents, and a blossoming cherry tree.
+  - **Floral** (`timestop:ruined_observatory_floral`): tailored for Flower Forests with birch timber, flowering azalea, garden flowers, and overgrown mossy masonry.
+  - **Windswept** (`timestop:ruined_observatory_windswept`): tailored for Windswept Forests with dark oak/spruce alpine timber, wind-scoured stone, severe gale damage, and rugged terrain blending.
+- Dedicated structure sets for all five variants (`ruined_observatories_highland`, `ruined_observatories_forest`, `ruined_observatories_cherry`, `ruined_observatories_floral`, `ruined_observatories_windswept`) with unique salts.
+- Themed discovery loot across non-archive caches (cherry saplings, pink petals, honeycomb, shears, dark oak, chains, sweet berries).
+- Admin command system to include or exclude Rewind mode (`/timestop rewind include <true|false>`, `/timestop allowrewind [true|false]`, `/timestop rewind on|off|enable|disable`):
+  - Enabled by default (`true`).
+  - When turned off / excluded: Rewind mode completely disappears from pocket watches (Diamond, Netherite, Creative), watch hover tooltips, and the Shift+Right-Click Mode Selection GUI (which dynamically shrinks from 4 rows to 3 rows). Active rewinds are halted and rewind commands are blocked.
+  - When re-enabled / allowed: Rewind mode immediately reappears on watches and inside the GUI, seamlessly restoring previously selected watches.
+  - World persistence via `TimeStopSavedData` (`RewindModeAllowed` tag) and client network synchronization via `SyncRewindAllowedPacket`.
+
+### Changed
+- Increased observatory natural discovery frequency by reducing placement spacing from 64 to 24 chunks (separation 8 chunks), bringing discovery radius to ~1,200–2,000 blocks and eliminating locate search latency.
+- Independent structure set allocation ensures candidate chunks never fail due to cross-variant biome contention.
+
+### Fixed
+- **Fluid Slow Motion in Bubbles & Pedestals**: Resolved choppy 5 FPS entity movement stutter inside localized Slow Motion spheres by scaling client-side position and head-rotation lerp steps (lerpSteps / lerpHeadSteps) to match the server packet interval. Entities now glide and turn smoothly at full render framerate (60/120/144+ FPS).
+- **Reduced Post-Hit Invulnerability in Slow Motion**: Eliminated the artificial 2-to-4-second combat immunity lockout when hitting slowed mobs. Mob invulnerableTime is now scaled down to 5 ticks (lockout window 2-3 ticks = 100-150ms) and hurtDuration/hurtTime scaled down to 2-3 ticks. In addition, invulnerableTime and hurtTime count down on every real-time server tick even when entity AI ticks are skipped, enabling players to execute rapid combos and attack at normal rhythm. Projectile damage immunity lockout in slow motion is reduced to zero.
+
+## [1.6.0] - 2026-09-25
+
+### Added
+- Highland and forest Ruined Observatories in new Overworld chunks, with a collapsed copper dome, decorative telescope, unequal towers, workshop, library, and a hidden underground archive.
+- Five persistent loot caches, three research journals, and three recoverable empty pedestals. The archive guarantees a Golden Watch and blank rune, with a 25% chance of one Deflection or Snatching rune.
+- Shared Fabric/Forge structure registration, terrain screening, bounded foundations, vanilla locate/place commands, and datapack-configurable biomes, frequency, and loot.
+- Reproducible editable NBT sources, route and resource validation, rotation/loot/terrain GameTests, and an isolated observatory visual-QA world. See `OBSERVATORY.md` for placement origins and commands.
+
+### Fixed
+- Rewind inventory observation leaves unopened chest loot deferred until ordinary container interaction.
+
+## [1.5.3] - 2026-09-24
+
+### Changed
+- Redesigned all five Clockwork Pedestals as progressively larger armillary cages with three independently rotating, textured metal rings and a watch suspended inside.
+- Watch displays and rings idle gently, accelerate smoothly while active, and settle when emptied. Tier-colored inlays pulse while powered; animation pauses with the game and continues during local time stop.
+- Pedestal beams now originate at the actual watch position for each pedestal size, including lower-tier watches inside higher-tier cages.
+- Updated inventory models, grouped Blockbench sources, reproducible previews, geometry validation, and isolated animation QA. Decorative overhang keeps single-block placement and collision.
+
+## [1.5.2] - 2026-09-23
+
+### Added
+- Active pedestals feed their sphere with a continuous tier-colored energy beam: a luminous core, rotating twin filaments, traveling pulses, clockwork emitter rings, and ripples along the sphere at the contact point. The beam follows the configured radius and disappears with the field; no shader or animation dependency is required.
+
+## [1.5.1] - 2026-09-23
+
+### Fixed
+- Pedestal radius sliders follow mouse dragging and release correctly through the container screen.
+- TacZ bullets are intercepted at the first active Time Stop boundary before native collision damage, including piercing impacts. Stronger overlapping fields and explicit flowing-projectile exemptions retain their existing behavior.
+- Boundary-suspended projectiles use consistent center-position checks when freezing and resuming.
+
+## [1.5.0] - 2026-09-23
+
+### Added
+- Five Clockwork Pedestals with distinct models, pixel textures, active indicators, and floating watch displays.
+- Redstone-powered stationary Slow Motion, Fast Forward, Deceleration, and Time Stop fields with watch-tier restrictions and adjustable range.
+- A watch-slot/settings menu, survival upgrade recipes, editable Blockbench sources, and reproducible asset previews.
+- `/timestop pedestal affectplayers [true|false]`, a persistent operator setting for pedestal player immunity.
+- Pedestal GameTests and an isolated client visual-QA task.
+
+### Changed
+- Equal-strength overlapping fields use a shared deterministic tie-break on server and client.
+- Local stasis filters random block ticks at each position rather than stopping entire intersecting chunks. Pedestal acceleration also affects crop random ticks.
+- `/timestop stop` disarms loaded pedestals until their redstone power is cycled.
+- Stationary fields survive owner logout and reconcile after chunk loading or rewind. Forge networking protocol is now 9; clients and servers must use matching builds.
+
+See [PEDESTALS.md](PEDESTALS.md) for controls, recipes, compatibility, and asset tooling.
+
 ## [1.4.5] - 2026-09-18
 
 ### Added

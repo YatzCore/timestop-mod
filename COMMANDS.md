@@ -16,6 +16,10 @@ The mod registers two primary command trees:
 
 All commands under this category require Minecraft operator status (`/op`) or permission level 2.
 
+### `pedestal affectplayers`
+
+`/timestop pedestal affectplayers [true|false]` inspects or changes player immunity for all pedestal fields. The default `true` uses the existing owner, ally, and watch-resistance rules; `false` exempts all players. The setting is saved with the world and applies to running fields immediately. Handheld watches are unaffected. `/timestop stop` disarms loaded pedestals until their redstone power is cycled.
+
 ### `start`
 Forces server-wide time distortion in the specified mode across all loaded dimensions.
 
@@ -152,6 +156,61 @@ Legacy alias for `/timestop scope`. Sets the server-wide operational policy for 
   ```mcfunction
   /timestop servermode bubble
   ```
+
+---
+
+### `rewind include` & `allowrewind`
+Controls whether **Rewind Mode** (`TimeMode.REWIND`) is included on watches and available on the server.
+
+```
+/timestop rewind include <true|false>
+/timestop rewind allow <true|false>
+/timestop rewind on|off
+/timestop rewind enable|disable
+/timestop allowrewind [true|false]
+```
+
+- **Default**: `true` (ON / Included).
+- **When Disabled / Excluded (`false`, `off`, `disable`)**:
+  - Rewind mode immediately disappears from all compatible pocket watches (Diamond, Netherite, Creative).
+  - The Shift+Right-Click Mode Selection GUI dynamically collapses from 4 rows to 3 rows, removing the Rewind card.
+  - Watch tooltips immediately hide Rewind mode, falling back to Slow Motion if previously selected.
+  - Active rewind sessions and local rewind runners are immediately halted.
+  - `/timestop start rewind` and `/timestop rewind` commands are blocked.
+- **When Re-enabled / Allowed (`true`, `on`, `enable`)**:
+  - Rewind mode immediately reappears on watches and inside the Mode Selection GUI.
+  - Watches that were set to Rewind before it was disabled immediately restore Rewind mode.
+- **Persistence**: Saved with the world NBT (`timestop_server_config`).
+- **Network Sync**: Automatically broadcast via `SyncRewindAllowedPacket` to all connected clients and sent upon player login.
+- **Example**:
+  ```mcfunction
+  /timestop rewind include false
+  /timestop rewind on
+  /timestop allowrewind true
+  ```
+
+---
+
+### `rewind`
+Triggers an immediate burst or continuous timeline rewind across the current scope.
+
+```
+/timestop rewind [seconds]
+/timestop rewind mode <burst|continuous>
+/timestop rewind buffer [seconds]
+/timestop rewind buffer <reset|clear>
+/timestop rewind ondeath [true|false]
+/timestop rewind status
+```
+
+- **Subcommands**:
+  - `[seconds]`: Triggers a rewind of the specified duration (up to buffer capacity).
+  - `mode <burst|continuous>`: Toggles between instant block/entity rollback (`burst`) and smooth reverse frame playback (`continuous`).
+  - `buffer [seconds]`: Configures timeline memory recording buffer (default: 30s).
+  - `buffer reset`: Resets timeline buffer to 30 seconds default.
+  - `buffer clear`: Wipes current timeline memory frames.
+  - `ondeath [true|false]`: Toggles automatic death rewind rescue for all players without consuming runes.
+  - `status`: Displays recorded frames, memory usage, buffer capacity, and watch inclusion state.
 
 ---
 
@@ -326,4 +385,8 @@ For testing, server shops, or map-making, all temporal pocket watches, runes, an
 | **Rune of Vector Control** | `timestop:rune_vector` | `/give @s timestop:rune_vector` |
 | **Rune of the Marksman (+RICOSHOT)** *(TACZ)* | `timestop:rune_coin` | `/give @s timestop:rune_coin` |
 | **Chrono Coin** *(TACZ)* | `timestop:chrono_coin` | `/give @s timestop:chrono_coin` |
+
+### Ruined Observatories (1.6.0)
+
+Use `/locate structure timestop:ruined_observatory_highland` or `/locate structure timestop:ruined_observatory_forest` to find natural ruins. `/place structure` accepts the same IDs and still checks terrain. For inspection independent of terrain, use `/place template timestop:ruined_observatory/highland ~ ~ ~` or the `forest` template. The template origin is the archive floor, eight blocks below the entrance floor. See [placement details and editable resources](OBSERVATORY.md).
 

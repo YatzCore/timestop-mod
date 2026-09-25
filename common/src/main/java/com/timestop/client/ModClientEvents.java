@@ -64,11 +64,13 @@ public class ModClientEvents {
     }
 
     public static void onRenderTick(float partialTick) {
+        com.timestop.client.renderer.ArmillaryAnimation.frame();
         ClientTimeStopManager.onRenderFrameMotion();
         ClientOrbitalHandler.onRenderTick(partialTick);
     }
 
     public static void onLoggingOut() {
+        com.timestop.client.renderer.ArmillaryAnimation.clear();
         RewindBlockRenderer.clear();
         RewindMobAnimation.clear();
         RewindFadeOverlay.clear();
