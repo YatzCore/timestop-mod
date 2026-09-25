@@ -2,25 +2,28 @@
 
 Five explorable Overworld ruins share a 45 × 45 block layout: a broken copper dome and telescope, unequal observation towers, a damaged upper gallery, workshop, library, courtyard, and buried archive. No watch, puzzle, or combat encounter is required to explore them:
 
+- **Acropolis Citadel** (`timestop:ruined_observatory_acropolis`): Stony peaks, jagged peaks, and frozen peaks. A massive 70 × 55 × 70 mountaintop citadel sanctuary featuring the Grand Pantheon Rotunda with a 3-axis Armillary Orrery, Diamond Pedestal altar, Sunken Celestial Amphitheater with Golden Pedestal, 54-block Astronomical Spire with elevated sky-bridge and 2nd Golden Pedestal, and subterranean Mountain Crypts housing the Chrono-Vault.
 - **Highland** (`timestop:ruined_observatory_highland`): Windswept hills, gravelly hills, meadows, and stony peaks. Weathered masonry, tuff, spruce timber, and cracked stone.
 - **Forest** (`timestop:ruined_observatory_forest`): Forests, birch forests, old-growth birch, and dark forests. Mossy stone bricks, roots, vines, an encroaching oak tree, and roof damage.
 - **Cherry** (`timestop:ruined_observatory_cherry`): Cherry groves. Cherry wood timber, pink petal scatter, calcite accents, and a blossoming cherry tree.
 - **Floral** (`timestop:ruined_observatory_floral`): Flower forests. Birch timber, flowering azalea, lilacs, alliums, garden flowers, and overgrown mossy masonry.
 - **Windswept** (`timestop:ruined_observatory_windswept`): Windswept forests. Dark oak and spruce alpine timber, rough stone bricks, cobblestone, wind-scoured copper, and severe gale damage.
 
-The main hall contains an empty Golden pedestal. Each tower contains an empty Copper pedestal. Insert a compatible watch or interact normally to claim them; they use the existing redstone and field controls and can be mined and recovered. Every generated pedestal receives its own field ID.
+The main hall contains an empty Golden pedestal. Each tower contains an empty Copper pedestal (the Acropolis Citadel features a Diamond Pedestal and two Golden Pedestals). Insert a compatible watch or interact normally to claim them; they use the existing redstone and field controls and can be mined and recovered. Every generated pedestal receives its own field ID.
 
 ## Finding a ruin
 
 Natural generation affects new chunks only. Each variant has its own dedicated structure set with **24-chunk spacing and 8-chunk separation** (candidate checks every ~384 blocks, natural discovery within ~1,200–2,000 blocks):
 
 ```mcfunction
+/locate structure timestop:ruined_observatory_acropolis
 /locate structure timestop:ruined_observatory_highland
 /locate structure timestop:ruined_observatory_forest
 /locate structure timestop:ruined_observatory_cherry
 /locate structure timestop:ruined_observatory_floral
 /locate structure timestop:ruined_observatory_windswept
 
+/place structure timestop:ruined_observatory_acropolis ~ ~ ~
 /place structure timestop:ruined_observatory_highland ~ ~ ~
 /place structure timestop:ruined_observatory_forest ~ ~ ~
 /place structure timestop:ruined_observatory_cherry ~ ~ ~

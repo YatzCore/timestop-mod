@@ -151,15 +151,18 @@ Available to all survival players without operator permissions (Permission Level
 
 ### Administrative Commands (`/timestop`)
 Requires Operator permission (Level 2):
-- `/timestop start <mode> [seconds]`: Force server-wide time distortion (`timestop`, `slowmotion`, `matrix`, `superhot`, `fastforward`, `deceleration`).
+- `/timestop pedestal affectplayers [true|false]`: Configure whether pedestal fields affect non-exempt players (default: `true`).
+- `/timestop start <mode> [seconds]`: Force server-wide time distortion (`timestop`, `slowmotion`, `matrix`, `superhot`, `fastforward`, `deceleration`, `rewind`).
 - `/timestop stop`: Immediately collapse all active localized bubbles and server-wide freezes.
 - `/timestop toggle [seconds]`: Toggle between running time and stopped time.
 - `/timestop scope <watch|sphere|global>`: Configure watch scoping policy (`watch` = respect item tier; `sphere` = enforce local bubbles; `global` = force server-wide freeze).
 - `/timestop redirect <look|return>`: Configure projectile deflection policy (`look` = crosshair aim; `return` = reflect to shooter).
 - `/timestop exempt <add|remove> <player>`: Manage player whitelist for global time stop immunity.
-- `/timestop speed <get|set|reset>`: Inspect or configure speed dilation multipliers for Slow Motion, Matrix, Superhot, and Fast Forward.
+- `/timestop speed`: Inspect all active speed dilation multipliers and valid ranges.
+- `/timestop speed <fastforward|slowmotion|matrix|superhot|drag> [value]`: Configure temporal mode speed and drag multipliers.
+- `/timestop speed reset`: Reset all mode speed multipliers to default calibrations.
 - `/timestop rewind [seconds]`: Rewind the world timeline backwards (respects configured continuous or burst mode).
-- `/timestop rewind include <true|false>`: Enable or disable Rewind mode inclusion across all watches and commands (aliases: `/timestop allowrewind [true|false]`, `/timestop rewind on|off|enable|disable`). When disabled, Rewind mode completely disappears from watches and selection menus.
+- `/timestop rewind include <true|false>`: Enable or disable Rewind mode inclusion across all watches and commands (aliases: `/timestop allowrewind [true|false]`, `/timestop rewindinclude [true|false]`, `/timestop rewind on|off|enable|disable`). When disabled, Rewind mode completely disappears from watches and selection menus.
 - `/timestop rewind mode <burst|continuous>`: Set active rewind playback mode.
 - `/timestop rewind ondeath [true|false]`: Toggle or inspect server-wide auto death rewind without requiring a rune.
 - `/timestop buffer`: Inspect the timeline recording buffer status, memory usage, and watch inclusion state.
@@ -167,13 +170,18 @@ Requires Operator permission (Level 2):
 - `/timestop buffer clear`: Clear recorded frames while preserving configured capacity.
 - `/timestop status`: Display diagnostics (active bubbles, remaining duration, tick rates, and scoping mode).
 
+### Structure Discovery Commands
+- `/locate structure timestop:ruined_observatory_acropolis`: Locate the 70x70 Mountaintop Citadel Sanctuary (Stony Peaks, Jagged Peaks, Frozen Peaks).
+- `/locate structure timestop:ruined_observatory_<highland|forest|cherry|floral|windswept>`: Locate biome-specific observatory ruins.
+- `/place structure timestop:ruined_observatory_<acropolis|highland|forest|cherry|floral|windswept> ~ ~ ~`: Place complete structure with terrain adaptation.
+
 ---
 
 ## Installation
 
 ### Minecraft 1.20.1 (Java 17)
-- **Fabric**: Install Fabric Loader (0.15.11+) + Fabric API. Place `timestop-fabric-1.20.1-1.4.5.jar` in `.minecraft/mods`.
-- **Forge / NeoForge**: Install Minecraft Forge (47.3.0+) or NeoForge. Place `timestop-forge-1.20.1-1.4.5.jar` in `.minecraft/mods`.
+- **Fabric**: Install Fabric Loader (0.15.11+) + Fabric API. Place `timestop-fabric-1.20.1-1.6.1.jar` in `.minecraft/mods`.
+- **Forge / NeoForge**: Install Minecraft Forge (47.3.0+) or NeoForge. Place `timestop-forge-1.20.1-1.6.1.jar` in `.minecraft/mods`.
 - *(Optional)*: Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
 
 ### Minecraft 1.21.1 (Java 21)
