@@ -1,8 +1,8 @@
 # Ultimate Time Stop
 
-**Version 1.6.3 for Minecraft 1.21.1:** includes all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md) on Fabric, Forge, and NeoForge. See [build and validation instructions](PORTING_1_21_1.md).
+**Version 1.6.3 for Minecraft 1.21.1:** includes all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md) on Fabric, Forge, and NeoForge.
 
-**New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation. Editable models and previews are in `art/pedestals`.
+**New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation.
 
 <p align="center">
   <img src="logo.png" alt="Ultimate Time Stop" width="240" />
@@ -176,6 +176,22 @@ Requires Operator permission (Level 2):
 - **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.6.3.jar` in `.minecraft/mods`.
 - **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.6.3.jar` in `.minecraft/mods`.
 - Install only the JAR matching your loader. Fabric also requires Fabric API for Minecraft 1.21.1.
+
+---
+
+## Building from Source
+
+To compile the mod locally for all loaders:
+
+```bash
+# Set JAVA_HOME to a Java 21 JDK
+./gradlew build
+```
+
+Compiled JARs will be generated under:
+- `fabric/build/libs/`
+- `forge/build/libs/`
+- `neoforge/build/libs/`
 
 ---
 

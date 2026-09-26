@@ -47,18 +47,15 @@ Pedestals operate only while their source chunk is loaded and do not load chunks
 
 Every pedestal still occupies one block. Its fixed collision and selection volume stays inside that block; the animated overhang is decorative. Leave the block above clear for Golden and higher tiers and use two-block center spacing for Diamond and higher tiers to avoid overlapping cages. Nearby walls can clip the decorative rings. The beam follows the watch at the center of the cage, even when a lower-tier watch is inserted.
 
-## Assets and development
+## Rendering & Compatibility
 
-`art/pedestals` contains five editable `.bbmodel` projects with embedded textures, front/side/isometric views, active previews, and a comparison image. Runtime JSON models and PNG textures are under the common resource assets. The native pixel density is one texture pixel per model unit, packed into a 64×64 atlas for each tier/state.
+Pedestal models and textures are packaged directly in the mod resources (`common/src/main/resources/assets/timestop/`). The native pixel density is one texture pixel per model unit, packed into a 64×64 atlas for each tier and state.
 
-The single geometry source is `tools/armillary_geometry.py`. It defines stationary bases, three named ring groups, watch anchors, and dimensions. The exporter creates cached Java mesh data and full static item models; the placed block JSON contains only the stationary base. Blockbench projects include all four groups.
+The dynamic renderer optimizes client performance by testing the full cage bounds against the camera view:
+- Beyond 10 blocks: omits tiny dark tick marks.
+- Beyond 20 blocks: uses the three metal bands without small fittings.
+- Close-up: retains full high-detail geometry.
+- Animation states are client-only and cleanly unloaded when their source block entities unload.
 
-The renderer tests the full cage bounds against the camera view. Beyond 10 blocks it omits tiny dark tick marks; beyond 20 blocks it uses the three metal bands without small fittings. Close-up geometry retains every detail. Animation states are client-only and removed when their source block entities unload.
+Install the matching Minecraft 1.21.1 loader's 1.6.3 JAR on both client and server. Forge uses network protocol 2 in this port; client and server versions must match. The armillary redesign requires no save migration or new runtime library. Existing worlds retain their watch data, and existing placed pedestals receive the new appearance automatically.
 
-Run `python tools/generate_pedestals.py` with Pillow and NumPy to regenerate models, textures, Blockbench sources, collision shapes, recipes, and previews. Run `python tools/validate_pedestals.py` with Pillow and NumPy to check geometry/UV agreement, nonintersecting spherical ring envelopes, watch clearance, collision limits, and packaged assets. Use `--assets-only` before building.
-
-Build and test with `gradlew :fabric:runGametest :fabric:build :forge:build`. The optional `:fabric:runPedestalVisual` task creates a separate `fabric/build/pedestal-visual-run/saves/PedestalQA` world, renders the lineup and compatible watch combinations, captures the settings screen and inventory, and exits. Its screenshots are under that run directory. Test and QA classes are excluded from release JARs.
-
-The visual run also checks pause behavior and animation-state cleanup, records a 64-pedestal scene and an empty-scene performance baseline, and captures screen-edge visibility, lower-tier watch beam alignment, and several seconds of Time Stop animation. Run `python tools/package_pedestal_qa.py` afterwards to refresh `art/pedestals/in-game` and its animated GIF.
-
-Install the matching Minecraft 1.21.1 loader's 1.6.3 JAR on both client and server. Forge uses network protocol 2 in this port; client and server versions must match. The armillary redesign requires no save migration or new runtime library. Existing 1.21.1 worlds retain their watch data, and existing placed pedestals receive the new appearance automatically. Future fuel integration can extend `PedestalManager.hasOperatingPower` without changing the field engine.

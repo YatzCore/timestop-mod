@@ -28,11 +28,14 @@ Thumbs.db
 desktop.ini
 __pycache__/
 
-# Internal Dev Notes & Backups
+# Internal Dev Notes, Tools & Backups
 PORT_FIXES.md
+PORTING_1_21_1.md
 REPAIR_HANDOFF.md
 *.bak
 timestop-backups/
 CURSEFORGE*
 scratch/
 art/
+tools/
+

@@ -57,27 +57,17 @@ There are exactly five loot containers: workshop, library, tower, rubble niche, 
 
 Three original journals sit on lecterns. They describe the failed observations and point toward both archive entrances.
 
-## Editable sources and datapacks
+## Datapack Customization
 
-- `tools/generate_observatory.py`: authored geometry, composed damage, materials, books, chest and pedestal placements, loot and worldgen resource generation for all six variants.
-- `tools/structure_nbt.py`: deterministic compressed NBT writer/reader; generated files use gzip with a fixed timestamp.
-- `common/src/main/resources/data/timestop/structures/ruined_observatory/`: runtime templates.
-- `data/timestop/loot_tables/chests/observatory_*.json`: loot overrides.
-- `data/timestop/tags/worldgen/biome/has_structure/ruined_observatory_*.json`: biome eligibility overrides.
-- `data/timestop/worldgen/structure/ruined_observatory_*.json`: variant definitions.
-- `data/timestop/worldgen/structure_set/ruined_observatories_*.json`: dedicated structure sets with independent salts and spacing.
-- `art/observatory/`: generated floor plans, manifests, and in-game captures.
+Observatory structures, loot, and spawn frequencies can be customized or overridden via standard datapacks:
 
-After changing the source, run `python tools/generate_observatory.py` and `python tools/validate_observatory.py`. Python's standard library writes the NBT; Pillow is used for floor-plan previews. No new Minecraft runtime dependency is needed. The build converts the source folders to Minecraft 1.21.1's singular resource paths: use `data/timestop/structure/ruined_observatory/` and `data/timestop/loot_table/chests/` in datapacks. Templates use DataVersion 3955 and books use item components. Keep pedestal NBT free of `Owner`, `Watch`, and `FieldId` when authoring reusable structures.
+- `data/timestop/structure/ruined_observatory/`: NBT structure templates.
+- `data/timestop/loot_table/chests/observatory_*.json`: chest loot tables.
+- `data/timestop/tags/worldgen/biome/has_structure/ruined_observatory_*.json`: biome eligibility tags.
+- `data/timestop/worldgen/structure/ruined_observatory_*.json`: structure definitions.
+- `data/timestop/worldgen/structure_set/ruined_observatories_*.json`: structure sets and spacing.
 
-The lowest `deepslate_bricks` block in each template column marks its foundation start. Preserve those markers when changing the architecture; use other deepslate variants for decorative blocks that should not create supports. The runtime piece precomputes the markers and clips placement and foundation writes to the current generation chunk.
+Templates use DataVersion 3955 and written books use item components. When authoring custom structure templates, keep pedestal NBT free of `Owner`, `Watch`, and `FieldId` so placed structures can be claimed fresh.
 
-## Developer validation
+The lowest `deepslate_bricks` block in each template column marks its foundation start. Preserve those markers when altering architecture; use other deepslate variants for decorative blocks that should not generate downward foundation supports. The runtime piece precomputes the markers and clips placement and foundation writes to the current generation chunk.
 
-```text
-python tools/generate_observatory.py
-python tools/validate_observatory.py
-gradlew :fabric:runGametest
-gradlew :fabric:build :forge:build :neoforge:build
-python tools/validate_observatory.py --packaged
-```
