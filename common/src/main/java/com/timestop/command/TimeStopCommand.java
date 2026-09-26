@@ -19,6 +19,11 @@ import java.util.Collection;
 public class TimeStopCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("timestop")
+                .then(Commands.literal("pedestal").requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("affectplayers")
+                                .executes(ctx -> pedestalPlayers(ctx.getSource(), null))
+                                .then(Commands.argument("enabled", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> pedestalPlayers(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "enabled"))))))
                 // Admin controls (Requires permission level 2)
                 .then(Commands.literal("start")
                         .requires(source -> source.hasPermission(2))
@@ -91,6 +96,26 @@ public class TimeStopCommand {
                                 .executes(ctx -> resetRewindBuffer(ctx.getSource())))
                         .then(Commands.literal("clear")
                                 .executes(ctx -> clearRewindBuffer(ctx.getSource())))
+                        .then(Commands.literal("include")
+                                .executes(ctx -> showRewindAllowed(ctx.getSource()))
+                                .then(Commands.argument("allowed", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> setRewindAllowed(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "allowed")))))
+                        .then(Commands.literal("allow")
+                                .executes(ctx -> showRewindAllowed(ctx.getSource()))
+                                .then(Commands.argument("allowed", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> setRewindAllowed(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "allowed")))))
+                        .then(Commands.literal("allowed")
+                                .executes(ctx -> showRewindAllowed(ctx.getSource()))
+                                .then(Commands.argument("allowed", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> setRewindAllowed(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "allowed")))))
+                        .then(Commands.literal("enable")
+                                .executes(ctx -> setRewindAllowed(ctx.getSource(), true)))
+                        .then(Commands.literal("disable")
+                                .executes(ctx -> setRewindAllowed(ctx.getSource(), false)))
+                        .then(Commands.literal("on")
+                                .executes(ctx -> setRewindAllowed(ctx.getSource(), true)))
+                        .then(Commands.literal("off")
+                                .executes(ctx -> setRewindAllowed(ctx.getSource(), false)))
                         .then(Commands.literal("status")
                                 .executes(ctx -> showRewindStatus(ctx.getSource()))))
                 .then(Commands.literal("buffer")
@@ -147,7 +172,16 @@ public class TimeStopCommand {
                 .then(Commands.literal("status")
                         .requires(source -> source.hasPermission(2))
                         .executes(ctx -> showStatus(ctx.getSource())))
-                // Speed Multipliers
+                .then(Commands.literal("allowrewind")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> showRewindAllowed(ctx.getSource()))
+                        .then(Commands.argument("allowed", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                .executes(ctx -> setRewindAllowed(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "allowed")))))
+                .then(Commands.literal("rewindinclude")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> showRewindAllowed(ctx.getSource()))
+                        .then(Commands.argument("allowed", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                .executes(ctx -> setRewindAllowed(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "allowed")))))
                 .then(buildSpeedSubtree())
                 // Time Sync & Resonators (Accessible to ALL players without OP)
                 .then(buildSyncSubtree("sync"))
@@ -191,6 +225,10 @@ public class TimeStopCommand {
 
     private static int startTimeStop(CommandSourceStack source, int durationTicks, com.timestop.core.TimeMode mode) {
         if (mode == com.timestop.core.TimeMode.REWIND) {
+            if (!com.timestop.core.TimeStopManager.isRewindAllowed()) {
+                source.sendFailure(Component.literal("§c[TimeStop] Rewind mode has been disabled by the server administrator."));
+                return 0;
+            }
             int ticks = durationTicks > 0 ? durationTicks : com.timestop.config.TimeStopConfig.rewindDurationSeconds() * 20;
             if ("BURST".equalsIgnoreCase(TimeStopConfig.COMMON.rewindMode.get()))
                 return executeDirectRewind(source, Math.max(1, ticks / 20));
@@ -223,8 +261,10 @@ public class TimeStopCommand {
 
     private static int stopTimeStop(CommandSourceStack source) {
         ServerLevel level = source.getLevel();
+        boolean hadPedestal = com.timestop.core.TemporalBubbleManager.getActiveBubbles().values().stream().anyMatch(com.timestop.core.TemporalBubble::isStationary);
+        com.timestop.pedestal.PedestalManager.disarmAll();
 
-        if (!TimeStopManager.isTimeStopped(level) && !com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && !com.timestop.core.rewind.LocalRewind.hasActive()) {
+        if (!hadPedestal && !TimeStopManager.isTimeStopped(level) && !com.timestop.core.TemporalBubbleManager.hasActiveBubbles() && !com.timestop.core.rewind.LocalRewind.hasActive()) {
             source.sendFailure(Component.literal("Time is not currently stopped!"));
             return 0;
         }
@@ -243,6 +283,16 @@ public class TimeStopCommand {
         } else {
             return startTimeStop(source, durationTicks, mode);
         }
+    }
+
+    private static int pedestalPlayers(CommandSourceStack source, Boolean enabled) {
+        var data = com.timestop.core.TimeStopSavedData.get();
+        if (enabled != null) {
+            data.setPedestalsAffectPlayers(enabled);
+            com.timestop.pedestal.PedestalManager.serverTick();
+        }
+        source.sendSuccess(() -> Component.literal("Pedestals affect non-exempt players: " + data.pedestalsAffectPlayers()), enabled != null);
+        return 1;
     }
 
     private static int addExempt(CommandSourceStack source, Collection<ServerPlayer> players) {
@@ -291,7 +341,8 @@ public class TimeStopCommand {
 
     private static int showStatus(CommandSourceStack source) {
         source.sendSuccess(() -> Component.literal("Watch scope: " + com.timestop.core.TimeStopSavedData.get().getWatchScope()
-                + "; projectile redirection: " + (com.timestop.core.TimeStopSavedData.get().isRedirectToLook() ? "LOOK" : "RETURN")), false);
+                + "; projectile redirection: " + (com.timestop.core.TimeStopSavedData.get().isRedirectToLook() ? "LOOK" : "RETURN")
+                + "; rewind mode: " + (TimeStopManager.isRewindAllowed() ? "ENABLED" : "DISABLED")), false);
 
         if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
             int count = com.timestop.core.TemporalBubbleManager.getActiveBubbles().size();
@@ -385,6 +436,10 @@ public class TimeStopCommand {
     }
 
     private static int executeDirectRewind(CommandSourceStack source, int seconds) {
+        if (!com.timestop.core.TimeStopManager.isRewindAllowed()) {
+            source.sendFailure(Component.literal("§c[TimeStop] Rewind mode has been disabled by the server administrator."));
+            return 0;
+        }
         if ("CONTINUOUS".equalsIgnoreCase(TimeStopConfig.COMMON.rewindMode.get())) {
             var recorder = com.timestop.core.rewind.TickRecorder.getInstance();
             recorder.finishFrame(source.getServer());
@@ -460,18 +515,37 @@ public class TimeStopCommand {
         return 1;
     }
 
+    private static int setRewindAllowed(CommandSourceStack source, boolean allowed) {
+        TimeStopManager.setRewindAllowed(allowed);
+        if (allowed) {
+            source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind mode has been §aENABLED§6. It is now available on compatible watches and commands."), true);
+        } else {
+            source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind mode has been §cDISABLED§6. It is now excluded from all watches."), true);
+        }
+        return 1;
+    }
+
+    private static int showRewindAllowed(CommandSourceStack source) {
+        boolean allowed = TimeStopManager.isRewindAllowed();
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind mode inclusion on watches: " + (allowed ? "§aENABLED (Included)" : "§cDISABLED (Excluded)")), false);
+        return 1;
+    }
+
     private static int showRewindStatus(CommandSourceStack source) {
         var buffer = com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer();
         int frames = buffer.getFrameCount();
         long mb = buffer.getTotalEstimatedBytes() / (1024 * 1024);
         String mode = TimeStopConfig.COMMON.rewindMode.get();
+        boolean allowed = TimeStopManager.isRewindAllowed();
         source.sendSuccess(() -> Component.literal(String.format(
                 "§d[TimeStop Rewind Status]\n" +
+                "§7• Watch Mode Allowed: %s\n" +
                 "§7• Frames Recorded: §e%d / %d §7(%.1fs)\n" +
                 "§7• Memory Used: §e%d / %d MB\n" +
                 "§7• Default rewind: §e%ds §7| Memory-evicted frames: §e%d\n" +
                 "§7• Mode: §e%s\n" +
                 "§7• Recording: §a%b",
+                allowed ? "§aYES (Included on watches)" : "§cNO (Excluded from watches)",
                 frames, buffer.getCapacity(), frames / 20.0, mb, buffer.getMaxMemoryBytes() / (1024 * 1024),
                 TimeStopConfig.rewindDurationSeconds(), buffer.getMemoryEvictedFrames(), mode, buffer.isRecording()
         )), false);

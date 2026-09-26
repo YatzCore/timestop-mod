@@ -16,13 +16,14 @@ import net.minecraftforge.network.SimpleChannel;
 import java.util.function.Function;
 
 public class ForgeNetworkHelper implements INetworkHelper {
-    private static final int PROTOCOL_VERSION = 1;
+    private static final int PROTOCOL_VERSION = 2;
     public static final SimpleChannel INSTANCE = ChannelBuilder.named(ResourceLocation.fromNamespaceAndPath(TimeStopMod.MOD_ID, "main"))
             .networkProtocolVersion(PROTOCOL_VERSION)
             .acceptedVersions(Channel.VersionTest.exact(PROTOCOL_VERSION))
             .simpleChannel();
 
     public static void register() {
+        registerServer(SetPedestalRadiusPacket.class, SetPedestalRadiusPacket::new);
         // Serverbound packets
         registerServer(ToggleTimeStopPacket.class, ToggleTimeStopPacket::new);
         registerServer(SuperhotSyncPacket.class, SuperhotSyncPacket::new);
@@ -59,6 +60,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerClient(RewindMobPacket.class, RewindMobPacket::new);
         registerClient(RewindPistonPacket.class, RewindPistonPacket::new);
         registerClient(RewindFadePacket.class, RewindFadePacket::new);
+        registerClient(SyncRewindAllowedPacket.class, SyncRewindAllowedPacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(Class<T> type, Function<FriendlyByteBuf, T> decoder) {

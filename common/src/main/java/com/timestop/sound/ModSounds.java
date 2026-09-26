@@ -19,4 +19,8 @@ public class ModSounds {
     }
 
     public static final RegistryEntry<SoundEvent> RAMIEL_SCREAM = register("ramiel_scream");
+    public static final RegistryEntry<SoundEvent> PEDESTAL_INSERT = register("pedestal_insert");
+    public static final RegistryEntry<SoundEvent> PEDESTAL_ACTIVATE = register("pedestal_activate");
+    public static final RegistryEntry<SoundEvent> PEDESTAL_AMBIENT = register("pedestal_ambient");
+    public static final RegistryEntry<SoundEvent> PEDESTAL_DEACTIVATE = register("pedestal_deactivate");
 }

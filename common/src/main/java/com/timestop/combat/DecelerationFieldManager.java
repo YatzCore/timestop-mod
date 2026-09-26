@@ -107,6 +107,17 @@ public class DecelerationFieldManager {
      * Checks if this projectile is currently inside any active deceleration field.
      */
     public static boolean isDecelerated(Projectile projectile) {
-        return getProtectingPlayer(projectile) != null;
+        return isPedestalDecelerated(projectile) || getProtectingPlayer(projectile) != null;
+    }
+
+    public static boolean isPedestalDecelerated(Projectile projectile) {
+        if (projectile.level().isClientSide) {
+            var bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(projectile.position());
+            return bubble != null && bubble.stationary && bubble.mode == TimeMode.DECELERATION_FIELD
+                    && !(projectile.getOwner() instanceof Player player && bubble.canEntityAct(player));
+        }
+        var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(projectile.level().dimension(), projectile.position());
+        return bubble != null && bubble.isStationary() && bubble.getMode() == TimeMode.DECELERATION_FIELD
+                && !(projectile.getOwner() instanceof Player player && bubble.canEntityAct(player));
     }
 }

@@ -25,6 +25,7 @@ public abstract class ClientLevelMixin {
         var bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(
                 entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
         if (bubble == null) return 1.0F;
+        if (bubble.stationary) return bubble.getTimeDilationFactor(entity);
         if (bubble.mode == TimeMode.SLOW_MOTION || bubble.mode == TimeMode.MATRIX || bubble.mode == TimeMode.SUPERHOT) {
             return 1.0F;
         }

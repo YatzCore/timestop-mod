@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " M ",
+    "MPM",
+    " M "
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:gold_ingot"
+    },
+    "P": {
+      "item": "timestop:copper_pedestal"
+    }
+  },
+  "result": {
+    "id": "timestop:golden_pedestal"
+  }
+}

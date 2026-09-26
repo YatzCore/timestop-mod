@@ -49,7 +49,7 @@ processResources {
 
     eachFile { details ->
         if (details.path.startsWith('data/')) {
-            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/')
+            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/').replace('/loot_tables/', '/loot_table/').replace('/tags/blocks/', '/tags/block/').replace('/tags/items/', '/tags/item/')
         }
     }
 }
@@ -60,3 +60,33 @@ afterEvaluate {
     }
 }
 
+
+// Regression tests run in an isolated world and are excluded from release JARs.
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+loom {
+    mods { timestop_tests { sourceSet sourceSets.gametest } }
+    runs {
+        gametest {
+            server()
+            name 'Time Stop 1.21.1 regression tests'
+            source sourceSets.gametest
+            vmArg '-Dfabric-api.gametest'
+            runDir 'build/gametest-run'
+        }
+    }
+}
+
+loom.runs {
+    pedestalVisual {
+        client()
+        source sourceSets.gametest
+        vmArg '-Dtimestop.pedestalVisualQa=true'
+        programArgs '--width', '1600', '--height', '900'
+        runDir 'build/pedestal-visual-run'
+    }
+}

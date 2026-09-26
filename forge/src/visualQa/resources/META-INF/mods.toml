@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[52,)"
+license="MIT"
+[[mods]]
+modId="timestop_visualqa"
+version="1"
+displayName="Isolated field rendering regression scene"

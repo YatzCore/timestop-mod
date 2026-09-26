@@ -257,6 +257,9 @@ public class RewindRuneManager {
     }
 
     public static void identifyInventory(Object holder) {
+        // Reading an unopened loot container rolls its table. Observation must leave it deferred.
+        if (holder instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity container
+                && container.getLootTable() != null) return;
         if (holder instanceof net.minecraft.world.Container inventory) {
             for (int slot = 0; slot < inventory.getContainerSize(); slot++) identifyRunes(inventory.getItem(slot));
         }
@@ -290,37 +293,37 @@ public class RewindRuneManager {
     /** Strip spent rune identities from restored containers, equipment and dropped item NBT too. */
     public static CompoundTag restorationNbt(CompoundTag original) {
         var copy = original.copy();
-        if (!CONSUMED_RUNES.isEmpty()) stripConsumed(copy);
+        if (!CONSUMED_RUNES.isEmpty() && stripConsumed(copy)) return new CompoundTag();
         return copy;
     }
 
-    private static void stripConsumed(Tag value) {
+    private static boolean stripConsumed(Tag value) {
         if (value instanceof CompoundTag compound) {
-            // 1. Check legacy "tag"
-            if (compound.contains("tag", Tag.TAG_COMPOUND)) {
-                var tag = compound.getCompound("tag");
-                if (compound.contains("id", Tag.TAG_STRING) && tag.hasUUID(RUNE_ID)
-                        && CONSUMED_RUNES.contains(tag.getUUID(RUNE_ID))) {
-                    compound.putByte("Count", (byte) 0);
-                    compound.putByte("count", (byte) 0);
+            var legacy = compound.getCompound("tag");
+            var data = compound.getCompound("components").getCompound("minecraft:custom_data");
+            if (compound.contains("id", Tag.TAG_STRING)
+                    && ((legacy.hasUUID(RUNE_ID) && CONSUMED_RUNES.contains(legacy.getUUID(RUNE_ID)))
+                    || (data.hasUUID(RUNE_ID) && CONSUMED_RUNES.contains(data.getUUID(RUNE_ID))))) {
+                return true;
+            }
+            if (compound.contains("SocketedRuneData", Tag.TAG_COMPOUND)) {
+                var rune = compound.getCompound("SocketedRuneData");
+                if (rune.hasUUID(RUNE_ID) && CONSUMED_RUNES.contains(rune.getUUID(RUNE_ID))) {
+                    compound.remove("SocketedRuneData");
+                    compound.remove("SocketedRuneType");
+                    compound.remove("SocketedRuneFilter");
                 }
             }
-            // 2. Check 1.21.1 "components" -> "minecraft:custom_data"
-            if (compound.contains("components", Tag.TAG_COMPOUND)) {
-                var components = compound.getCompound("components");
-                if (components.contains("minecraft:custom_data", Tag.TAG_COMPOUND)) {
-                    var customData = components.getCompound("minecraft:custom_data");
-                    if (compound.contains("id", Tag.TAG_STRING) && customData.hasUUID(RUNE_ID)
-                            && CONSUMED_RUNES.contains(customData.getUUID(RUNE_ID))) {
-                        compound.putByte("Count", (byte) 0);
-                        compound.putByte("count", (byte) 0);
-                    }
-                }
+            for (String key : java.util.Set.copyOf(compound.getAllKeys())) {
+                if (stripConsumed(compound.get(key))) compound.remove(key);
             }
-            for (String key : compound.getAllKeys()) stripConsumed(compound.get(key));
         } else if (value instanceof ListTag list) {
-            for (var entry : list) stripConsumed(entry);
+            // Delete the entry: 1.21's optional count codec defaults invalid zero counts to one.
+            for (int i = list.size() - 1; i >= 0; i--) {
+                if (stripConsumed(list.get(i))) list.remove(i);
+            }
         }
+        return false;
     }
 
     public static void applyRuneConsumption(ServerPlayer player) {

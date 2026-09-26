@@ -18,6 +18,8 @@ public class TimeStopFabricClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        net.minecraft.client.gui.screens.MenuScreens.register(com.timestop.pedestal.ModPedestals.MENU.get(), com.timestop.client.gui.PedestalScreen::new);
+        net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry.register(com.timestop.pedestal.ModPedestals.ENTITY.get(), PedestalRenderer::new);
         // 1. Networking
         FabricNetworkHelper.registerClientReceivers();
 

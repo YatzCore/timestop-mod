@@ -35,6 +35,10 @@ public enum ChainTargetFilter {
     public boolean matches(LivingEntity entity) {
         if (entity == null || !entity.isAlive() || entity.isSpectator()) return false;
 
+        return matchesType(entity);
+    }
+
+    public boolean matchesType(LivingEntity entity) {
         return switch (this) {
             case HOSTILE -> entity instanceof Enemy;
             case ALL -> !(entity instanceof Player player && (player.isCreative() || player.isSpectator()));

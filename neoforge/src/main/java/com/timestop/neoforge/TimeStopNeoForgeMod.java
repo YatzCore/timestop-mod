@@ -26,6 +26,8 @@ public class TimeStopNeoForgeMod {
     public TimeStopNeoForgeMod(IEventBus modEventBus) {
         TimeStopMod.LOGGER.info("[TimeStop] Initializing NeoForge module for Minecraft 1.21.1...");
 
+        com.timestop.pedestal.ModPedestals.bootstrap();
+
         // Config setup
         TimeStopConfig.setConfigFile(FMLPaths.CONFIGDIR.get().resolve("timestop.json").toFile());
         TimeStopConfig.load();
@@ -46,7 +48,24 @@ public class TimeStopNeoForgeMod {
     }
 
     private void onRegister(RegisterEvent event) {
-        if (event.getRegistryKey().equals(Registries.ITEM)) {
+        if (event.getRegistryKey().equals(Registries.STRUCTURE_TYPE)) {
+            event.register(Registries.STRUCTURE_TYPE, com.timestop.worldgen.ModObservatories.ID, () -> com.timestop.worldgen.ModObservatories.TYPE);
+        } else if (event.getRegistryKey().equals(Registries.STRUCTURE_PIECE)) {
+            event.register(Registries.STRUCTURE_PIECE, com.timestop.worldgen.ModObservatories.ID, () -> com.timestop.worldgen.ModObservatories.PIECE);
+        }
+        if (event.getRegistryKey().equals(Registries.BLOCK)) {
+            com.timestop.pedestal.ModPedestals.BLOCKS.forEach((id, entry) -> event.register(Registries.BLOCK, id, entry));
+        } else if (event.getRegistryKey().equals(Registries.BLOCK_ENTITY_TYPE)) {
+            var entry = com.timestop.pedestal.ModPedestals.ENTITY;
+            entry.bind(net.minecraft.world.level.block.entity.BlockEntityType.Builder.of(com.timestop.pedestal.PedestalBlockEntity::new,
+                    com.timestop.pedestal.ModPedestals.BLOCKS.values().stream().map(com.timestop.registry.RegistryEntry::get)
+                            .toArray(net.minecraft.world.level.block.Block[]::new)).build(null));
+            event.register(Registries.BLOCK_ENTITY_TYPE, entry.getId(), entry::get);
+        } else if (event.getRegistryKey().equals(Registries.MENU)) {
+            var entry = com.timestop.pedestal.ModPedestals.MENU;
+            entry.bind(net.neoforged.neoforge.common.extensions.IMenuTypeExtension.create((id, inventory, data) -> new com.timestop.pedestal.PedestalMenu(id, inventory)));
+            event.register(Registries.MENU, entry.getId(), entry::get);
+        } else if (event.getRegistryKey().equals(Registries.ITEM)) {
             TimeStopMod.LOGGER.info("[TimeStop] Registering {} items...", ModItems.ITEMS.size());
             ModItems.ITEMS.forEach((id, entry) -> {
                 var item = entry.get();

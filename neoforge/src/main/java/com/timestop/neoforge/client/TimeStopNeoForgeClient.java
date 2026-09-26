@@ -25,6 +25,7 @@ public class TimeStopNeoForgeClient {
     public static void init(IEventBus modEventBus) {
         modEventBus.addListener(TimeStopNeoForgeClient::onRegisterKeyMappings);
         modEventBus.addListener(TimeStopNeoForgeClient::onRegisterRenderers);
+        modEventBus.addListener(TimeStopNeoForgeClient::onRegisterScreens);
         modEventBus.addListener(TimeStopNeoForgeClient::onRegisterGuiLayers);
 
         NeoForge.EVENT_BUS.register(ClientForgeEvents.class);
@@ -41,8 +42,13 @@ public class TimeStopNeoForgeClient {
         event.register(ModKeyBindings.KINETIC_BARRIER_KEY);
     }
 
+    private static void onRegisterScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
+        event.register(com.timestop.pedestal.ModPedestals.MENU.get(), com.timestop.client.gui.PedestalScreen::new);
+    }
+
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);
+        event.registerBlockEntityRenderer(com.timestop.pedestal.ModPedestals.ENTITY.get(), PedestalRenderer::new);
     }
 
     private static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {

@@ -44,7 +44,7 @@ public final class SuperhotActivityManager {
             bubble.retainActivePlayers(occupants);
             for (var player : server.getPlayerList().getPlayers()) {
                 if (player.level().dimension().equals(bubble.getDimension()))
-                    ModMessages.sendToPlayer(new SuperhotActivitySyncPacket(bubble.getId(), bubble.getSuperhotActivity()), player);
+                    ModMessages.sendToPlayer(new SuperhotActivitySyncPacket(bubble.getId(), bubble.getOtherPlayersSuperhotActivity(player.getUUID())), player);
             }
         }
         float global = 0;

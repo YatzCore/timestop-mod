@@ -20,6 +20,17 @@ sourceSets {
 neoForge {
     version = "${project.neoforge_version}"
     validateAccessTransformers = true
+    runs {
+        server {
+            server()
+            gameDirectory = file('build/server-smoke-run')
+            programArgument '--nogui'
+        }
+        client {
+            client()
+            gameDirectory = file('build/client-smoke-run')
+        }
+    }
 
     mods {
         timestop {
@@ -43,7 +54,7 @@ tasks.named('processResources', ProcessResources) {
 
     eachFile { details ->
         if (details.path.startsWith('data/')) {
-            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/')
+            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/').replace('/loot_tables/', '/loot_table/').replace('/tags/blocks/', '/tags/block/').replace('/tags/items/', '/tags/item/')
         }
     }
 }

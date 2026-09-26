@@ -99,7 +99,8 @@ public class TemporalBubbleRenderer {
     }
 
     public static void renderLevel(PoseStack poseStack, Camera camera, float partialTick) {
-        if (!ClientBubbleManager.hasActiveBubbles()) return;
+        var level = Minecraft.getInstance().level;
+        if (level == null || !ClientBubbleManager.hasActiveBubbles()) return;
 
         refreshConfigIfNeeded();
         if (!cachedEnableBubbleRender) return;
@@ -124,7 +125,7 @@ public class TemporalBubbleRenderer {
         float opacityScale = (float) (userOpacity / 0.35);
 
         for (ClientBubbleManager.ClientBubble bubble : ClientBubbleManager.getActiveBubbles()) {
-            // Forge 52's event supplies frame duration, not the game's interpolation fraction.
+            if (!bubble.dimensionId.equals(level.dimension().location().toString())) continue;
             Vec3 center = bubble.getCenter(partialTick);
             float radius = (float) bubble.radius;
             int colorHex = bubble.tier.getThemeColorHex();
@@ -217,6 +218,8 @@ public class TemporalBubbleRenderer {
             if (enableGrid) {
                 renderGridLattice(tesselator, matrix, radius, baseR, baseG, baseB);
             }
+
+            PedestalBeamRenderer.render(tesselator, matrix, bubble, level.getGameTime() + partialTick);
 
             poseStack.popPose();
         }

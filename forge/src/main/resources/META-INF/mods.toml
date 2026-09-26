@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="timestop"
-version="1.4.5"
+version="${version}"
 displayName="Ultimate Time Stop"
 authors="YatzCore"
 description='''
@@ -24,6 +24,6 @@ config="timestop-common.mixins.json"
 [[dependencies.timestop]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.21.1,1.22)"
+    versionRange="[1.21.1,1.21.2)"
     ordering="NONE"
     side="BOTH"

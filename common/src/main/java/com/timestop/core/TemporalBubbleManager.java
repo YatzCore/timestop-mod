@@ -46,6 +46,27 @@ public class TemporalBubbleManager {
         return Collections.unmodifiableMap(activeBubbles);
     }
 
+    /** Atomic replacement keeps entities frozen when another field still wins the overlap. */
+    public static void putStationaryBubble(ServerLevel level, TemporalBubble bubble, @Nullable UUID previous) {
+        if (!bubble.isStationary()) throw new IllegalArgumentException("Expected stationary field");
+        TemporalBubble old = previous == null ? null : activeBubbles.get(previous);
+        activeBubbles.put(bubble.getId(), bubble);
+        if (old != null && !old.getId().equals(bubble.getId())) {
+            activeBubbles.remove(old.getId());
+            ModMessages.sendToClients(TemporalBubbleSyncPacket.remove(old.getId()));
+        }
+        if (old != null) {
+            TemporalDamageBuffer.dischargeInArea(level, old.getCenter(), old.getRadius());
+            TimeStopManager.resumeProjectilesInArea(level, old.getCenter(), old.getRadius());
+            TemporalKineticBlockManager.dischargeInArea(level, old.getCenter(), old.getRadius());
+        }
+        // A newly placed higher-tier field can also supersede an existing freeze.
+        TemporalDamageBuffer.dischargeInArea(level, bubble.getCenter(), bubble.getRadius());
+        TimeStopManager.resumeProjectilesInArea(level, bubble.getCenter(), bubble.getRadius());
+        TemporalKineticBlockManager.dischargeInArea(level, bubble.getCenter(), bubble.getRadius());
+        syncBubbleToClients(bubble);
+    }
+
     public static boolean hasActiveBubbles() {
         return !activeBubbles.isEmpty();
     }
@@ -85,13 +106,7 @@ public class TemporalBubbleManager {
                     dominant = b;
                 } else {
                     // Precedence: 1. Higher watch tier; 2. TIME_STOP mode over slow-mo
-                    if (b.getTier().getTierLevel() > dominant.getTier().getTierLevel()) {
-                        dominant = b;
-                    } else if (b.getTier().getTierLevel() == dominant.getTier().getTierLevel()) {
-                        if (b.getMode() == TimeMode.TIME_STOP && dominant.getMode() != TimeMode.TIME_STOP) {
-                            dominant = b;
-                        }
-                    }
+                    if (BubblePriority.compare(b.getTier(), b.getMode(), b.getId(), dominant.getTier(), dominant.getMode(), dominant.getId()) > 0) dominant = b;
                 }
             }
         }
@@ -126,7 +141,7 @@ public class TemporalBubbleManager {
 
     public static boolean hasCreativeBubble() {
         for (TemporalBubble b : activeBubbles.values()) {
-            if (b.getTier() == WatchTier.CREATIVE) {
+            if (!b.isStationary() && b.getTier() == WatchTier.CREATIVE) {
                 return true;
             }
         }
@@ -206,7 +221,7 @@ public class TemporalBubbleManager {
         if (activeBubbles.remove(bubble.getBubbleId()) == null) return;
         ServerLevel bubbleLevel = level.getServer().getLevel(bubble.getDimension());
         if (bubbleLevel != null) level = bubbleLevel;
-        playerToBubble.remove(bubble.getOwnerUuid());
+        if (!bubble.isStationary()) playerToBubble.remove(bubble.getOwnerUuid(), bubble.getId());
 
         // Discharge damage buffer, projectiles, and kinetic blocks within this bubble's domain
         if (bubble.getMode() == TimeMode.TIME_STOP) {
@@ -222,7 +237,7 @@ public class TemporalBubbleManager {
         }
 
         ServerPlayer owner = level.getServer().getPlayerList().getPlayer(bubble.getOwnerUuid());
-        if (owner != null) {
+        if (owner != null && !bubble.isStationary()) {
             removeMatrixAttributes(owner);
 
             // Trigger cooldown
@@ -236,8 +251,10 @@ public class TemporalBubbleManager {
 
         // Play collapse sound at bubble center
         Vec3 c = bubble.getCenter();
-        level.playSound(null, c.x, c.y, c.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 2.0F, 1.2F);
-        level.playSound(null, c.x, c.y, c.z, SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.0F, 1.8F);
+        if (!bubble.isStationary()) {
+            level.playSound(null, c.x, c.y, c.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 2.0F, 1.2F);
+            level.playSound(null, c.x, c.y, c.z, SoundEvents.END_PORTAL_SPAWN, SoundSource.PLAYERS, 1.0F, 1.8F);
+        }
 
         // Broadcast removal packet
         ModMessages.sendToClients(TemporalBubbleSyncPacket.remove(bubble.getBubbleId()));
@@ -278,6 +295,7 @@ public class TemporalBubbleManager {
     }
 
     public static void reset() {
+        com.timestop.pedestal.PedestalManager.reset();
         activeBubbles.clear();
         playerToBubble.clear();
     }
@@ -318,17 +336,19 @@ public class TemporalBubbleManager {
     public static void serverTick() {
         net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
         if (server == null) return;
+        com.timestop.pedestal.PedestalManager.serverTick();
 
         if (!activeBubbles.isEmpty()) {
             for (TemporalBubble bubble : new ArrayList<>(activeBubbles.values())) {
                 ServerLevel level = server.getLevel(bubble.getDimension());
                 if (level == null) {
                     activeBubbles.remove(bubble.getBubbleId());
-                    playerToBubble.remove(bubble.getOwnerUuid());
+                    if (!bubble.isStationary()) playerToBubble.remove(bubble.getOwnerUuid(), bubble.getId());
                     ModMessages.sendToClients(TemporalBubbleSyncPacket.remove(bubble.getBubbleId()));
                     continue;
                 }
 
+                if (bubble.isStationary()) continue;
                 // Check owner liveness
                 ServerPlayer owner = level.getServer().getPlayerList().getPlayer(bubble.getOwnerUuid());
                 if (owner == null || !owner.isAlive() || owner.level() != level) {
@@ -397,27 +417,26 @@ public class TemporalBubbleManager {
                 b.getRemainingTicks(),
                 b.getTotalDuration(),
                 b.getTier(),
-                b.getExemptPlayers()
+                b.getExemptPlayers(), b.isStationary(), b.affectsPlayers()
         ));
     }
 
     public static void syncAllToPlayer(ServerPlayer player) {
         for (TemporalBubble b : activeBubbles.values()) {
             Vec3 c = b.getCenter();
-            ModMessages.sendToPlayer(
-                    new TemporalBubbleSyncPacket(
-                            TemporalBubbleSyncPacket.Action.CREATE_OR_UPDATE,
-                            b.getBubbleId(),
-                            b.getOwnerUuid(),
-                            b.getDimension().location().toString(),
-                            c.x, c.y, c.z,
-                            b.getRadius(),
-                            b.getMode(),
-                            b.getRemainingTicks(),
-                            b.getTotalDuration(),
-                            b.getTier(),
-                            b.getExemptPlayers()
-                    ), player);
+            ModMessages.sendToPlayer(new TemporalBubbleSyncPacket(
+                    TemporalBubbleSyncPacket.Action.CREATE_OR_UPDATE,
+                    b.getBubbleId(),
+                    b.getOwnerUuid(),
+                    b.getDimension().location().toString(),
+                    c.x, c.y, c.z,
+                    b.getRadius(),
+                    b.getMode(),
+                    b.getRemainingTicks(),
+                    b.getTotalDuration(),
+                    b.getTier(),
+                    b.getExemptPlayers(), b.isStationary(), b.affectsPlayers()
+            ), player);
         }
         com.timestop.core.rewind.LocalRewind.syncTo(player);
     }

@@ -105,6 +105,9 @@ public abstract class AbstractWatchItem extends Item {
                 RuneType type = RuneType.valueOf(tag.getString("SocketedRuneType"));
                 Item item = ModItems.getRuneItem(type);
                 ItemStack runeStack = new ItemStack(item);
+                if (tag.contains("SocketedRuneData", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
+                    runeStack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag.getCompound("SocketedRuneData")));
+                }
                 if (tag.contains("SocketedRuneFilter")) {
                     TemporalRuneItem.setTargetFilter(runeStack, com.timestop.combat.ChainTargetFilter.fromName(tag.getString("SocketedRuneFilter")));
                 }
@@ -118,11 +121,13 @@ public abstract class AbstractWatchItem extends Item {
         if (runeStack.isEmpty()) {
             updateCustomTag(watchStack, tag -> {
                 tag.remove("SocketedRuneType");
+                tag.remove("SocketedRuneData");
                 tag.remove("SocketedRuneFilter");
             });
         } else if (runeStack.getItem() instanceof TemporalRuneItem runeItem) {
             updateCustomTag(watchStack, tag -> {
                 tag.putString("SocketedRuneType", runeItem.getType().name());
+                tag.put("SocketedRuneData", getCustomTag(runeStack));
                 if (runeItem.getType() == RuneType.RICOCHET) {
                     tag.putString("SocketedRuneFilter", TemporalRuneItem.getTargetFilter(runeStack).name());
                 } else {

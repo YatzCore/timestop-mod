@@ -89,6 +89,7 @@ public class NeoForgeEventHandlers {
                     TimeStopManager.getInitiatorUuid(), TimeStopManager.getCurrentMode(),
                     TimeStopManager.getExemptPlayers()), player);
             ModMessages.sendToPlayer(SyncSpeedConfigPacket.current(), player);
+            ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(TimeStopManager.isRewindAllowed()), player);
             CoinManager.onPlayerLoggedIn(player);
             OrbitalProjectileManager.onPlayerLoggedIn(player);
         }

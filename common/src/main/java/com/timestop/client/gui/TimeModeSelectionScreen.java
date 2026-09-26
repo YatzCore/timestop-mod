@@ -140,11 +140,10 @@ public class TimeModeSelectionScreen extends Screen {
     private int getModalHeight() {
         if (this.currentTier == WatchTier.COPPER) {
             return 140; // Compact 2-card layout without rune tray
-        } else if (this.currentTier == WatchTier.GILDED) {
-            return 224; // 2x2 grid + socket row
-        } else {
-            return 264; // 2x3 grid + socket row
         }
+        int modeCount = getDisplayModes().size();
+        int rows = Math.max(1, (modeCount + 1) / 2);
+        return 224 + (rows - 2) * 37;
     }
 
     @Override

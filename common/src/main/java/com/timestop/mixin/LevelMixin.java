@@ -15,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Level.class)
 public abstract class LevelMixin {
+    @org.spongepowered.asm.mixin.Unique
+    private final java.util.Map<TickingBlockEntity, Double> timestop$pedestalProgress = new java.util.WeakHashMap<>();
     @Inject(method = "getBlockEntity", at = @At("RETURN"))
     private void timestop$observeBlockEntity(BlockPos pos, CallbackInfoReturnable<BlockEntity> cir) {
         com.timestop.core.rewind.TickRecorder.getInstance().observeBlockEntity(cir.getReturnValue());
@@ -54,6 +56,19 @@ public abstract class LevelMixin {
                 : (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP)
                     || com.timestop.core.TemporalBubbleManager.isPositionInStasis(level.dimension(), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         if (!level.isClientSide && com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) return;
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(level.dimension(), net.minecraft.world.phys.Vec3.atCenterOf(pos));
+            if (bubble != null && bubble.isStationary() && !com.timestop.core.TimeStopManager.isGlobalTimeStopActive()) {
+                double rate = com.timestop.pedestal.PedestalWorldTime.rate(serverLevel, pos);
+                double progress = timestop$pedestalProgress.getOrDefault(ticker, 0.0) + rate;
+                int ticks = (int) progress;
+                timestop$pedestalProgress.put(ticker, progress - ticks);
+                if (ticks > 0) com.timestop.core.rewind.TickRecorder.getInstance().observeBlockEntity(level.getBlockEntity(pos));
+                for (int i=0; i<ticks && !ticker.isRemoved(); i++) ticker.tick();
+                return;
+            }
+            timestop$pedestalProgress.remove(ticker);
+        }
         if (!stopped) {
             if (!level.isClientSide) com.timestop.core.rewind.TickRecorder.getInstance().observeBlockEntity(level.getBlockEntity(pos));
             ticker.tick();

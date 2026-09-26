@@ -39,17 +39,17 @@ public abstract class ProjectileDecelerationMixin {
         }
 
         // Complete TIME_STOP is handled via stasis cancellation, not continuous deceleration
-        if (TimeStopManager.isGlobalTimeStopped() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
+        if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             this.timestop$preTickVelocity = null;
             return;
         }
 
         Player protecting = DecelerationFieldManager.getProtectingPlayer(projectile);
-        if (protecting != null) {
+        if (protecting != null || DecelerationFieldManager.isPedestalDecelerated(projectile)) {
             // Evaluate automated rune defense (auto-parry, auto-snatch, auto-phase)
-            com.timestop.combat.RuneManager.evaluateRuneDefense(projectile, protecting);
+            if (protecting != null) com.timestop.combat.RuneManager.evaluateRuneDefense(projectile, protecting);
 
-            if (!projectile.isAlive() || projectile.getOwner() == protecting) {
+            if (!projectile.isAlive() || (protecting != null && projectile.getOwner() == protecting)) {
                 this.timestop$preTickVelocity = null;
                 return;
             }

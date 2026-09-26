@@ -29,6 +29,6 @@ config="timestop-neoforge.mixins.json"
 [[dependencies.timestop]]
     modId="minecraft"
     type="required"
-    versionRange="[1.21.1,1.22)"
+    versionRange="[1.21.1,1.21.2)"
     ordering="NONE"
     side="BOTH"

@@ -89,6 +89,7 @@ public class ClientTimeStopManager {
         } else if (ClientBubbleManager.hasActiveBubbles()) {
             ClientBubbleManager.ClientBubble b = ClientBubbleManager.getCameraBubble();
             if (b != null) {
+                if (b.stationary && (b.mode == TimeMode.FAST_FORWARD || b.canEntityAct(mc.player))) return 50.0F;
                 mode = b.mode;
             }
         }
@@ -236,11 +237,9 @@ public class ClientTimeStopManager {
         }
 
         // Direct key state queries on client options: instantaneous responsiveness!
-        boolean hasMovementKey = mc.options.keyUp.isDown()
-                || mc.options.keyDown.isDown()
-                || mc.options.keyLeft.isDown()
-                || mc.options.keyRight.isDown()
-                || mc.options.keyJump.isDown();
+        boolean hasMovementKey = SuperhotMotion.isMovementInputActive(
+                mc.options.keyUp.isDown(), mc.options.keyDown.isDown(), mc.options.keyLeft.isDown(),
+                mc.options.keyRight.isDown(), mc.options.keyJump.isDown(), mc.screen != null, mc.isWindowActive());
 
         boolean hasAction = mc.options.keyAttack.isDown()
                 || mc.options.keyUse.isDown()

@@ -31,7 +31,18 @@ sourceSets {
 
 minecraft {
     mappings channel: 'official', version: "${project.minecraft_version}"
-    copyIdeResources = true
+    copyIdeResources = false
+    runs {
+        server {
+            workingDirectory project.file('build/server-smoke-run')
+            args '--nogui'
+            mods { timestop { source sourceSets.main } }
+        }
+        client {
+            workingDirectory project.file('build/client-smoke-run')
+            mods { timestop { source sourceSets.main } }
+        }
+    }
 }
 
 repositories {
@@ -69,9 +80,30 @@ tasks.named('jar', Jar) {
 
 tasks.named('processResources', ProcessResources) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property 'version', project.version
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
     eachFile { details ->
         if (details.path.startsWith('data/')) {
-            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/')
+            details.path = details.path.replace('/recipes/', '/recipe/').replace('/structures/', '/structure/').replace('/loot_tables/', '/loot_table/').replace('/tags/blocks/', '/tags/block/').replace('/tags/items/', '/tags/item/')
         }
+    }
+}
+
+// Forge's module layer requires the dev mod's classes and resources in one directory.
+sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory
+
+// Opt-in client regression scene; QA classes never enter the distribution JAR.
+sourceSets {
+    visualQa {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+sourceSets.visualQa.output.resourcesDir = sourceSets.visualQa.java.destinationDirectory
+if (project.hasProperty('fieldVisualQa')) {
+    minecraft.runs.client {
+        workingDirectory project.file('build/field-visual-run')
+        args '--width', '1280', '--height', '800'
+        mods { timestop_visualqa { source sourceSets.visualQa } }
     }
 }

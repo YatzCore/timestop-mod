@@ -21,6 +21,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TemporalBubble {
+    private boolean stationary;
+    private boolean affectsPlayers = true;
+    public TemporalBubble stationary(boolean affectsPlayers) { this.stationary = true; this.affectsPlayers = affectsPlayers; return this; }
+    public boolean isStationary() { return stationary; }
+    public boolean affectsPlayers() { return affectsPlayers; }
     private final UUID bubbleId;
     private final UUID ownerUuid;
     private final ResourceKey<Level> dimension;
@@ -189,6 +194,14 @@ public class TemporalBubble {
         playerActivities.put(this.ownerUuid, superhotActivity);
     }
 
+    public float getOtherPlayersSuperhotActivity(@Nullable UUID playerUuid) {
+        float max = 0;
+        for (var entry : playerActivities.entrySet()) {
+            if (!entry.getKey().equals(playerUuid)) max = Math.max(max, entry.getValue());
+        }
+        return max;
+    }
+
     public float getSuperhotActivity() {
         float max = 0.0F;
         for (float val : playerActivities.values()) {
@@ -216,6 +229,7 @@ public class TemporalBubble {
             return false;
         }
 
+        if (stationary && !affectsPlayers) return true;
         if (player.isCreative() || player.isSpectator()) return true;
         if (mode == TimeMode.SUPERHOT) return true;
         if (player.getUUID().equals(this.ownerUuid)) return true;
@@ -257,6 +271,8 @@ public class TemporalBubble {
         // Player movement and actions are accelerated explicitly, never by recursive player ticks.
         if (mode == TimeMode.FAST_FORWARD && entity instanceof Player) return 1.0F;
         if (canEntityAct(entity)) return 1.0F;
+        if (stationary && mode == TimeMode.SLOW_MOTION) return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
+        if (stationary && mode == TimeMode.FAST_FORWARD) return com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue();
 
         if (entity instanceof Player player) {
             WatchTier playerTier = getBestEquippedTier(player);
@@ -305,6 +321,7 @@ public class TemporalBubble {
     }
 
     public boolean tick(ServerLevel level) {
+        if (stationary) return false;
         // Mobile center updates directly to caster position if caster is online and in this level
         ServerPlayer owner = level.getServer().getPlayerList().getPlayer(this.ownerUuid);
         if (owner != null && owner.level() == level && owner.isAlive()) {

@@ -4,5 +4,29 @@
     "sounds": [
       "timestop:ramiel_scream"
     ]
+  },
+  "pedestal_insert": {
+    "subtitle": "subtitles.timestop.pedestal_insert",
+    "sounds": [
+      "timestop:pedestal_insert"
+    ]
+  },
+  "pedestal_activate": {
+    "subtitle": "subtitles.timestop.pedestal_activate",
+    "sounds": [
+      "timestop:pedestal_activate"
+    ]
+  },
+  "pedestal_ambient": {
+    "subtitle": "subtitles.timestop.pedestal_ambient",
+    "sounds": [
+      "timestop:pedestal_ambient"
+    ]
+  },
+  "pedestal_deactivate": {
+    "subtitle": "subtitles.timestop.pedestal_deactivate",
+    "sounds": [
+      "timestop:pedestal_deactivate"
+    ]
   }
 }

@@ -18,6 +18,7 @@ import org.lwjgl.glfw.GLFW;
 public class ForgeClientSetup {
 
     public static void init(IEventBus modEventBus) {
+        modEventBus.addListener(ForgeClientSetup::clientSetup);
         modEventBus.addListener(ForgeClientSetup::registerKeys);
         modEventBus.addListener(ForgeClientSetup::registerOverlays);
         modEventBus.addListener(ForgeClientSetup::registerEntityRenderers);
@@ -25,7 +26,12 @@ public class ForgeClientSetup {
     }
 
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(com.timestop.pedestal.ModPedestals.ENTITY.get(), com.timestop.client.renderer.PedestalRenderer::new);
         event.registerEntityRenderer(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);
+    }
+
+    private static void clientSetup(net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent event) {
+        event.enqueueWork(() -> net.minecraft.client.gui.screens.MenuScreens.register(com.timestop.pedestal.ModPedestals.MENU.get(), com.timestop.client.gui.PedestalScreen::new));
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {
@@ -115,8 +121,12 @@ public class ForgeClientSetup {
 
         @SubscribeEvent
         public void onRenderLevelStage(RenderLevelStageEvent event) {
-            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS || event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
-                float tickDelta = event.getPartialTick();
+            // Render once. The chunk-layer stage supplies a different matrix than the
+            // particle stage in Forge 1.21.1 and produced a second, camera-drifting field.
+            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+                // Forge 52 supplies realtime frame duration here, not tick interpolation.
+                // Match the camera's interpolation so a moving owner's sphere cannot jitter.
+                float tickDelta = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
                 PoseStack poseStack = new PoseStack();
                 poseStack.mulPose(event.getPoseStack());
                 DeadEyeRenderer.renderWorld(poseStack, event.getCamera(), tickDelta);

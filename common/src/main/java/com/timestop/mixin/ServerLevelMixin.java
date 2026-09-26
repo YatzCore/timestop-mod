@@ -68,6 +68,16 @@ public abstract class ServerLevelMixin {
                 float progress = timestop$tickProgress.getOrDefault(entity, 0.0F) + rate;
                 timestop$tickProgress.put(entity, progress >= 1.0F ? progress - 1.0F : progress);
                 if (progress < 1.0F) {
+                    if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                        if (living.invulnerableTime > 0) living.invulnerableTime--;
+                        if (living.hurtTime > 0) living.hurtTime--;
+                    }
+                    for (Entity pass : entity.getPassengers()) {
+                        if (pass instanceof net.minecraft.world.entity.LivingEntity livingPass) {
+                            if (livingPass.invulnerableTime > 0) livingPass.invulnerableTime--;
+                            if (livingPass.hurtTime > 0) livingPass.hurtTime--;
+                        }
+                    }
                     entity.setOldPosAndRot();
                     ci.cancel();
                     return;
@@ -90,6 +100,8 @@ public abstract class ServerLevelMixin {
         var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(entity.level().dimension(),
                 entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
         if (bubble == null) return 1.0F;
+        // Pedestals leave the server clock at 20 TPS and budget entity ticks locally.
+        if (bubble.isStationary()) return bubble.getTimeDilationFactor(entity);
         TimeMode bMode = bubble.getMode();
         if (bMode == TimeMode.SLOW_MOTION || bMode == TimeMode.MATRIX || bMode == TimeMode.SUPERHOT) {
             return 1.0F;
@@ -135,11 +147,8 @@ public abstract class ServerLevelMixin {
             ci.cancel();
             return;
         }
-        if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
-            if (com.timestop.core.TemporalBubbleManager.doesBubbleIntersectChunk(level.dimension(), chunk.getPos().x, chunk.getPos().z, level.getMinBuildHeight(), level.getMaxBuildHeight())) {
-                ci.cancel();
-            }
-        }
+        // Local random ticks are filtered per position by LocalRewindTicksMixin.
+        // Cancelling a whole intersecting chunk freezes blocks outside the sphere.
     }
 
     @Inject(method = "advanceWeatherCycle", at = @At("HEAD"), cancellable = true)

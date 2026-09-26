@@ -1,17 +1,21 @@
 # Ultimate Time Stop
 
+**Version 1.6.3 for Minecraft 1.21.1:** includes all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md) on Fabric, Forge, and NeoForge. See [build and validation instructions](PORTING_1_21_1.md).
+
+**New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation. Editable models and previews are in `art/pedestals`.
+
 <p align="center">
   <img src="logo.png" alt="Ultimate Time Stop" width="240" />
 </p>
 
 <p align="center">
   <b>Minecraft Version Branches:</b><br />
-  <a href="https://github.com/YatzCore/timestop-mod/tree/1.20.1-forge-fabric">Minecraft 1.20.1 (Forge / Fabric / NeoForge)</a> |
+  <a href="https://github.com/YatzCore/timestop-mod/tree/1.20.1-forge-fabric">Minecraft 1.20.1 (Forge / Fabric)</a> |
   <b><a href="https://github.com/YatzCore/timestop-mod/tree/1.21.1-forge-fabric">Minecraft 1.21.1 (Forge / Fabric / NeoForge) (Current)</a></b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.4.5-blue?style=flat-square&logo=github" alt="Release" /></a>
+  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.6.3-blue?style=flat-square&logo=github" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?style=flat-square" alt="Minecraft 1.21.1" />
   <img src="https://img.shields.io/badge/Fabric-0.16.10%2B-lightgrey?style=flat-square" alt="Fabric" />
   <img src="https://img.shields.io/badge/Forge-52.1.16%2B-orange?style=flat-square" alt="Forge" />
@@ -24,11 +28,7 @@
 
 A temporal manipulation mod for **Minecraft 1.21.1** supporting **Forge** (52.1.16+), **Fabric** (0.16.10+), and **NeoForge** (21.1.75+), running on Java 21. Freeze entities, projectile trajectories, fluids, block updates, and daylight across localized spherical bubbles or server-wide fields. Features six temporal modes, continuous and burst temporal rewind, tiered pocket watches, tactical combat runes, in-game speed calibration, and modern 1.21.1 delta-tracking.
 
-> [!IMPORTANT]
-> **TACZ (Timeless and Classics Zero) Compatibility**:
-> Upstream TACZ is currently available exclusively for Minecraft 1.20.1 and has not published an official 1.21.1 build.
-> - **1.21.1**: Uses vanilla projectile physics (arrows, tridents, fireballs, splash potions). Gun-specific items (Chrono Coins, Marksman rune) are excluded.
-> - For full firearm stasis and ballistic integration, please use the **[1.20.1 branch](https://github.com/YatzCore/timestop-mod/tree/1.20.1-forge-fabric)** and releases (`v1.4.5-1.20.1`).
+> The 1.21.1 builds retain the existing port's vanilla projectile support. TACZ integration is not validated for this version; use the 1.20.1 release for the tested TACZ setup.
 
 ---
 
@@ -37,7 +37,7 @@ A temporal manipulation mod for **Minecraft 1.21.1** supporting **Forge** (52.1.
 | Feature / Platform | Minecraft 1.20.1 | Minecraft 1.21.1 |
 | :--- | :---: | :---: |
 | **Java Runtime** | Java 17 | Java 21 |
-| **Supported Loaders** | Forge (47.3.0+), Fabric (0.15.11+), NeoForge | Forge (52.1.16+), Fabric (0.16.10+), NeoForge (21.1.75+) |
+| **Supported Loaders** | Forge (47.3.0+), Fabric (0.15.11+) | Forge (52.1.16+), Fabric (0.16.10+), NeoForge (21.1.75+) |
 | **Core Temporal Engine** | Full (6 modes, bubbles, watches, runes) | Full (6 modes, bubbles, watches, runes) |
 | **Rewind Engine & Auto Death Protection** | Yes (Burst & Continuous) | Yes (Burst & Continuous) |
 | **Speed Calibration GUI (H)** | Yes | Yes |
@@ -138,33 +138,44 @@ Available to all survival players without operator permissions (Permission Level
 
 ### Administrative Commands (`/timestop`)
 Requires Operator permission (Level 2):
-- `/timestop start <mode> [seconds]`: Force server-wide time distortion (`timestop`, `slowmotion`, `matrix`, `superhot`, `fastforward`, `deceleration`).
+- `/timestop pedestal affectplayers [true|false]`: Configure whether pedestal fields affect non-exempt players (default: `true`).
+- `/timestop start <mode> [seconds]`: Force server-wide time distortion (`timestop`, `slowmotion`, `matrix`, `superhot`, `fastforward`, `deceleration`, `rewind`).
 - `/timestop stop`: Immediately collapse all active localized bubbles and server-wide freezes.
 - `/timestop toggle [seconds]`: Toggle between running time and stopped time.
 - `/timestop scope <watch|sphere|global>`: Configure watch scoping policy (`watch` = respect item tier; `sphere` = enforce local bubbles; `global` = force server-wide freeze).
 - `/timestop redirect <look|return>`: Configure projectile deflection policy (`look` = crosshair aim; `return` = reflect to shooter).
 - `/timestop exempt <add|remove> <player>`: Manage player whitelist for global time stop immunity.
-- `/timestop speed <get|set|reset>`: Inspect or configure speed dilation multipliers for Slow Motion, Matrix, Superhot, and Fast Forward.
-- `/timestop rewind <seconds> [player]`: Trigger an immediate temporal rollback (respects configured Burst or Continuous mode).
-- `/timestop rewind ondeath [true|false]`: Toggle or inspect server-wide automatic death rewind protection.
-- `/timestop rewind mode <burst|continuous>`: Switch between immediate Burst and smooth Continuous rewind playback.
-- `/timestop buffer <set|reset|clear|status>`: Manage timeline recording capacity, clear history, or inspect buffer diagnostics.
+- `/timestop speed`: Inspect all active speed dilation multipliers and valid ranges.
+- `/timestop speed <fastforward|slowmotion|matrix|superhot|drag> [value]`: Configure temporal mode speed and drag multipliers.
+- `/timestop speed reset`: Reset all mode speed multipliers to default calibrations.
+- `/timestop rewind [seconds]`: Rewind the world timeline backwards (respects configured continuous or burst mode).
+- `/timestop rewind include <true|false>`: Enable or disable Rewind mode inclusion across all watches and commands (aliases: `/timestop allowrewind [true|false]`, `/timestop rewindinclude [true|false]`, `/timestop rewind on|off|enable|disable`). When disabled, Rewind mode completely disappears from watches and selection menus.
+- `/timestop rewind mode <burst|continuous>`: Set active rewind playback mode.
+- `/timestop rewind ondeath [true|false]`: Toggle or inspect server-wide auto death rewind without requiring a rune.
+- `/timestop buffer`: Inspect the timeline recording buffer status, memory usage, and watch inclusion state.
+- `/timestop buffer reset`: Clear timeline history, reset capacity to 30s defaults, and cancel active rewinds.
+- `/timestop buffer clear`: Clear recorded frames while preserving configured capacity.
 - `/timestop status`: Display diagnostics (active bubbles, remaining duration, tick rates, and scoping mode).
+
+### Structure Discovery Commands
+- `/locate structure timestop:ruined_observatory_acropolis`: Locate the 70x70 Mountaintop Citadel Sanctuary (Stony Peaks, Jagged Peaks, Frozen Peaks).
+- `/locate structure timestop:ruined_observatory_<highland|forest|cherry|floral|windswept>`: Locate biome-specific observatory ruins.
+- `/place structure timestop:ruined_observatory_<acropolis|highland|forest|cherry|floral|windswept> ~ ~ ~`: Place complete structure with terrain adaptation.
 
 ---
 
 ## Installation
 
 ### Minecraft 1.20.1 (Java 17)
-- **Fabric**: Install Fabric Loader (0.15.11+) + Fabric API. Place `timestop-fabric-1.20.1-1.4.5.jar` in `.minecraft/mods`.
-- **Forge / NeoForge**: Install Minecraft Forge (47.3.0+) or NeoForge. Place `timestop-forge-1.20.1-1.4.5.jar` in `.minecraft/mods`.
+- **Fabric**: Install Fabric Loader (0.15.11+) + Fabric API. Place `timestop-fabric-1.20.1-1.6.1.jar` in `.minecraft/mods`.
+- **Forge**: Install Minecraft Forge (47.3.0+). Place `timestop-forge-1.20.1-1.6.1.jar` in `.minecraft/mods`.
 - *(Optional)*: Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
 
 ### Minecraft 1.21.1 (Java 21)
-- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.4.5.jar` in `.minecraft/mods`.
-- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.4.5.jar` in `.minecraft/mods`.
-- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.4.5.jar` in `.minecraft/mods`.
-- *Note*: Upstream TACZ does not currently offer a 1.21.1 build; 1.21.1 runs with vanilla ballistics.
+- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.6.3.jar` in `.minecraft/mods`.
+- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.6.3.jar` in `.minecraft/mods`.
+- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.6.3.jar` in `.minecraft/mods`.
+- Install only the JAR matching your loader. Fabric also requires Fabric API for Minecraft 1.21.1.
 
 ---
 

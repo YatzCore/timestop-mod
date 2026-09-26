@@ -49,7 +49,7 @@ public class VoltaicRicochetHandler {
         if (!(hitEntity instanceof LivingEntity victim)) return false;
 
         ChainTargetFilter filter = RuneManager.getActiveChainFilter(player);
-        if (victim.isSpectator() || !filter.matches(victim)) return false;
+        if (victim.isSpectator() || !filter.matchesType(victim)) return false;
 
         // 1. Damage already dealt by vanilla/TACZ arrow impact
         // 2. Play sound and electrical VFX

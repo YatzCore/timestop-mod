@@ -50,6 +50,7 @@ public class FabricNetworkHelper implements INetworkHelper {
     public static void registerServerReceivers() {
         initPayloadTypes();
 
+        registerServer(SetPedestalRadiusPacket.ID, SetPedestalRadiusPacket::new);
         registerServer(ToggleTimeStopPacket.ID, ToggleTimeStopPacket::new);
         registerServer(SuperhotSyncPacket.ID, SuperhotSyncPacket::new);
         registerServer(SlapProjectilePacket.ID, SlapProjectilePacket::new);
@@ -95,6 +96,7 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(RewindMobPacket.ID, RewindMobPacket::new);
         registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
         registerClient(RewindFadePacket.ID, RewindFadePacket::new);
+        registerClient(SyncRewindAllowedPacket.ID, SyncRewindAllowedPacket::new);
 
         ClientPlayNetworking.registerGlobalReceiver(RawModPayload.TYPE, (payload, context) -> {
             Function<FriendlyByteBuf, IClientboundPacket> decoder = CLIENT_DECODERS.get(payload.packetId());

@@ -1,0 +1,8 @@
+{
+  "type": "timestop:ruined_observatory",
+  "variant": "floral",
+  "biomes": "#timestop:has_structure/ruined_observatory_floral",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

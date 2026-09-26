@@ -40,8 +40,10 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
     private static final Map<ResourceLocation, Function<FriendlyByteBuf, IClientboundPacket>> CLIENT_DECODERS = new ConcurrentHashMap<>();
 
     public static void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("timestop").versioned("1.4.0");
+        PayloadRegistrar registrar = event.registrar("timestop").versioned("1.6.1");
 
+        registerServer(SetPedestalRadiusPacket.ID, SetPedestalRadiusPacket::new);
+        registerClient(SyncRewindAllowedPacket.ID, SyncRewindAllowedPacket::new);
         // Serverbound packets
         registerServer(ToggleTimeStopPacket.ID, ToggleTimeStopPacket::new);
         registerServer(SuperhotSyncPacket.ID, SuperhotSyncPacket::new);

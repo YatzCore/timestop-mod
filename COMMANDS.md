@@ -16,6 +16,25 @@ The mod registers two primary command trees:
 
 All commands under this category require Minecraft operator status (`/op`) or permission level 2.
 
+### `pedestal affectplayers`
+Inspects or configures player immunity for all pedestal fields server-wide.
+
+```
+/timestop pedestal affectplayers [true|false]
+```
+
+- **Arguments**:
+  - `[true|false]` *(Optional)*: If omitted, displays the current setting.
+    - `true` *(Default)*: Pedestal fields affect players according to normal owner, ally/sync (`/sync`), scoreboard team, and watch-resistance exemption rules.
+    - `false`: Exempts all non-exempt players from pedestal fields entirely (players can move and interact freely, while mobs, fluids, and projectiles remain affected).
+- **Persistence & Redstone**: The setting is saved with the world (`timestop_server_config`) and applies to active fields immediately. Handheld watches are unaffected.
+- **Disarm Effect**: Executing `/timestop stop` disarms all loaded pedestals until their redstone power is toggled off and on again.
+- **Example**:
+  ```mcfunction
+  /timestop pedestal affectplayers false
+  /timestop pedestal affectplayers true
+  ```
+
 ### `start`
 Forces server-wide time distortion in the specified mode across all loaded dimensions.
 
@@ -31,10 +50,12 @@ Forces server-wide time distortion in the specified mode across all loaded dimen
     - `superhot`: Movement-scaled time dilation. Runs at 2 TPS when idle and dynamically scales up to 20 TPS based on player velocity, sprinting, jumping, and attacking.
     - `fastforward`: Accelerated simulation at 10 ms per tick (100 TPS). Daylight progression is rate-limited to 20 TPS to prevent graphical flickering.
     - `deceleration`: Projects an omnidirectional 6-meter bullet-dodge field centered on the player.
-  - `[seconds]` *(Optional)*: Duration in seconds (integer between 1 and 3600). If omitted or set to 0, runs indefinitely until manually stopped.
+    - `rewind`: Rewinds the world timeline backwards for the specified duration (up to buffer capacity). Respects configured continuous or burst playback mode. When Rewind mode is disabled via `/timestop rewind include false`, starting rewind is blocked.
+  - `[seconds]` *(Optional)*: Duration in seconds (1 to 3600 for standard modes; 1 to 60 for rewind). If omitted or set to 0, runs indefinitely (or for rewind, uses default configured buffer duration).
 - **Example**:
   ```mcfunction
   /timestop start superhot 30
+  /timestop start rewind 15
   ```
 
 ---
@@ -151,6 +172,112 @@ Legacy alias for `/timestop scope`. Sets the server-wide operational policy for 
 - **Example**:
   ```mcfunction
   /timestop servermode bubble
+  ```
+
+---
+
+### `speed`
+Inspects or calibrates temporal simulation multipliers and drag rates across all modes.
+
+```
+/timestop speed
+/timestop speed reset
+/timestop speed <fastforward|slowmotion|matrix|superhot|drag> [value]
+```
+
+- **Subcommands**:
+  - `/timestop speed`: Displays all current speed multipliers and their valid configurable ranges.
+  - `reset`: Restores all mode speeds to their default calibrations.
+  - `fastforward [value]`: Sets fast forward multiplier (valid: `1.1` – `50.0x`, default: `5.0x` / 100 TPS).
+  - `slowmotion [value]`: Sets slow motion multiplier (valid: `0.01` – `0.99x`, default: `0.25x` / 5 TPS).
+  - `matrix [value]`: Sets matrix world multiplier (valid: `0.01` – `0.99x`, default: `0.25x` / 5 TPS).
+  - `superhot [value]`: Sets superhot idle rate (valid: `0.005` – `0.80x`, default: `0.10x` / 2 TPS).
+  - `drag [value]`: Sets deceleration field drag coefficient (valid: `0.001` – `0.95x`, default: `0.05x`).
+- **Network Sync**: Automatically synchronizes to all connected clients via `SyncSpeedConfigPacket`.
+- **Examples**:
+  ```mcfunction
+  /timestop speed
+  /timestop speed slowmotion 0.10
+  /timestop speed fastforward 10.0
+  /timestop speed reset
+  ```
+
+---
+
+### `rewind include` & `allowrewind`
+Controls whether **Rewind Mode** (`TimeMode.REWIND`) is included on watches and available on the server.
+
+```
+/timestop rewind include <true|false>
+/timestop rewind allow <true|false>
+/timestop rewind on|off
+/timestop rewind enable|disable
+/timestop allowrewind [true|false]
+```
+
+- **Default**: `true` (ON / Included).
+- **When Disabled / Excluded (`false`, `off`, `disable`)**:
+  - Rewind mode immediately disappears from all compatible pocket watches (Diamond, Netherite, Creative).
+  - The Shift+Right-Click Mode Selection GUI dynamically collapses from 4 rows to 3 rows, removing the Rewind card.
+  - Watch tooltips immediately hide Rewind mode, falling back to Slow Motion if previously selected.
+  - Active rewind sessions and local rewind runners are immediately halted.
+  - `/timestop start rewind` and `/timestop rewind` commands are blocked.
+- **When Re-enabled / Allowed (`true`, `on`, `enable`)**:
+  - Rewind mode immediately reappears on watches and inside the Mode Selection GUI.
+  - Watches that were set to Rewind before it was disabled immediately restore Rewind mode.
+- **Persistence**: Saved with the world NBT (`timestop_server_config`).
+- **Network Sync**: Automatically broadcast via `SyncRewindAllowedPacket` to all connected clients and sent upon player login.
+- **Example**:
+  ```mcfunction
+  /timestop rewind include false
+  /timestop rewind on
+  /timestop allowrewind true
+  ```
+
+---
+
+### `rewind`
+Triggers an immediate burst or continuous timeline rewind across the current scope.
+
+```
+/timestop rewind [seconds]
+/timestop rewind mode <burst|continuous>
+/timestop rewind buffer [seconds]
+/timestop rewind buffer <reset|clear>
+/timestop rewind ondeath [true|false]
+/timestop rewind status
+```
+
+- **Subcommands**:
+  - `[seconds]`: Triggers a rewind of the specified duration (up to buffer capacity).
+  - `mode <burst|continuous>`: Toggles between instant block/entity rollback (`burst`) and smooth reverse frame playback (`continuous`).
+  - `buffer [seconds]`: Configures timeline memory recording buffer (default: 30s).
+  - `buffer reset`: Resets timeline buffer to 30 seconds default.
+  - `buffer clear`: Wipes current timeline memory frames.
+  - `ondeath [true|false]`: Toggles automatic death rewind rescue for all players without consuming runes.
+  - `status`: Displays recorded frames, memory usage, buffer capacity, and watch inclusion state.
+
+---
+
+### `buffer`
+Administrative shorthand for timeline buffer management (equivalent to `/timestop rewind buffer`).
+
+```
+/timestop buffer
+/timestop buffer reset
+/timestop buffer clear
+/timestop buffer <seconds>
+```
+
+- **Subcommands**:
+  - `/timestop buffer`: Inspects recorded frames, capacity, memory consumption, and watch inclusion status.
+  - `reset`: Cancels active rewinds, flushes recorded frames, and resets capacity to default 30 seconds.
+  - `clear`: Clears all recorded timeline frames while preserving configured capacity.
+  - `<seconds>`: Sets buffer recording capacity (1 to 60 seconds).
+- **Example**:
+  ```mcfunction
+  /timestop buffer 45
+  /timestop buffer reset
   ```
 
 ---
@@ -324,6 +451,52 @@ For testing, server shops, or map-making, all temporal pocket watches, runes, an
 | **Rune of Spatial Transposition** | `timestop:rune_transposition` | `/give @s timestop:rune_transposition` |
 | **Rune of the Kinetic Barrier** | `timestop:rune_barrier` | `/give @s timestop:rune_barrier` |
 | **Rune of Vector Control** | `timestop:rune_vector` | `/give @s timestop:rune_vector` |
+| **Rune of Rewind (Auto Death Rewind)** | `timestop:rune_rewind` | `/give @s timestop:rune_rewind` |
 | **Rune of the Marksman (+RICOSHOT)** *(TACZ)* | `timestop:rune_coin` | `/give @s timestop:rune_coin` |
 | **Chrono Coin** *(TACZ)* | `timestop:chrono_coin` | `/give @s timestop:chrono_coin` |
+
+
+### Clockwork Pedestals (1.5.0+)
+| Item Name | Item Identifier | Command Example |
+| :--- | :--- | :--- |
+| **Copper Pedestal** (Tier 1) | `timestop:copper_pedestal` | `/give @s timestop:copper_pedestal` |
+| **Golden Pedestal** (Tier 2) | `timestop:golden_pedestal` | `/give @s timestop:golden_pedestal` |
+| **Diamond Pedestal** (Tier 3) | `timestop:diamond_pedestal` | `/give @s timestop:diamond_pedestal` |
+| **Netherite Pedestal** (Tier 4) | `timestop:netherite_pedestal` | `/give @s timestop:netherite_pedestal` |
+| **Creative Pedestal** (Tier 5) | `timestop:creative_pedestal` | `/give @s timestop:creative_pedestal` |
+
+---
+
+### Ruined Observatories & Acropolis Citadel (1.6.0+)
+
+#### Natural Ruin Discovery (`/locate structure`)
+Use `/locate structure` to find natural ruins across their dedicated biomes:
+- `/locate structure timestop:ruined_observatory_acropolis`: 70x70 Mountaintop Citadel Sanctuary (Stony Peaks, Jagged Peaks, Frozen Peaks).
+- `/locate structure timestop:ruined_observatory_highland`: Windswept Hills, Gravelly Hills, Meadows, Stony Peaks.
+- `/locate structure timestop:ruined_observatory_forest`: Forests, Birch Forests, Old Growth Birch, Dark Forests.
+- `/locate structure timestop:ruined_observatory_cherry`: Cherry Groves (cherry wood, blossoms, pink petals).
+- `/locate structure timestop:ruined_observatory_floral`: Flower Forests (birch timber, azalea, flower beds).
+- `/locate structure timestop:ruined_observatory_windswept`: Windswept Forests (dark oak/spruce alpine timber, wind-scoured stone).
+
+#### Procedural Worldgen Placement (`/place structure`)
+`/place structure <id> ~ ~ ~` generates the structure with terrain adaptation, bounds checking, and procedural foundations:
+```mcfunction
+/place structure timestop:ruined_observatory_acropolis ~ ~ ~
+/place structure timestop:ruined_observatory_highland ~ ~ ~
+/place structure timestop:ruined_observatory_forest ~ ~ ~
+/place structure timestop:ruined_observatory_cherry ~ ~ ~
+/place structure timestop:ruined_observatory_floral ~ ~ ~
+/place structure timestop:ruined_observatory_windswept ~ ~ ~
+```
+
+#### Deterministic Template Placement (`/place template`)
+For testing, inspection, or map building without terrain validation:
+```mcfunction
+/place template timestop:ruined_observatory/highland ~ ~ ~ none none 1.0 42
+/place template timestop:ruined_observatory/forest ~ ~ ~ none none 1.0 42
+/place template timestop:ruined_observatory/cherry ~ ~ ~ none none 1.0 42
+/place template timestop:ruined_observatory/floral ~ ~ ~ none none 1.0 42
+/place template timestop:ruined_observatory/windswept ~ ~ ~ none none 1.0 42
+```
+See [placement details and editable resources](OBSERVATORY.md).
 

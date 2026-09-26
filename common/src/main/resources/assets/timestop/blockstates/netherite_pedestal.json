@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "active=false": {
+      "model": "timestop:block/netherite_pedestal"
+    },
+    "active=true": {
+      "model": "timestop:block/netherite_pedestal_active"
+    }
+  }
+}

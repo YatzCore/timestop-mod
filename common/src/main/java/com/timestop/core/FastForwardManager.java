@@ -12,12 +12,12 @@ public final class FastForwardManager {
             if (ClientTimeStopManager.isGlobalTimeStopActive()) return 1.0F;
             var bubble = ClientBubbleManager.getDominantBubble(player.getX(),
                     player.getY() + player.getBbHeight() * 0.5, player.getZ());
-            return bubble != null && bubble.mode == TimeMode.FAST_FORWARD ? com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue() : 1.0F;
+            return bubble != null && !bubble.stationary && bubble.mode == TimeMode.FAST_FORWARD ? com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue() : 1.0F;
         }
         if (TimeStopManager.isGlobalTimeStopActive()) return 1.0F;
         var bubble = TemporalBubbleManager.getDominantBubble(player.level().dimension(),
                 player.getX(), player.getY() + player.getBbHeight() * 0.5, player.getZ());
-        return bubble != null && bubble.getMode() == TimeMode.FAST_FORWARD ? com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue() : 1.0F;
+        return bubble != null && !bubble.isStationary() && bubble.getMode() == TimeMode.FAST_FORWARD ? com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue() : 1.0F;
     }
 
     public static float modifyBreakSpeed(Player player, float speed) {

@@ -12,6 +12,12 @@ public class TimeStopSavedData extends SavedData {
     private WatchScope watchScope = WatchScope.WATCH;
     private boolean redirectToLook;
     private boolean autoDeathRewind;
+    private boolean rewindModeAllowed = true;
+    public boolean isRewindModeAllowed() { return rewindModeAllowed; }
+    public void setRewindModeAllowed(boolean allowed) { this.rewindModeAllowed = allowed; setDirty(); }
+    private boolean pedestalsAffectPlayers = true;
+    public boolean pedestalsAffectPlayers() { return pedestalsAffectPlayers; }
+    public void setPedestalsAffectPlayers(boolean value) { pedestalsAffectPlayers = value; setDirty(); }
     private TimeStopManager.ProjectileStasisMode projectileStasisMode = TimeStopManager.ProjectileStasisMode.FLOWING;
 
     public TimeStopSavedData() {
@@ -19,6 +25,7 @@ public class TimeStopSavedData extends SavedData {
 
     public static TimeStopSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
         TimeStopSavedData data = new TimeStopSavedData();
+        if (tag.contains("PedestalsAffectPlayers")) data.pedestalsAffectPlayers = tag.getBoolean("PedestalsAffectPlayers");
         if (tag.contains("ServerForceGlobalMode")) {
             data.watchScope = tag.getBoolean("ServerForceGlobalMode") ? WatchScope.GLOBAL : WatchScope.WATCH;
         }
@@ -28,6 +35,7 @@ public class TimeStopSavedData extends SavedData {
         }
         data.redirectToLook = tag.getBoolean("RedirectToLook");
         data.autoDeathRewind = tag.getBoolean("AutoDeathRewind");
+        data.rewindModeAllowed = !tag.contains("RewindModeAllowed") || tag.getBoolean("RewindModeAllowed");
         if (tag.contains("ProjectileStasisMode")) {
             try { data.projectileStasisMode = TimeStopManager.ProjectileStasisMode.valueOf(tag.getString("ProjectileStasisMode")); }
             catch (IllegalArgumentException ignored) { data.projectileStasisMode = TimeStopManager.ProjectileStasisMode.FLOWING; }
@@ -37,10 +45,12 @@ public class TimeStopSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
+        tag.putBoolean("PedestalsAffectPlayers", pedestalsAffectPlayers);
         tag.putBoolean("ServerForceGlobalMode", isServerForceGlobalMode());
         tag.putString("WatchScope", watchScope.name());
         tag.putBoolean("RedirectToLook", redirectToLook);
         tag.putBoolean("AutoDeathRewind", autoDeathRewind);
+        tag.putBoolean("RewindModeAllowed", rewindModeAllowed);
         tag.putString("ProjectileStasisMode", projectileStasisMode.name());
         return tag;
     }
