@@ -3,6 +3,8 @@
 - Restored per-entity tick budgeting for pedestal Slow Motion, including client projectile prediction.
 - Pedestal Fast Forward no longer changes player movement, mining, use/cooldown speed, or client tick speed. Handheld watch Fast Forward keeps its existing behavior.
 - Fixed Forge watch spheres jittering during movement by using game-tick interpolation instead of realtime frame duration.
+- Fixed creative mode inventory tab displaying unlocalized `itemGroup.timestop` key.
+- Fixed NeoForge combat crash when attacking entities in Slow Motion.
 - Added entity-ticking/player-speed regression tests and moving watch-owner visual captures.
 
 # Minecraft 1.21.1 — 1.6.2

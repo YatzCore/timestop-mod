@@ -20,6 +20,7 @@
   "item.timestop.rune_coin": "Rune of the Marksman (+RICOSHOT)",
   "item.timestop.chrono_coin": "Chrono Coin",
   "entity.timestop.chrono_coin": "Chrono Coin",
+  "itemGroup.timestop": "Ultimate Time Stop",
   "itemGroup.timestop_tab": "Ultimate Time Stop",
   "key.timestop.toggle": "Toggle Time Stop",
   "key.timestop.release_projectiles": "Release Orbiting Projectiles",
