@@ -1,4 +1,4 @@
-# Minecraft 1.21.1 — 1.6.3
+# Minecraft 1.21.1 — 1.6.1
 
 - Restored per-entity tick budgeting for pedestal Slow Motion, including client projectile prediction.
 - Pedestal Fast Forward no longer changes player movement, mining, use/cooldown speed, or client tick speed. Handheld watch Fast Forward keeps its existing behavior.

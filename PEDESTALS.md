@@ -57,5 +57,5 @@ The dynamic renderer optimizes client performance by testing the full cage bound
 - Close-up: retains full high-detail geometry.
 - Animation states are client-only and cleanly unloaded when their source block entities unload.
 
-Install the matching Minecraft 1.21.1 loader's 1.6.3 JAR on both client and server. Forge uses network protocol 2 in this port; client and server versions must match. The armillary redesign requires no save migration or new runtime library. Existing worlds retain their watch data, and existing placed pedestals receive the new appearance automatically.
+Install the matching Minecraft 1.21.1 loader's 1.6.1 JAR on both client and server. Forge uses network protocol 2 in this port; client and server versions must match. The armillary redesign requires no save migration or new runtime library. Existing worlds retain their watch data, and existing placed pedestals receive the new appearance automatically.
 

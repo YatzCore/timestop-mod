@@ -1,6 +1,6 @@
 # Ultimate Time Stop
 
-**Version 1.6.3 for Minecraft 1.21.1:** includes all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md) on Fabric, Forge, and NeoForge.
+**Version 1.6.1 for Minecraft 1.21.1:** includes all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md) on Fabric, Forge, and NeoForge.
 
 **New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation.
 
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.6.3-blue?style=flat-square&logo=github" alt="Release" /></a>
+  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.6.1-blue?style=flat-square&logo=github" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?style=flat-square" alt="Minecraft 1.21.1" />
   <img src="https://img.shields.io/badge/Fabric-0.16.10%2B-lightgrey?style=flat-square" alt="Fabric" />
   <img src="https://img.shields.io/badge/Forge-52.1.16%2B-orange?style=flat-square" alt="Forge" />
@@ -172,9 +172,9 @@ Requires Operator permission (Level 2):
 - *(Optional)*: Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
 
 ### Minecraft 1.21.1 (Java 21)
-- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.6.3.jar` in `.minecraft/mods`.
-- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.6.3.jar` in `.minecraft/mods`.
-- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.6.3.jar` in `.minecraft/mods`.
+- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.6.1.jar` in `.minecraft/mods`.
+- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.6.1.jar` in `.minecraft/mods`.
+- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.6.1.jar` in `.minecraft/mods`.
 - Install only the JAR matching your loader. Fabric also requires Fabric API for Minecraft 1.21.1.
 
 ---
