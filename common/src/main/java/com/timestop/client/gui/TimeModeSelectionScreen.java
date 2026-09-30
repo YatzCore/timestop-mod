@@ -5,9 +5,12 @@ import com.timestop.item.AbstractWatchItem;
 import com.timestop.item.WatchTier;
 import com.timestop.item.rune.RuneType;
 import com.timestop.item.rune.TemporalRuneItem;
+import com.timestop.item.ModItems;
 import com.timestop.network.ModMessages;
 import com.timestop.network.SelectTimeModePacket;
+import com.timestop.network.SetRewindExemptPacket;
 import com.timestop.network.SocketSpecificRunePacket;
+import com.timestop.network.ToggleMatrixRunePacket;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -28,6 +31,24 @@ import java.util.List;
  * Rune transfers wait for authoritative server inventory updates.
  */
 public class TimeModeSelectionScreen extends Screen {
+    private static final List<RuneType> MATRIX_RUNES = List.of(
+            RuneType.DEFLECTION,
+            RuneType.SNATCHING,
+            RuneType.PHASING,
+            RuneType.KINETIC,
+            RuneType.VAMPIRISM,
+            RuneType.VOLATILE,
+            RuneType.TACHYON,
+            RuneType.DEAD_EYE,
+            RuneType.RICOCHET,
+            RuneType.ORBITAL,
+            RuneType.TRANSPOSITION,
+            RuneType.VECTOR,
+            RuneType.KINETIC_BARRIER,
+            RuneType.RICOSHOT,
+            RuneType.REWIND
+    );
+
     private final InteractionHand hand;
     private TimeMode currentMode = TimeMode.TIME_STOP;
     private WatchTier currentTier = WatchTier.COPPER;
@@ -143,7 +164,8 @@ public class TimeModeSelectionScreen extends Screen {
         }
         int modeCount = getDisplayModes().size();
         int rows = Math.max(1, (modeCount + 1) / 2);
-        return 224 + (rows - 2) * 37;
+        int extra = (this.currentTier == WatchTier.CREATIVE) ? 20 : 0;
+        return 224 + (rows - 2) * 37 + extra;
     }
 
     @Override
@@ -228,8 +250,94 @@ public class TimeModeSelectionScreen extends Screen {
 
         int currentY = modalY + 32;
 
-        // 3. Socket Row & Rune Tray (Only rendered if watch has rune socket)
-        if (this.currentTier.hasRuneSocket()) {
+        // 3. Socket Row & Rune Tray (or Rune Matrix for Creative Watch)
+        if (this.currentTier == WatchTier.CREATIVE) {
+            int matrixStartX = modalX + 14;
+            int matrixStartY = currentY;
+
+            guiGraphics.drawString(this.font, "RUNE MATRIX", matrixStartX, matrixStartY + 2, 0xFFF1F5F9, false);
+
+            int activeCount = AbstractWatchItem.getActiveMatrixRuneCount(this.watchStack);
+            String countText = activeCount + " / 15 Active";
+            int countWidth = this.font.width(countText);
+
+            Component enableAllBtn = Component.literal("[Enable All]").withStyle(ChatFormatting.GREEN);
+            Component disableAllBtn = Component.literal("[Disable All]").withStyle(ChatFormatting.RED);
+            int enableW = this.font.width(enableAllBtn);
+            int disableW = this.font.width(disableAllBtn);
+
+            int rightEdge = modalX + modalWidth - 14;
+            int countX = rightEdge - countWidth;
+            int disableX = countX - 10 - disableW;
+            int enableX = disableX - 8 - enableW;
+
+            boolean isEnableHovered = mouseX >= enableX - 2 && mouseX <= enableX + enableW + 2
+                    && mouseY >= matrixStartY && mouseY <= matrixStartY + 12;
+            boolean isDisableHovered = mouseX >= disableX - 2 && mouseX <= disableX + disableW + 2
+                    && mouseY >= matrixStartY && mouseY <= matrixStartY + 12;
+
+            guiGraphics.drawString(this.font, enableAllBtn, enableX, matrixStartY + 2, isEnableHovered ? 0xFF86EFAC : 0xFF22C55E, false);
+            guiGraphics.drawString(this.font, disableAllBtn, disableX, matrixStartY + 2, isDisableHovered ? 0xFFFCA5A5 : 0xFFEF4444, false);
+            guiGraphics.drawString(this.font, countText, countX, matrixStartY + 2, activeCount > 0 ? 0xFF38BDF8 : 0xFF64748B, false);
+
+            int chipSize = 20;
+            int chipGap = 3;
+            int chipsY1 = matrixStartY + 14;
+            int chipsY2 = chipsY1 + chipSize + chipGap;
+
+            RuneType hoveredRune = null;
+
+            for (int i = 0; i < MATRIX_RUNES.size(); i++) {
+                RuneType type = MATRIX_RUNES.get(i);
+                int row = i < 8 ? 0 : 1;
+                int col = i < 8 ? i : (i - 8);
+
+                int chipX = matrixStartX + col * (chipSize + chipGap);
+                int chipY = row == 0 ? chipsY1 : chipsY2;
+
+                boolean active = AbstractWatchItem.isMatrixRuneActive(this.watchStack, type);
+                boolean isHovered = mouseX >= chipX && mouseX <= chipX + chipSize
+                        && mouseY >= chipY && mouseY <= chipY + chipSize;
+
+                int chipBg = active
+                        ? (isHovered ? 0x881E3A5F : 0x6616253B)
+                        : (isHovered ? 0x44252D3D : 0x33171B24);
+                int chipBorder = active
+                        ? (isHovered ? 0xFF38BDF8 : 0xFF0284C7)
+                        : (isHovered ? 0x88FFFFFF : 0x22FFFFFF);
+
+                guiGraphics.fill(chipX, chipY, chipX + chipSize, chipY + chipSize, chipBg);
+                guiGraphics.renderOutline(chipX, chipY, chipSize, chipSize, chipBorder);
+
+                ItemStack runeStack = new ItemStack(ModItems.getRuneItem(type));
+                guiGraphics.renderItem(runeStack, chipX + 2, chipY + 2);
+
+                if (active) {
+                    guiGraphics.fill(chipX + chipSize - 5, chipY + chipSize - 5, chipX + chipSize - 1, chipY + chipSize - 1, 0xFF38BDF8);
+                }
+
+                if (isHovered) {
+                    hoveredRune = type;
+                }
+            }
+
+            if (hoveredRune != null) {
+                boolean active = AbstractWatchItem.isMatrixRuneActive(this.watchStack, hoveredRune);
+                Component stateComp = active
+                        ? Component.literal("[ONLINE]").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD)
+                        : Component.literal("[OFFLINE]").withStyle(ChatFormatting.DARK_GRAY);
+
+                Component tooltip = Component.literal(hoveredRune.getDisplayName()).withStyle(hoveredRune.getFormat(), ChatFormatting.BOLD)
+                        .append(Component.literal(" "))
+                        .append(stateComp)
+                        .append(Component.literal("\n" + hoveredRune.getDescription()).withStyle(ChatFormatting.GRAY))
+                        .append(Component.literal("\nClick to " + (active ? "Disable" : "Enable")).withStyle(ChatFormatting.DARK_AQUA));
+                guiGraphics.renderTooltip(this.font, tooltip, mouseX, mouseY);
+            }
+
+            guiGraphics.fill(modalX + 12, chipsY2 + chipSize + 6, modalX + modalWidth - 12, chipsY2 + chipSize + 7, 0x22FFFFFF);
+            currentY = chipsY2 + chipSize + 12;
+        } else if (this.currentTier.hasRuneSocket()) {
             int socketSlotX = modalX + 14;
             int socketSlotY = currentY;
             int slotSize = 20;
@@ -321,6 +429,7 @@ public class TimeModeSelectionScreen extends Screen {
         // 4. Mode Cards Grid
         List<TimeMode> displayModes = getDisplayModes();
         TimeMode hoveredMode = null;
+        Component hoveredChipTooltip = null;
 
         if (this.currentTier == WatchTier.COPPER) {
             int cardW = modalWidth - 24;
@@ -354,7 +463,46 @@ public class TimeModeSelectionScreen extends Screen {
                 boolean isSelected = (mode == this.currentMode);
 
                 renderModeCard(guiGraphics, theme, cx, cy, cardW, cardH, mode, i + 1, isSelected, isHovered);
-                if (isHovered) hoveredMode = mode;
+
+                if (this.currentTier == WatchTier.CREATIVE && mode == TimeMode.REWIND) {
+                    boolean exemptAllowed = com.timestop.core.TimeStopManager.isRewindExemptAllowed();
+                    boolean exempt = AbstractWatchItem.isRewindInitiatorExempt(this.watchStack);
+                    String chipText = !exemptAllowed ? "[Self: LOCKED]" : (exempt ? "[Self: OFF]" : "[Self: ON]");
+                    int chipW = this.font.width(chipText) + 8;
+                    int chipH = 14;
+                    int chipX = isSelected ? (cx + cardW - chipW - 16) : (cx + cardW - chipW - 6);
+                    int chipY = cy + (cardH - chipH) / 2;
+
+                    boolean isChipHovered = mouseX >= chipX && mouseX <= chipX + chipW && mouseY >= chipY && mouseY <= chipY + chipH;
+                    int chipBg = isChipHovered ? 0x88252D3D : 0x55171B24;
+                    int chipBorder = !exemptAllowed ? 0x44EF4444 : (isChipHovered ? 0xFFFFFFFF : (exempt ? 0xFFF59E0B : 0xFF22C55E));
+                    int textColor = !exemptAllowed ? 0xFF94A3B8 : (exempt ? 0xFFFBBF24 : 0xFF4ADE80);
+
+                    guiGraphics.fill(chipX, chipY, chipX + chipW, chipY + chipH, chipBg);
+                    guiGraphics.renderOutline(chipX, chipY, chipW, chipH, chipBorder);
+                    guiGraphics.drawString(this.font, chipText, chipX + 4, chipY + 3, textColor, false);
+
+                    if (isChipHovered) {
+                        if (!exemptAllowed) {
+                            hoveredChipTooltip = Component.literal("Rewind Self: DISABLED BY SERVER").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
+                                    .append(Component.literal("\nServer admin policy disabled initiator exemption.")
+                                            .append("\nUse §f/timestop rewind allowexempt true§7 to enable.")
+                                            .withStyle(ChatFormatting.GRAY));
+                        } else {
+                            hoveredChipTooltip = Component.literal("Rewind Self: ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                                    .append(exempt
+                                            ? Component.literal("OFF (Exempt)").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
+                                            : Component.literal("ON (Included)").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
+                                    .append(Component.literal(exempt
+                                            ? "\nWorld and entities rewind backward in time, but you retain your position, inventory, and health."
+                                            : "\nYou rewind backward in time along with the rest of the world.")
+                                            .withStyle(ChatFormatting.GRAY))
+                                    .append(Component.literal("\nClick to switch to: " + (exempt ? "ON (Included)" : "OFF (Exempt)")).withStyle(ChatFormatting.DARK_AQUA));
+                        }
+                    }
+                }
+
+                if (isHovered && hoveredChipTooltip == null) hoveredMode = mode;
             }
         }
 
@@ -362,8 +510,10 @@ public class TimeModeSelectionScreen extends Screen {
         int footerY = modalY + modalHeight - 13;
         guiGraphics.drawCenteredString(this.font, "ESC to close", modalX + modalWidth / 2, footerY, 0xFF64748B);
 
-        // 6. Tooltip for hovered mode
-        if (hoveredMode != null) {
+        // 6. Tooltip for hovered mode or chip
+        if (hoveredChipTooltip != null) {
+            guiGraphics.renderTooltip(this.font, hoveredChipTooltip, mouseX, mouseY);
+        } else if (hoveredMode != null) {
             guiGraphics.renderTooltip(this.font, Component.literal(getCleanDescription(hoveredMode)), mouseX, mouseY);
         }
 
@@ -483,7 +633,70 @@ public class TimeModeSelectionScreen extends Screen {
                 }
             }
 
-            if (this.currentTier.hasRuneSocket()) {
+            if (this.currentTier == WatchTier.CREATIVE) {
+                int matrixStartX = modalX + 14;
+                int matrixStartY = currentY;
+
+                Component enableAllBtn = Component.literal("[Enable All]");
+                Component disableAllBtn = Component.literal("[Disable All]");
+                int enableW = this.font.width(enableAllBtn);
+                int disableW = this.font.width(disableAllBtn);
+
+                int activeCount = AbstractWatchItem.getActiveMatrixRuneCount(this.watchStack);
+                String countText = activeCount + " / 15 Active";
+                int countWidth = this.font.width(countText);
+
+                int rightEdge = modalX + modalWidth - 14;
+                int countX = rightEdge - countWidth;
+                int disableX = countX - 10 - disableW;
+                int enableX = disableX - 8 - enableW;
+
+                if (mouseY >= matrixStartY && mouseY <= matrixStartY + 12) {
+                    if (mouseX >= enableX - 4 && mouseX <= enableX + enableW + 4) {
+                        AbstractWatchItem.setAllMatrixRunes(this.watchStack, true);
+                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.hand, null, true, true));
+                        if (this.minecraft != null && this.minecraft.player != null) {
+                            this.minecraft.player.playSound(SoundEvents.ARMOR_EQUIP_NETHERITE, 1.0F, 1.2F);
+                        }
+                        return true;
+                    }
+                    if (mouseX >= disableX - 4 && mouseX <= disableX + disableW + 4) {
+                        AbstractWatchItem.setAllMatrixRunes(this.watchStack, false);
+                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.hand, null, false, true));
+                        if (this.minecraft != null && this.minecraft.player != null) {
+                            this.minecraft.player.playSound(SoundEvents.ARMOR_EQUIP_GENERIC, 1.0F, 0.8F);
+                        }
+                        return true;
+                    }
+                }
+
+                int chipSize = 20;
+                int chipGap = 3;
+                int chipsY1 = matrixStartY + 14;
+                int chipsY2 = chipsY1 + chipSize + chipGap;
+
+                for (int i = 0; i < MATRIX_RUNES.size(); i++) {
+                    RuneType type = MATRIX_RUNES.get(i);
+                    int row = i < 8 ? 0 : 1;
+                    int col = i < 8 ? i : (i - 8);
+
+                    int chipX = matrixStartX + col * (chipSize + chipGap);
+                    int chipY = row == 0 ? chipsY1 : chipsY2;
+
+                    if (mouseX >= chipX && mouseX <= chipX + chipSize && mouseY >= chipY && mouseY <= chipY + chipSize) {
+                        boolean currentState = AbstractWatchItem.isMatrixRuneActive(this.watchStack, type);
+                        boolean newState = !currentState;
+                        AbstractWatchItem.setMatrixRune(this.watchStack, type, newState);
+                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.hand, type, newState, false));
+                        if (this.minecraft != null && this.minecraft.player != null) {
+                            this.minecraft.player.playSound(newState ? SoundEvents.ARMOR_EQUIP_NETHERITE : SoundEvents.ARMOR_EQUIP_GENERIC, 1.0F, newState ? 1.2F : 0.8F);
+                        }
+                        return true;
+                    }
+                }
+
+                currentY = chipsY2 + chipSize + 12;
+            } else if (this.currentTier.hasRuneSocket()) {
                 int socketSlotX = modalX + 14;
                 int socketSlotY = currentY;
                 int slotSize = 20;
@@ -566,6 +779,34 @@ public class TimeModeSelectionScreen extends Screen {
                     int row = i / 2;
                     int cx = modalX + 12 + col * (cardW + gapX);
                     int cy = currentY + row * (cardH + gapY);
+                    TimeMode mode = displayModes.get(i);
+
+                    if (this.currentTier == WatchTier.CREATIVE && mode == TimeMode.REWIND) {
+                        boolean isSelected = (mode == this.currentMode);
+                        boolean exemptAllowed = com.timestop.core.TimeStopManager.isRewindExemptAllowed();
+                        boolean exempt = AbstractWatchItem.isRewindInitiatorExempt(this.watchStack);
+                        String chipText = !exemptAllowed ? "[Self: LOCKED]" : (exempt ? "[Self: OFF]" : "[Self: ON]");
+                        int chipW = this.font.width(chipText) + 8;
+                        int chipH = 14;
+                        int chipX = isSelected ? (cx + cardW - chipW - 16) : (cx + cardW - chipW - 6);
+                        int chipY = cy + (cardH - chipH) / 2;
+
+                        if (mouseX >= chipX && mouseX <= chipX + chipW && mouseY >= chipY && mouseY <= chipY + chipH) {
+                            if (exemptAllowed) {
+                                boolean newExempt = !exempt;
+                                AbstractWatchItem.setRewindInitiatorExempt(this.watchStack, newExempt);
+                                ModMessages.sendToServer(new SetRewindExemptPacket(this.hand, newExempt));
+                                if (this.minecraft != null && this.minecraft.player != null) {
+                                    this.minecraft.player.playSound(newExempt ? SoundEvents.ARMOR_EQUIP_NETHERITE : SoundEvents.ARMOR_EQUIP_GENERIC, 1.0F, newExempt ? 1.2F : 0.8F);
+                                }
+                            } else {
+                                if (this.minecraft != null && this.minecraft.player != null) {
+                                    this.minecraft.player.playSound(SoundEvents.VILLAGER_NO, 1.0F, 1.0F);
+                                }
+                            }
+                            return true;
+                        }
+                    }
 
                     if (mouseX >= cx && mouseX <= cx + cardW && mouseY >= cy && mouseY <= cy + cardH) {
                         selectMode(displayModes.get(i));

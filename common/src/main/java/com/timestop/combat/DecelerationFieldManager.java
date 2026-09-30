@@ -40,11 +40,16 @@ public class DecelerationFieldManager {
         }
 
         // 4. Defensive Rune Check: Any socketed/held defensive rune projects at least a 3.8m shield
-        RuneType rune = RuneManager.getSocketedRuneType(player);
-        if (rune == RuneType.DEFLECTION || rune == RuneType.PHASING || rune == RuneType.SNATCHING
-                || rune == RuneType.ORBITAL || rune == RuneType.KINETIC_BARRIER) {
+        if (RuneManager.hasRune(player, RuneType.DEFLECTION) || RuneManager.hasRune(player, RuneType.PHASING)
+                || RuneManager.hasRune(player, RuneType.SNATCHING) || RuneManager.hasRune(player, RuneType.ORBITAL)
+                || RuneManager.hasRune(player, RuneType.KINETIC_BARRIER)) {
             return Math.max(3.8, maxWatchRadius);
         }
+
+
+
+
+
 
         // 5. Active DECELERATION_FIELD mode (or MATRIX / SLOW_MOTION bullet-time) in engine
         boolean isModeActive;

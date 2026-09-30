@@ -35,13 +35,17 @@ public final class TaczProjectileCompat {
         double closest = Double.MAX_VALUE;
         for (var player : level.players()) {
             if (player == bullet.getOwner() || !player.isAlive() || player.isSpectator()) continue;
-            RuneType rune = RuneManager.getSocketedRuneType(player);
-            double radius = switch (rune == null ? RuneType.BLANK : rune) {
-                case DEFLECTION -> 3.4;
-                case SNATCHING -> 2.9;
-                case PHASING -> 2.4;
-                default -> 0;
-            };
+            double radius = 0;
+            if (RuneManager.hasRune(player, RuneType.ORBITAL)) radius = Math.max(radius, 3.8);
+            if (RuneManager.hasRune(player, RuneType.DEFLECTION)) radius = Math.max(radius, 3.5);
+            if (RuneManager.hasRune(player, RuneType.SNATCHING)) radius = Math.max(radius, 3.5);
+            if (RuneManager.hasRune(player, RuneType.PHASING)) radius = Math.max(radius, 2.5);
+
+
+
+
+
+
             radius = Math.min(radius, DecelerationFieldManager.getDecelerationRadius(player));
             if (radius <= 0) continue;
             Vec3 center = player.position().add(0, player.getEyeHeight() * 0.5, 0);

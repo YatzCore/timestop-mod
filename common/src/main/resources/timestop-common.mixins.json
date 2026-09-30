@@ -29,7 +29,8 @@
     "PistonHeadBlockRewindMixin",
     "PistonBaseRewindMixin",
     "PistonMotionRewindMixin",
-    "LocalRewindTicksMixin"
+    "LocalRewindTicksMixin",
+    "RedStoneWireBlockMixin"
   ],
   "client": [
     "AgeableListModelAccessor",

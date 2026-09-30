@@ -56,12 +56,31 @@ public class OrbitalProjectileManager {
         });
     }
 
-    private static boolean canAutoCapture(Player player, Projectile projectile) {
+    public static boolean canAutoCapture(Player player, Projectile projectile) {
         if (ProjectileCombatHelper.wasReleasedBy(projectile, player)) return false;
         // Wearing the rune must not intercept each shot as it leaves the player's weapon.
         // Own rounds become collectible once time stop has actually suspended them.
-        return projectile.getOwner() != player
-                || com.timestop.core.TimeStopManager.isProjectileSuspended(projectile);
+        if (projectile.getOwner() == player && !com.timestop.core.TimeStopManager.isProjectileSuspended(projectile)) {
+            return false;
+        }
+
+        // 1. Kinetic Palm Guard has priority
+        if (KineticPalmManager.isGuarding(player) && RuneManager.hasRune(player, RuneType.KINETIC_BARRIER)) {
+            return false;
+        }
+
+        // 2. Snatching (sneaking/shifting) has priority
+        if ((player.isShiftKeyDown() || player.isCrouching()) && RuneManager.hasRune(player, RuneType.SNATCHING)) {
+            return false;
+        }
+
+        // 3. Deflection (Parry) has priority over Orbital Capture
+        if (RuneManager.hasRune(player, RuneType.DEFLECTION)
+                && !com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("AutoParried")) {
+            return false;
+        }
+
+        return true;
     }
 
     /** Shared swept interception runs before either vanilla or TacZ movement/stasis handling. */
@@ -75,7 +94,7 @@ public class OrbitalProjectileManager {
         Vec3 nearest = null;
         Player defender = null;
         for (ServerPlayer player : level.players()) {
-            if (!player.isAlive() || player.isSpectator() || RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL
+            if (!player.isAlive() || player.isSpectator() || !RuneManager.hasRune(player, RuneType.ORBITAL)
                     || !canAutoCapture(player, projectile)) continue;
             Vec3 relative = start.subtract(player.position().add(0, player.getEyeHeight() * 0.5, 0));
             double t = 0;
@@ -137,7 +156,7 @@ public class OrbitalProjectileManager {
         if (!(hitEntity instanceof Player player)) return false;
 
         // Verify player has the Orbital Redirection rune equipped
-        if (RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL || !canAutoCapture(player, projectile)) return false;
+        if (!RuneManager.hasRune(player, RuneType.ORBITAL) || !canAutoCapture(player, projectile)) return false;
 
         // Catch the projectile directly upon imminent impact!
         captureProjectile(player, projectile, level);
@@ -151,7 +170,7 @@ public class OrbitalProjectileManager {
         if (server != null) {
             for (ServerLevel sl : server.getAllLevels()) {
                 for (ServerPlayer player : sl.players()) {
-                    if (RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL) continue;
+                    if (!RuneManager.hasRune(player, RuneType.ORBITAL)) continue;
 
                     AABB catchBox = player.getBoundingBox().inflate(CATCH_RADIUS);
                     List<Projectile> incoming = sl.getEntitiesOfClass(Projectile.class, catchBox,
@@ -178,7 +197,7 @@ public class OrbitalProjectileManager {
 
             // Find player across all dimensions
             ServerPlayer player = server != null ? server.getPlayerList().getPlayer(playerUuid) : null;
-            if (player == null || !player.isAlive() || RuneManager.getSocketedRuneType(player) != RuneType.ORBITAL) {
+            if (player == null || !player.isAlive() || !RuneManager.hasRune(player, RuneType.ORBITAL)) {
                 // Player left, died, or unequipped the rune: drop projectiles
                 for (WeakReference<Projectile> ref : list) {
                     Projectile p = ref.get();

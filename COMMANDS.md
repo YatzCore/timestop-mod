@@ -242,20 +242,26 @@ Triggers an immediate burst or continuous timeline rewind across the current sco
 ```
 /timestop rewind [seconds]
 /timestop rewind mode <burst|continuous>
+/timestop rewind speed [multiplier]
 /timestop rewind buffer [seconds]
 /timestop rewind buffer <reset|clear>
 /timestop rewind ondeath [true|false]
+/timestop rewind allowexempt [true|false]
+/timestop rewind exempt <true|false>
 /timestop rewind status
 ```
 
 - **Subcommands**:
   - `[seconds]`: Triggers a rewind of the specified duration (up to buffer capacity).
   - `mode <burst|continuous>`: Toggles between instant block/entity rollback (`burst`) and smooth reverse frame playback (`continuous`).
+  - `speed [multiplier]`: Queries or configures the playback speed multiplier for continuous rewinds (clamped between `0.1` and `20.0`, default: `1.0`).
   - `buffer [seconds]`: Configures timeline memory recording buffer (default: 30s).
   - `buffer reset`: Resets timeline buffer to 30 seconds default.
   - `buffer clear`: Wipes current timeline memory frames.
   - `ondeath [true|false]`: Toggles automatic death rewind rescue for all players without consuming runes.
-  - `status`: Displays recorded frames, memory usage, buffer capacity, and watch inclusion state.
+  - `allowexempt [true|false]`: Server-wide policy controlling whether initiator self-exemption is permitted on Creative Watches. When disabled (`false`), Creative Watches cannot exempt the initiator from timeline rewinds.
+  - `exempt <true|false>`: Toggles self-exemption on the Creative Watch held by the executing operator (`true` = world-only rewind; `false` = player rewound normally).
+  - `status`: Displays recorded frames, memory usage, buffer capacity, watch inclusion state, and initiator exemption policy.
 
 ---
 

@@ -166,6 +166,7 @@ public class TimeStopForgeMod {
                         TimeStopManager.getExemptPlayers()), serverPlayer);
                 com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
                 com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(com.timestop.core.TimeStopManager.isRewindAllowed()), serverPlayer);
+                com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindExemptAllowedPacket(com.timestop.core.TimeStopManager.isRewindExemptAllowed()), serverPlayer);
                 com.timestop.combat.CoinManager.onPlayerLoggedIn(serverPlayer);
                 com.timestop.combat.OrbitalProjectileManager.onPlayerLoggedIn(serverPlayer);
             }

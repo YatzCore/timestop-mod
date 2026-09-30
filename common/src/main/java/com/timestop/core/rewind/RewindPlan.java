@@ -28,6 +28,14 @@ public record RewindPlan(
         @Nullable TickFrame oldestFrame,
         java.util.List<TickFrame.ExplosionMoment> explosions
 ) {
+    public RewindPlan withoutPlayer(UUID playerId) {
+        if (playerId == null || !playerTargetStates.containsKey(playerId)) return this;
+        Map<UUID, PlayerDelta> filtered = new java.util.HashMap<>(playerTargetStates);
+        filtered.remove(playerId);
+        return new RewindPlan(frameCount, blockTargetStates, blockEntityTargetNbts, standaloneBeTargetNbts,
+                entitiesToRemove, entitiesToRespawn, entityTargetStates, filtered, oldestFrame, explosions);
+    }
+
     public record BlockKey(ResourceKey<Level> dimension, long packedPos) {}
 
     public record EntitySpawnInfo(

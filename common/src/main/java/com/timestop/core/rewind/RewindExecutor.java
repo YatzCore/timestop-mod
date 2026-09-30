@@ -32,7 +32,9 @@ import java.util.*;
  */
 public class RewindExecutor {
     private static int applicationDepth;
+    private static int blockRestorationDepth;
     public static boolean isApplyingPlan() { return applicationDepth > 0; }
+    public static boolean isRestoringBlocks() { return blockRestorationDepth > 0; }
 
     private static final Logger LOGGER = LoggerFactory.getLogger("TimeStopRewind");
 
@@ -215,23 +217,40 @@ public class RewindExecutor {
             }
         }
         // 4. Restore block states & block entity NBTs
-        for (Map.Entry<RewindPlan.BlockKey, BlockState> entry : plan.blockTargetStates().entrySet()) {
-            RewindPlan.BlockKey key = entry.getKey();
-            ServerLevel level = server.getLevel(key.dimension());
-            if (level == null) continue;
+        blockRestorationDepth++;
+        try {
+            List<Map.Entry<RewindPlan.BlockKey, BlockState>> sortedBlocks = new ArrayList<>(plan.blockTargetStates().entrySet());
+            sortedBlocks.sort((a, b) -> {
+                boolean aSolid = a.getValue().isSolid() || a.getValue().canOcclude();
+                boolean bSolid = b.getValue().isSolid() || b.getValue().canOcclude();
+                if (aSolid != bSolid) {
+                    return aSolid ? -1 : 1;
+                }
+                int yA = BlockPos.of(a.getKey().packedPos()).getY();
+                int yB = BlockPos.of(b.getKey().packedPos()).getY();
+                return Integer.compare(yA, yB);
+            });
 
-            BlockPos pos = BlockPos.of(key.packedPos());
-            if (!ensureChunkLoaded(level, pos)) continue;
+            for (Map.Entry<RewindPlan.BlockKey, BlockState> entry : sortedBlocks) {
+                RewindPlan.BlockKey key = entry.getKey();
+                ServerLevel level = server.getLevel(key.dimension());
+                if (level == null) continue;
 
-            if (level.getBlockState(pos).getBlock() != entry.getValue().getBlock()) {
-                // Container onRemove drops contents even with UPDATE_SUPPRESS_DROPS.
-                net.minecraft.world.Clearable.tryClear(level.getBlockEntity(pos));
+                BlockPos pos = BlockPos.of(key.packedPos());
+                if (!ensureChunkLoaded(level, pos)) continue;
+
+                if (level.getBlockState(pos).getBlock() != entry.getValue().getBlock()) {
+                    // Container onRemove drops contents even with UPDATE_SUPPRESS_DROPS.
+                    net.minecraft.world.Clearable.tryClear(level.getBlockEntity(pos));
+                }
+                if (level.setBlock(pos, entry.getValue(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS)) {
+                    blocksRestored++;
+                }
+
+                for (ServerPlayer viewer : level.players()) viewer.connection.send(new net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket(level, pos));
             }
-            if (level.setBlock(pos, entry.getValue(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS)) {
-                blocksRestored++;
-            }
-
-            for (ServerPlayer viewer : level.players()) viewer.connection.send(new net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket(level, pos));
+        } finally {
+            blockRestorationDepth--;
         }
         for (var entry : plan.blockEntityTargetNbts().entrySet()) {
             var level = server.getLevel(entry.getKey().dimension());
@@ -329,6 +348,9 @@ public class RewindExecutor {
         RewindPlan plan = buildPlan(frames);
         UUID initiatorUuid = initiator != null ? initiator.getUUID() : null;
         if (scope != null) plan = scope.filter(server, plan, initiatorUuid);
+        if (initiator != null && com.timestop.item.AbstractWatchItem.isPlayerRewindExempt(initiator)) {
+            plan = plan.withoutPlayer(initiator.getUUID());
+        }
 
         buffer.setRewinding(true);
         buffer.setRecording(false);

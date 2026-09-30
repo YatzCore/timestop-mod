@@ -14,6 +14,7 @@ public final class ProjectileRedirection {
 
     public static boolean usesLook(Player player) {
         if (TimeStopSavedData.get().isRedirectToLook()) return true;
+        if (RuneManager.hasRune(player, RuneType.VECTOR)) return true;
         // Vector Control is a modifier and can accompany the barrier rune in another watch or hand.
         if (player.getOffhandItem().getItem() instanceof TemporalRuneItem r && r.getType() == RuneType.VECTOR) return true;
         if (player.getMainHandItem().getItem() instanceof TemporalRuneItem r && r.getType() == RuneType.VECTOR) return true;

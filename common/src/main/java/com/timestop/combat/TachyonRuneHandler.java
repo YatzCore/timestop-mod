@@ -15,8 +15,7 @@ public class TachyonRuneHandler {
      */
     public static boolean isTachyonActive(Player player) {
         if (player == null) return false;
-        RuneType rune = RuneManager.getSocketedRuneType(player);
-        if (rune != RuneType.TACHYON) return false;
+        if (!RuneManager.hasRune(player, RuneType.TACHYON)) return false;
 
         if (player.level().isClientSide) {
             if (!ClientTimeStopManager.isTimeStopped()) return false;

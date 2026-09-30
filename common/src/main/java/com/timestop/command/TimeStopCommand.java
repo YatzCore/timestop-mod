@@ -7,12 +7,15 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.timestop.config.TimeStopConfig;
 import com.timestop.core.TimeStopManager;
+import com.timestop.item.AbstractWatchItem;
+import com.timestop.item.WatchTier;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Collection;
 
@@ -68,6 +71,11 @@ public class TimeStopCommand {
                                         .executes(ctx -> setRewindMode(ctx.getSource(), "BURST")))
                                 .then(Commands.literal("continuous")
                                         .executes(ctx -> setRewindMode(ctx.getSource(), "CONTINUOUS"))))
+                        .then(Commands.literal("speed")
+                                .executes(ctx -> showSpeed(ctx.getSource(), "rewind", TimeStopConfig.COMMON.rewindSpeed.get()))
+                                .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.1, 20.0))
+                                        .requires(source -> source.hasPermission(2))
+                                        .executes(ctx -> setSpeed(ctx.getSource(), "rewind", DoubleArgumentType.getDouble(ctx, "value")))))
                         .then(Commands.literal("ondeath")
                                 .executes(ctx -> showDeathRewind(ctx.getSource()))
                                 .then(Commands.argument("enabled", com.mojang.brigadier.arguments.BoolArgumentType.bool())
@@ -108,6 +116,14 @@ public class TimeStopCommand {
                                 .executes(ctx -> setRewindAllowed(ctx.getSource(), true)))
                         .then(Commands.literal("off")
                                 .executes(ctx -> setRewindAllowed(ctx.getSource(), false)))
+                        .then(Commands.literal("allowexempt")
+                                .executes(ctx -> showRewindExemptAllowed(ctx.getSource()))
+                                .then(Commands.argument("allowed", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> setRewindExemptAllowed(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "allowed")))))
+                        .then(Commands.literal("exempt")
+                                .executes(ctx -> showPlayerRewindExempt(ctx.getSource()))
+                                .then(Commands.argument("exempt", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> setPlayerRewindExempt(ctx.getSource(), com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "exempt")))))
                         .then(Commands.literal("status")
                                 .executes(ctx -> showRewindStatus(ctx.getSource()))))
                 .then(Commands.literal("buffer")
@@ -387,7 +403,12 @@ public class TimeStopCommand {
                         .executes(ctx -> showSpeed(ctx.getSource(), "drag", TimeStopConfig.COMMON.decelerationDrag.get()))
                         .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.001, 0.95))
                                 .requires(source -> source.hasPermission(2))
-                                .executes(ctx -> setSpeed(ctx.getSource(), "drag", DoubleArgumentType.getDouble(ctx, "value")))));
+                                .executes(ctx -> setSpeed(ctx.getSource(), "drag", DoubleArgumentType.getDouble(ctx, "value")))))
+                .then(Commands.literal("rewind")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "rewind", TimeStopConfig.COMMON.rewindSpeed.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.1, 20.0))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "rewind", DoubleArgumentType.getDouble(ctx, "value")))));
     }
 
     private static int setSpeed(CommandSourceStack source, String key, double value) {
@@ -397,6 +418,7 @@ public class TimeStopCommand {
             case "matrix" -> TimeStopConfig.COMMON.matrixRate.set(TimeStopConfig.clampMatrix(value));
             case "superhot" -> TimeStopConfig.COMMON.superhotIdleRate.set(TimeStopConfig.clampSuperhotIdle(value));
             case "drag" -> TimeStopConfig.COMMON.decelerationDrag.set(TimeStopConfig.clampDecelerationDrag(value));
+            case "rewind" -> TimeStopConfig.COMMON.rewindSpeed.set(TimeStopConfig.clampRewindSpeed(value));
         }
         TimeStopConfig.save();
         com.timestop.network.ModMessages.sendToClients(com.timestop.network.SyncSpeedConfigPacket.current());
@@ -424,6 +446,7 @@ public class TimeStopCommand {
         source.sendSuccess(() -> Component.literal(String.format(" §eMatrix:       §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.matrixRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eSuperhot Idle:§a%.3fx §7[0.005x - 0.80x]", TimeStopConfig.COMMON.superhotIdleRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eDecel Drag:   §a%.3fx §7[0.001x - 0.95x]", TimeStopConfig.COMMON.decelerationDrag.get())), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §eRewind Speed: §a%.2fx §7[0.1x - 20.0x]", TimeStopConfig.COMMON.rewindSpeed.get())), false);
         return 1;
     }
 
@@ -523,21 +546,74 @@ public class TimeStopCommand {
         return 1;
     }
 
+    private static int setRewindExemptAllowed(CommandSourceStack source, boolean allowed) {
+        TimeStopManager.setRewindExemptAllowed(allowed);
+        if (allowed) {
+            source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind initiator exemption has been §aENABLED§6 on Creative Watches."), true);
+        } else {
+            source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind initiator exemption has been §cDISABLED§6 globally."), true);
+        }
+        return 1;
+    }
+
+    private static int showRewindExemptAllowed(CommandSourceStack source) {
+        boolean allowed = TimeStopManager.isRewindExemptAllowed();
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] Rewind initiator exemption server policy: " + (allowed ? "§aENABLED" : "§cDISABLED")), false);
+        return 1;
+    }
+
+    private static int setPlayerRewindExempt(CommandSourceStack source, boolean exempt) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("§cOnly players holding a Creative Watch can configure rewind self-exemption."));
+            return 0;
+        }
+        ItemStack watch = AbstractWatchItem.findActivationWatch(player);
+        if (watch.isEmpty() || !(watch.getItem() instanceof AbstractWatchItem w && w.getTier() == WatchTier.CREATIVE)) {
+            source.sendFailure(Component.literal("§cYou must hold a Creative Watch to configure rewind self-exemption."));
+            return 0;
+        }
+        AbstractWatchItem.setRewindInitiatorExempt(watch, exempt);
+        player.inventoryMenu.broadcastChanges();
+        player.containerMenu.broadcastChanges();
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] Creative Watch rewind self-exemption set to: " + (exempt ? "§aEXEMPT (World only)" : "§eINCLUDED (Normal)")), true);
+        return 1;
+    }
+
+    private static int showPlayerRewindExempt(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("§cOnly players holding a Creative Watch can check rewind self-exemption."));
+            return 0;
+        }
+        ItemStack watch = AbstractWatchItem.findActivationWatch(player);
+        if (watch.isEmpty() || !(watch.getItem() instanceof AbstractWatchItem w && w.getTier() == WatchTier.CREATIVE)) {
+            source.sendFailure(Component.literal("§cYou must hold a Creative Watch to check rewind self-exemption."));
+            return 0;
+        }
+        boolean exempt = AbstractWatchItem.isRewindInitiatorExempt(watch);
+        source.sendSuccess(() -> Component.literal("§6[TimeStop] Creative Watch rewind self-exemption: " + (exempt ? "§aEXEMPT (World only)" : "§eINCLUDED (Normal)")), false);
+        return 1;
+    }
+
     private static int showRewindStatus(CommandSourceStack source) {
         var buffer = com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer();
         int frames = buffer.getFrameCount();
         long mb = buffer.getTotalEstimatedBytes() / (1024 * 1024);
         String mode = TimeStopConfig.COMMON.rewindMode.get();
         boolean allowed = TimeStopManager.isRewindAllowed();
+        boolean exemptAllowed = TimeStopManager.isRewindExemptAllowed();
         source.sendSuccess(() -> Component.literal(String.format(
                 "§d[TimeStop Rewind Status]\n" +
                 "§7• Watch Mode Allowed: %s\n" +
+                "§7• Initiator Exemption Allowed: %s\n" +
                 "§7• Frames Recorded: §e%d / %d §7(%.1fs)\n" +
                 "§7• Memory Used: §e%d / %d MB\n" +
                 "§7• Default rewind: §e%ds §7| Memory-evicted frames: §e%d\n" +
                 "§7• Mode: §e%s\n" +
                 "§7• Recording: §a%b",
                 allowed ? "§aYES (Included on watches)" : "§cNO (Excluded from watches)",
+                exemptAllowed ? "§aYES (Available on Creative Watch)" : "§cNO (Disabled globally)",
                 frames, buffer.getCapacity(), frames / 20.0, mb, buffer.getMaxMemoryBytes() / (1024 * 1024),
                 TimeStopConfig.rewindDurationSeconds(), buffer.getMemoryEvictedFrames(), mode, buffer.isRecording()
         )), false);

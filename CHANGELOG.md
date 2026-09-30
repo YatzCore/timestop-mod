@@ -2,6 +2,27 @@
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
 
+## [1.6.2] - 2026-09-30
+
+### Added
+- **Creative Watch Rune Matrix**: Replaced the single physical rune socket on the Creative Watch (`timestop:creative_watch`) with an integrated 15-rune matrix grid. Players can toggle any combination of runes directly from the Shift + Right-Click GUI without needing physical items in inventory.
+- **Master Matrix Controls**: Added `[Enable All]` and `[Disable All]` controls in the Creative Watch management GUI.
+- **Prioritized Projectile Defense Engine**: Harmonized defensive runes to eliminate race conditions:
+  - Kinetic Palm Guard takes top priority when actively guarding with Kinetic Barrier.
+  - Snatching intercepts projectiles directly to inventory whenever sneaking/crouching (Shift).
+  - Deflection auto-parries incoming projectiles and fireballs back at attackers with amplified speed and owner reassignment.
+  - Orbital Redirection captures projectiles into a spinning stasis halo only when not guarding, not sneaking with Snatching, and when Deflection is not parrying.
+  - Phasing triggers only as an emergency evasion when other defenses are bypassed or disabled, preventing unexpected teleports.
+- **Persistent Non-Consumable Rewind on Creative**: Triggering lethal damage with Rewind active on a Creative Watch rewinds the timeline without consuming or shattering the slotted matrix rune.
+- **Creative Watch Rewind Self-Exemption ("Tenet / Doctor Strange" Mode)**:
+  - Added an initiator rewind exemption toggle directly on the Creative Watch (`timestop:creative_watch`).
+  - When enabled (`[Self: OFF]` or Exempt), timeline rewinds restore all world blocks, explosions, and non-player entities backwards through time while the initiating operator remains completely exempt — preserving their exact coordinates, camera orientation, inventory, equipment, and health.
+  - Interactive GUI Chip: On the Creative Watch Mode Selection GUI (Shift + Right-Click), clicking the `[Self: ON]` / `[Self: OFF]` chip toggles exemption in real time with distinct netherite audio cues.
+  - Server Operator Policy: Protected server economy with `/timestop rewind allowexempt <true|false>`. When disabled by an administrator, initiator exemption is locked out server-wide to strictly prevent exploits.
+  - Operator Commands: Added `/timestop rewind exempt <true|false>` for direct watch configuration, and integrated policy reporting into `/timestop rewind status`.
+- **Rewind Speed Calibration**: Added `/timestop rewind speed <0.1-20.0>` command allowing players and server admins to adjust rewind playback speed dynamically from slow-motion inspection to 20x fast-rewind.
+- **Redstone Timeline Restoration**: Structured reverse delta application bottom-up (supporting blocks before attached blocks) and paused scheduled ticks during rewind, ensuring redstone wire lines, repeaters, torches, and pistons rewind cleanly without breaking or dropping duplicate items.
+
 ## [1.6.1] - 2026-09-25
 
 ### Added

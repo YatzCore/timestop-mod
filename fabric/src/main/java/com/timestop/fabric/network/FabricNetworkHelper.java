@@ -37,6 +37,8 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerServer(FlipCoinPacket.ID, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.ID, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.ID, UpdateSpeedConfigPacket::new);
+        registerServer(ToggleMatrixRunePacket.ID, ToggleMatrixRunePacket::new);
+        registerServer(SetRewindExemptPacket.ID, SetRewindExemptPacket::new);
     }
 
     public static void registerClientReceivers() {
@@ -55,6 +57,7 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
         registerClient(RewindFadePacket.ID, RewindFadePacket::new);
         registerClient(SyncRewindAllowedPacket.ID, SyncRewindAllowedPacket::new);
+        registerClient(SyncRewindExemptAllowedPacket.ID, SyncRewindExemptAllowedPacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(ResourceLocation id, net.minecraft.network.FriendlyByteBuf.Reader<T> decoder) {

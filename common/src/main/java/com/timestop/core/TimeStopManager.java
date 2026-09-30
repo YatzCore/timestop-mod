@@ -41,6 +41,7 @@ public class TimeStopManager {
     private static int accumulatedVampirismBonus = 0;
     private static final Set<UUID> exemptPlayers = ConcurrentHashMap.newKeySet();
     private static java.lang.ref.WeakReference<ServerLevel> activeServerLevel = new java.lang.ref.WeakReference<>(null);
+    private static double rewindFrameAccumulator = 0.0;
 
     public static Set<UUID> getExemptPlayers() {
         return Collections.unmodifiableSet(exemptPlayers);
@@ -230,6 +231,7 @@ public class TimeStopManager {
     }
 
     private static boolean clientRewindAllowed = true;
+    private static boolean clientRewindExemptAllowed = true;
 
     public static boolean isRewindAllowed() {
         net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
@@ -241,6 +243,26 @@ public class TimeStopManager {
 
     public static void setClientRewindAllowed(boolean allowed) {
         clientRewindAllowed = allowed;
+    }
+
+    public static boolean isRewindExemptAllowed() {
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server != null) {
+            return TimeStopSavedData.get().isRewindExemptInitiatorAllowed();
+        }
+        return clientRewindExemptAllowed;
+    }
+
+    public static void setClientRewindExemptAllowed(boolean allowed) {
+        clientRewindExemptAllowed = allowed;
+    }
+
+    public static void setRewindExemptAllowed(boolean allowed) {
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server != null) {
+            TimeStopSavedData.get().setRewindExemptInitiatorAllowed(allowed);
+            ModMessages.sendToClients(new com.timestop.network.SyncRewindExemptAllowedPacket(allowed));
+        }
     }
 
     public static void setRewindAllowed(boolean allowed) {
@@ -628,6 +650,7 @@ public class TimeStopManager {
 
         // Start continuous recording playback
         com.timestop.core.rewind.RewindPlaybackFeedback.started(initiator, durationTicks, available, "global");
+        rewindFrameAccumulator = 0.0;
         recorder.getTimelineBuffer().setRewinding(true);
         recorder.getTimelineBuffer().setRecording(false);
         recorder.clearTrackingData();
@@ -670,6 +693,7 @@ public class TimeStopManager {
             recorder.clearTrackingData();
             recorder.getTimelineBuffer().setRewinding(false);
             recorder.getTimelineBuffer().setRecording(true);
+            rewindFrameAccumulator = 0.0;
             com.timestop.combat.RewindRuneManager.onRewindFinished(level.getServer());
         }
         timeStopped = false;
@@ -766,15 +790,27 @@ public class TimeStopManager {
                     resumeTime(level);
                     return;
                 }
+                double speed = com.timestop.config.TimeStopConfig.COMMON.rewindSpeed.get();
+                rewindFrameAccumulator += speed;
+                int framesToConsume = (int) rewindFrameAccumulator;
+                if (framesToConsume <= 0) return;
+                rewindFrameAccumulator -= framesToConsume;
+
                 boolean rollbackInv = com.timestop.config.TimeStopConfig.COMMON.rollbackPlayerInventory.get();
-                var frames = buffer.getFramesForRewind(1);
+                var frames = buffer.getFramesForRewind(framesToConsume);
                 if (!frames.isEmpty()) {
                     var plan = com.timestop.core.rewind.RewindExecutor.buildPlan(frames);
+                    if (initiatorUuid != null) {
+                        ServerPlayer initiator = level.getServer().getPlayerList().getPlayer(initiatorUuid);
+                        if (initiator != null && com.timestop.item.AbstractWatchItem.isPlayerRewindExempt(initiator)) {
+                            plan = plan.withoutPlayer(initiatorUuid);
+                        }
+                    }
                     buffer.setRewinding(true);
                     buffer.setRecording(false);
                     try {
                         com.timestop.core.rewind.RewindExecutor.applyPlan(level.getServer(), plan, rollbackInv);
-                        buffer.removeRecentFrames(1);
+                        buffer.removeRecentFrames(frames.size());
                     } catch (Exception error) {
                         org.slf4j.LoggerFactory.getLogger("TimeStopRewind").error("Continuous rewind failed", error);
                         buffer.clear();
@@ -888,11 +924,11 @@ public class TimeStopManager {
         com.timestop.combat.ProjectileRedirection.clearGuidance(projectile);
         projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
 
-        com.timestop.item.rune.RuneType rune = com.timestop.combat.RuneManager.getSocketedRuneType(player);
-        if (rune == com.timestop.item.rune.RuneType.KINETIC) {
+        if (com.timestop.combat.RuneManager.hasRune(player, com.timestop.item.rune.RuneType.KINETIC)) {
             data.totalDamageBonus += 8.0;
             data.originalVelocity = data.originalVelocity.scale(1.5);
-        } else if (rune == com.timestop.item.rune.RuneType.VOLATILE) {
+        }
+        if (com.timestop.combat.RuneManager.hasRune(player, com.timestop.item.rune.RuneType.VOLATILE)) {
             com.timestop.platform.EntityDataHelper.getPersistentData(projectile).putBoolean("VolatileStasis", true);
             if (projectile.level() instanceof ServerLevel sl) {
                 sl.sendParticles(ParticleTypes.FLAME, projectile.getX(), projectile.getY(), projectile.getZ(), 8, 0.15, 0.15, 0.15, 0.05);

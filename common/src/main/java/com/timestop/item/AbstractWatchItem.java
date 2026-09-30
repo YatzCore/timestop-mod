@@ -111,6 +111,71 @@ public abstract class AbstractWatchItem extends Item {
         return null;
     }
 
+    public static boolean isMatrixRuneActive(ItemStack stack, RuneType type) {
+        if (type == null || type == RuneType.BLANK) return false;
+        if (stack.hasTag() && stack.getTag().contains("RuneMatrix")) {
+            int mask = stack.getTag().getInt("RuneMatrix");
+            return (mask & (1 << type.ordinal())) != 0;
+        }
+        return false;
+    }
+
+    public static void setMatrixRune(ItemStack stack, RuneType type, boolean active) {
+        if (type == null || type == RuneType.BLANK) return;
+        int mask = stack.hasTag() && stack.getTag().contains("RuneMatrix") ? stack.getTag().getInt("RuneMatrix") : 0;
+        if (active) {
+            mask |= (1 << type.ordinal());
+        } else {
+            mask &= ~(1 << type.ordinal());
+        }
+        stack.getOrCreateTag().putInt("RuneMatrix", mask);
+    }
+
+    public static void setAllMatrixRunes(ItemStack stack, boolean active) {
+        if (active) {
+            int mask = 0;
+            for (RuneType t : RuneType.values()) {
+                if (t != RuneType.BLANK) {
+                    mask |= (1 << t.ordinal());
+                }
+            }
+            stack.getOrCreateTag().putInt("RuneMatrix", mask);
+        } else {
+            stack.getOrCreateTag().putInt("RuneMatrix", 0);
+        }
+    }
+
+    public static int getActiveMatrixRuneCount(ItemStack stack) {
+        if (!stack.hasTag() || !stack.getTag().contains("RuneMatrix")) return 0;
+        int mask = stack.getTag().getInt("RuneMatrix");
+        int count = 0;
+        for (RuneType t : RuneType.values()) {
+            if (t != RuneType.BLANK && (mask & (1 << t.ordinal())) != 0) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public static boolean isRewindInitiatorExempt(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof AbstractWatchItem watch)) return false;
+        if (watch.getTier() != WatchTier.CREATIVE) return false;
+        return stack.hasTag() && stack.getTag().getBoolean("RewindExemptInitiator");
+    }
+
+    public static void setRewindInitiatorExempt(ItemStack stack, boolean exempt) {
+        if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE) {
+            stack.getOrCreateTag().putBoolean("RewindExemptInitiator", exempt);
+        }
+    }
+
+    public static boolean isPlayerRewindExempt(@Nullable Player player) {
+        if (player == null) return false;
+        if (!com.timestop.core.TimeStopManager.isRewindExemptAllowed()) return false;
+        ItemStack watch = findActivationWatch(player);
+        return !watch.isEmpty() && isRewindInitiatorExempt(watch);
+    }
+
     @Override
     public boolean overrideOtherStackedOnMe(ItemStack watchStack, ItemStack carriedStack, net.minecraft.world.inventory.Slot slot, net.minecraft.world.inventory.ClickAction action, Player player, net.minecraft.world.entity.SlotAccess access) {
         if (action != net.minecraft.world.inventory.ClickAction.SECONDARY || !slot.allowModification(player)) {
@@ -118,6 +183,16 @@ public abstract class AbstractWatchItem extends Item {
         }
 
         if (!this.tier.hasRuneSocket()) {
+            return false;
+        }
+
+        if (this.tier == WatchTier.CREATIVE) {
+            if (carriedStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
+                boolean active = isMatrixRuneActive(watchStack, runeItem.getType());
+                setMatrixRune(watchStack, runeItem.getType(), !active);
+                player.playSound(active ? net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_GENERIC : net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE, 1.0F, active ? 0.8F : 1.2F);
+                return true;
+            }
             return false;
         }
 
@@ -160,6 +235,17 @@ public abstract class AbstractWatchItem extends Item {
         }
 
         if (!this.tier.hasRuneSocket()) {
+            return false;
+        }
+
+        if (this.tier == WatchTier.CREATIVE) {
+            ItemStack slotStack = slot.getItem();
+            if (slotStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
+                boolean active = isMatrixRuneActive(watchStack, runeItem.getType());
+                setMatrixRune(watchStack, runeItem.getType(), !active);
+                player.playSound(active ? net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_GENERIC : net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE, 1.0F, active ? 0.8F : 1.2F);
+                return true;
+            }
             return false;
         }
 
@@ -284,14 +370,25 @@ public abstract class AbstractWatchItem extends Item {
 
         // Rune Socket Info
         if (tier.hasRuneSocket()) {
-            RuneType runeType = getSocketedRuneType(stack);
-            if (runeType != null) {
-                tooltipComponents.add(Component.literal("Socketed: ").withStyle(ChatFormatting.GOLD)
-                        .append(runeType.getFormattedComponent()));
-                tooltipComponents.add(Component.literal("  " + runeType.getDescription()).withStyle(ChatFormatting.DARK_AQUA));
+            if (this.tier == WatchTier.CREATIVE) {
+                int activeCount = getActiveMatrixRuneCount(stack);
+                tooltipComponents.add(Component.literal("Rune Matrix: ").withStyle(ChatFormatting.GOLD)
+                        .append(Component.literal(activeCount + " / 15 Active").withStyle(activeCount > 0 ? ChatFormatting.GREEN : ChatFormatting.GRAY)));
+                tooltipComponents.add(Component.literal("Rewind Self: ").withStyle(ChatFormatting.GRAY)
+                        .append(isRewindInitiatorExempt(stack)
+                                ? Component.literal("Exempt (World only)").withStyle(ChatFormatting.GOLD)
+                                : Component.literal("Included (Normal)").withStyle(ChatFormatting.GREEN)));
+                tooltipComponents.add(Component.literal("  Shift + Right-Click to configure").withStyle(ChatFormatting.DARK_AQUA));
             } else {
-                tooltipComponents.add(Component.literal("Rune Socket: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal("Empty (Shift+Right-Click to socket)").withStyle(ChatFormatting.DARK_GRAY)));
+                RuneType runeType = getSocketedRuneType(stack);
+                if (runeType != null) {
+                    tooltipComponents.add(Component.literal("Socketed: ").withStyle(ChatFormatting.GOLD)
+                            .append(runeType.getFormattedComponent()));
+                    tooltipComponents.add(Component.literal("  " + runeType.getDescription()).withStyle(ChatFormatting.DARK_AQUA));
+                } else {
+                    tooltipComponents.add(Component.literal("Rune Socket: ").withStyle(ChatFormatting.GRAY)
+                            .append(Component.literal("Empty (Shift+Right-Click to socket)").withStyle(ChatFormatting.DARK_GRAY)));
+                }
             }
         } else {
             tooltipComponents.add(Component.literal("Rune Socket: ").withStyle(ChatFormatting.DARK_GRAY)

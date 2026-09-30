@@ -13,13 +13,15 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
     private final double matrix;
     private final double superhotIdle;
     private final double decelerationDrag;
+    private final double rewindSpeed;
 
-    public SyncSpeedConfigPacket(double fastForward, double slowMotion, double matrix, double superhotIdle, double decelerationDrag) {
+    public SyncSpeedConfigPacket(double fastForward, double slowMotion, double matrix, double superhotIdle, double decelerationDrag, double rewindSpeed) {
         this.fastForward = fastForward;
         this.slowMotion = slowMotion;
         this.matrix = matrix;
         this.superhotIdle = superhotIdle;
         this.decelerationDrag = decelerationDrag;
+        this.rewindSpeed = rewindSpeed;
     }
 
     public static SyncSpeedConfigPacket current() {
@@ -28,7 +30,8 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
                 TimeStopConfig.COMMON.slowMotionRate.get(),
                 TimeStopConfig.COMMON.matrixRate.get(),
                 TimeStopConfig.COMMON.superhotIdleRate.get(),
-                TimeStopConfig.COMMON.decelerationDrag.get()
+                TimeStopConfig.COMMON.decelerationDrag.get(),
+                TimeStopConfig.COMMON.rewindSpeed.get()
         );
     }
 
@@ -38,6 +41,7 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
         this.matrix = buf.readDouble();
         this.superhotIdle = buf.readDouble();
         this.decelerationDrag = buf.readDouble();
+        this.rewindSpeed = buf.isReadable() ? buf.readDouble() : 1.0;
     }
 
     @Override
@@ -52,6 +56,7 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
         buf.writeDouble(this.matrix);
         buf.writeDouble(this.superhotIdle);
         buf.writeDouble(this.decelerationDrag);
+        buf.writeDouble(this.rewindSpeed);
     }
 
     @Override
@@ -61,6 +66,7 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
         TimeStopConfig.COMMON.matrixRate.set(this.matrix);
         TimeStopConfig.COMMON.superhotIdleRate.set(this.superhotIdle);
         TimeStopConfig.COMMON.decelerationDrag.set(this.decelerationDrag);
+        TimeStopConfig.COMMON.rewindSpeed.set(this.rewindSpeed);
 
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.screen instanceof com.timestop.client.gui.TimeStopSettingsScreen settingsScreen) {

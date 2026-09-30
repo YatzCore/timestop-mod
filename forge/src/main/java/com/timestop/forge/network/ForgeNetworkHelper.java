@@ -45,6 +45,8 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerServer(FlipCoinPacket.class, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.class, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.class, UpdateSpeedConfigPacket::new);
+        registerServer(ToggleMatrixRunePacket.class, ToggleMatrixRunePacket::new);
+        registerServer(SetRewindExemptPacket.class, SetRewindExemptPacket::new);
 
         // Clientbound packets
         registerClient(TimeStopSyncPacket.class, TimeStopSyncPacket::new);
@@ -62,6 +64,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerClient(RewindPistonPacket.class, RewindPistonPacket::new);
         registerClient(RewindFadePacket.class, RewindFadePacket::new);
         registerClient(SyncRewindAllowedPacket.class, SyncRewindAllowedPacket::new);
+        registerClient(SyncRewindExemptAllowedPacket.class, SyncRewindExemptAllowedPacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(Class<T> type, net.minecraft.network.FriendlyByteBuf.Reader<T> decoder) {

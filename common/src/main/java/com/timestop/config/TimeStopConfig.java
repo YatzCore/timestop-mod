@@ -84,6 +84,7 @@ public class TimeStopConfig {
         public final ConfigValue<Double> matrixRate = new ConfigValue<>(0.25);
         public final ConfigValue<Double> superhotIdleRate = new ConfigValue<>(0.05);
         public final ConfigValue<Double> decelerationDrag = new ConfigValue<>(0.10);
+        public final ConfigValue<Double> rewindSpeed = new ConfigValue<>(1.0);
 
         // Rewind Mechanics
         public final ConfigValue<Integer> rewindHistorySeconds = new ConfigValue<>(30);
@@ -98,6 +99,7 @@ public class TimeStopConfig {
     public static double clampMatrix(double val) { return Math.max(0.01, Math.min(0.99, val)); }
     public static double clampSuperhotIdle(double val) { return Math.max(0.005, Math.min(0.80, val)); }
     public static double clampDecelerationDrag(double val) { return Math.max(0.001, Math.min(0.95, val)); }
+    public static double clampRewindSpeed(double val) { return Math.max(0.1, Math.min(20.0, val)); }
 
     public static void resetSpeedsToDefaults() {
         COMMON.fastForwardRate.set(COMMON.fastForwardRate.getDefault());
@@ -105,6 +107,7 @@ public class TimeStopConfig {
         COMMON.matrixRate.set(COMMON.matrixRate.getDefault());
         COMMON.superhotIdleRate.set(COMMON.superhotIdleRate.getDefault());
         COMMON.decelerationDrag.set(COMMON.decelerationDrag.getDefault());
+        COMMON.rewindSpeed.set(COMMON.rewindSpeed.getDefault());
         save();
     }
 
@@ -180,6 +183,7 @@ public class TimeStopConfig {
                     if (s.has("matrixRate")) COMMON.matrixRate.set(clampMatrix(s.get("matrixRate").getAsDouble()));
                     if (s.has("superhotIdleRate")) COMMON.superhotIdleRate.set(clampSuperhotIdle(s.get("superhotIdleRate").getAsDouble()));
                     if (s.has("decelerationDrag")) COMMON.decelerationDrag.set(clampDecelerationDrag(s.get("decelerationDrag").getAsDouble()));
+                    if (s.has("rewindSpeed")) COMMON.rewindSpeed.set(clampRewindSpeed(s.get("rewindSpeed").getAsDouble()));
                 }
                 if (json.has("rewind")) {
                     JsonObject rw = json.getAsJsonObject("rewind");
@@ -188,6 +192,7 @@ public class TimeStopConfig {
                     if (rw.has("rewindMemoryCapMB")) COMMON.rewindMemoryCapMB.set(rw.get("rewindMemoryCapMB").getAsInt());
                     if (rw.has("rollbackPlayerInventory")) COMMON.rollbackPlayerInventory.set(rw.get("rollbackPlayerInventory").getAsBoolean());
                     if (rw.has("rewindMode")) COMMON.rewindMode.set(rw.get("rewindMode").getAsString());
+                    if (rw.has("rewindSpeed")) COMMON.rewindSpeed.set(clampRewindSpeed(rw.get("rewindSpeed").getAsDouble()));
                 }
             }
         } catch (Exception e) {
@@ -233,6 +238,7 @@ public class TimeStopConfig {
             speeds.addProperty("matrixRate", COMMON.matrixRate.get());
             speeds.addProperty("superhotIdleRate", COMMON.superhotIdleRate.get());
             speeds.addProperty("decelerationDrag", COMMON.decelerationDrag.get());
+            speeds.addProperty("rewindSpeed", COMMON.rewindSpeed.get());
             root.add("speed_multipliers", speeds);
 
             JsonObject rewind = new JsonObject();
@@ -241,6 +247,7 @@ public class TimeStopConfig {
             rewind.addProperty("rewindMemoryCapMB", COMMON.rewindMemoryCapMB.get());
             rewind.addProperty("rollbackPlayerInventory", COMMON.rollbackPlayerInventory.get());
             rewind.addProperty("rewindMode", COMMON.rewindMode.get());
+            rewind.addProperty("rewindSpeed", COMMON.rewindSpeed.get());
             root.add("rewind", rewind);
 
             JsonObject radii = new JsonObject();

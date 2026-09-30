@@ -53,7 +53,7 @@ public class DeadEyeManager {
     private static final List<WeakReference<Arrow>> activeHomingArrows = new CopyOnWriteArrayList<>();
 
     public static boolean hasDeadEyeRune(Player player) {
-        return RuneManager.getSocketedRuneType(player) == RuneType.DEAD_EYE;
+        return RuneManager.hasRune(player, RuneType.DEAD_EYE);
     }
 
     public static boolean isRangedWeapon(ItemStack stack) {

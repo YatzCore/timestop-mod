@@ -60,9 +60,8 @@ public class TemporalKineticBlockManager {
         KineticRecord record = records.computeIfAbsent(entity.getUUID(), k -> new KineticRecord(entity));
         record.puncherUuid = player.getUUID();
 
-        RuneType rune = RuneManager.getSocketedRuneType(player);
-        boolean supercharged = (rune == RuneType.KINETIC);
-        boolean volatileBlast = (rune == RuneType.VOLATILE);
+        boolean supercharged = RuneManager.hasRune(player, RuneType.KINETIC);
+        boolean volatileBlast = RuneManager.hasRune(player, RuneType.VOLATILE);
 
         if (supercharged) {
             impulse = impulse.scale(2.5);

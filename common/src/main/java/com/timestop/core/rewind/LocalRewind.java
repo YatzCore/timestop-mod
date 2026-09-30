@@ -14,7 +14,7 @@ import java.util.*;
 
 /** Local playback leaves the rest of the server ticking and recording normally. */
 public final class LocalRewind {
-    private record Job(UUID owner, UUID visual, RewindScope scope, Deque<TickFrame> frames, int duration, Runnable completed) {}
+    private record Job(UUID owner, UUID visual, RewindScope scope, Deque<TickFrame> frames, int duration, Runnable completed, double[] accumulator) {}
     private static final Map<UUID,Job> jobs = new LinkedHashMap<>();
 
     public static long getActivePlaybackMemoryBytes() {
@@ -51,7 +51,7 @@ public final class LocalRewind {
         }
         RewindPlaybackFeedback.started(player, ticks, frames.size(), "bubble");
         Deque<TickFrame> framesDeque = new ArrayDeque<>(frames);
-        var job=new Job(player.getUUID(),UUID.randomUUID(),scope,framesDeque,framesDeque.size(),completed);
+        var job=new Job(player.getUUID(),UUID.randomUUID(),scope,framesDeque,framesDeque.size(),completed,new double[]{0.0});
         jobs.put(player.getUUID(),job);
         sync(job,null);
         return true;
@@ -61,11 +61,24 @@ public final class LocalRewind {
             var owner=server.getPlayerList().getPlayer(job.owner);
             if(owner==null || !owner.isAlive() || !owner.level().dimension().equals(job.scope.dimension())) { stop(job, "owner unavailable or changed dimension"); continue; }
             try {
-                var frame=job.frames.removeFirst();
-                var rawPlan=RewindExecutor.buildPlan(List.of(frame));
+                double speed = com.timestop.config.TimeStopConfig.COMMON.rewindSpeed.get();
+                job.accumulator[0] += speed;
+                int framesToConsume = (int) job.accumulator[0];
+                if (framesToConsume <= 0) continue;
+                job.accumulator[0] -= framesToConsume;
+                int count = Math.min(framesToConsume, job.frames.size());
+                if (count <= 0) continue;
+                List<TickFrame> stepFrames = new ArrayList<>(count);
+                for (int i = 0; i < count; i++) {
+                    stepFrames.add(job.frames.removeFirst());
+                }
+                var rawPlan=RewindExecutor.buildPlan(stepFrames);
                 var plan=job.scope.filter(server,rawPlan,job.owner); // Preserve initiator so owner doesn't freeze at bubble edge
+                if (owner != null && com.timestop.item.AbstractWatchItem.isPlayerRewindExempt(owner)) {
+                    plan = plan.withoutPlayer(job.owner);
+                }
                 RewindExecutor.applyPlan(server,plan,com.timestop.config.TimeStopConfig.COMMON.rollbackPlayerInventory.get());
-                TickRecorder.getInstance().getTimelineBuffer().consumeFrames(List.of(frame),plan);
+                TickRecorder.getInstance().getTimelineBuffer().consumeFrames(stepFrames,plan);
                 if(job.frames.isEmpty()) {
                     owner.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[TimeStop] Rewind complete: all recorded history restored."), true);
                     stop(job, "recorded history completed");

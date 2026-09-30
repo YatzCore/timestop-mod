@@ -36,7 +36,7 @@ public class TranspositionManager {
 
     public static boolean hasTranspositionRune(Player player) {
         if (player == null || !player.isAlive()) return false;
-        return RuneManager.getSocketedRuneType(player) == RuneType.TRANSPOSITION;
+        return RuneManager.hasRune(player, RuneType.TRANSPOSITION);
     }
 
     private static List<Entity> cachedClientCandidates = Collections.emptyList();

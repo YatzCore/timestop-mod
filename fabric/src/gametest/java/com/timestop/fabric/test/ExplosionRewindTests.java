@@ -99,6 +99,73 @@ public class ExplosionRewindTests implements FabricGameTest {
     }
 
     @GameTest(template = EMPTY_STRUCTURE, batch = "explosion_rewind")
+    public void explosionRewindRedstoneDropRemovedAndWireRestored(GameTestHelper h) {
+        var level = h.getLevel();
+        var recorder = TickRecorder.getInstance();
+        var pos = h.absolutePos(new BlockPos(2, 2, 2));
+        var stonePos = pos.east();
+        var wirePos = stonePos.above();
+        level.setBlock(stonePos, Blocks.STONE.defaultBlockState(), 3);
+        level.setBlock(wirePos, Blocks.REDSTONE_WIRE.defaultBlockState(), 3);
+        level.setBlock(pos, Blocks.TNT.defaultBlockState(), 3);
+        recorder.clearTrackingData();
+        recorder.getTimelineBuffer().clear();
+        recorder.serverTick(level.getServer());
+        TntBlock.explode(level, pos);
+        level.removeBlock(pos, false);
+        var tnt = level.getEntitiesOfClass(PrimedTnt.class, new net.minecraft.world.phys.AABB(pos).inflate(1)).get(0);
+        tnt.setNoGravity(true);
+        tnt.setDeltaMovement(Vec3.ZERO);
+        tnt.setFuse(3);
+        recorder.serverTick(level.getServer());
+        for (int tick = 0; tick < 3; tick++) {
+            tnt.tick();
+            recorder.serverTick(level.getServer());
+        }
+        var result = RewindExecutor.execute(level.getServer(), 1, null, true);
+        h.assertTrue(result.success(), "Rewind execution must succeed");
+        var itemsAfterRewind = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new net.minecraft.world.phys.AABB(pos).inflate(6));
+        h.assertTrue(level.getBlockState(wirePos).is(Blocks.REDSTONE_WIRE), "Redstone wire must be restored");
+        h.assertTrue(itemsAfterRewind.isEmpty(), "Redstone powder item drops must be removed upon rewind");
+        recorder.clearTrackingData();
+        recorder.getTimelineBuffer().clear();
+        h.succeed();
+    }
+
+    @GameTest(template = EMPTY_STRUCTURE, batch = "explosion_rewind")
+    public void redstoneWireRewindsFromPoweredToOffWithoutStayingLit(GameTestHelper h) {
+        var level = h.getLevel();
+        var recorder = TickRecorder.getInstance();
+        var pos = h.absolutePos(new BlockPos(2, 2, 2));
+        var stone = pos.east();
+        var wire = stone.above();
+        var sourcePos = wire.east();
+
+        level.setBlock(stone, Blocks.STONE.defaultBlockState(), 3);
+        level.setBlock(wire, Blocks.REDSTONE_WIRE.defaultBlockState(), 3);
+        level.setBlock(sourcePos, Blocks.STONE.defaultBlockState(), 3);
+        recorder.clearTrackingData();
+        recorder.getTimelineBuffer().clear();
+        recorder.serverTick(level.getServer());
+
+        h.assertTrue(level.getBlockState(wire).getValue(net.minecraft.world.level.block.RedStoneWireBlock.POWER) == 0, "Wire should start unpowered");
+
+        level.setBlock(sourcePos, Blocks.REDSTONE_BLOCK.defaultBlockState(), 3);
+        recorder.serverTick(level.getServer());
+        h.assertTrue(level.getBlockState(wire).getValue(net.minecraft.world.level.block.RedStoneWireBlock.POWER) > 0, "Wire should become powered");
+
+        var result = RewindExecutor.execute(level.getServer(), 1, null, true);
+        h.assertTrue(result.success(), "Rewind should succeed");
+        h.assertTrue(level.getBlockState(sourcePos).is(Blocks.STONE), "Power source should return to stone");
+        h.assertTrue(level.getBlockState(wire).getValue(net.minecraft.world.level.block.RedStoneWireBlock.POWER) == 0, "Wire must return to unpowered (0) and not stay lit");
+
+        recorder.clearTrackingData();
+        recorder.getTimelineBuffer().clear();
+        h.succeed();
+    }
+
+
+    @GameTest(template = EMPTY_STRUCTURE, batch = "explosion_rewind")
     public void restoringPoweredTntDoesNotIgniteDuringRollback(GameTestHelper h) {
         var level = h.getLevel();
         var pos = h.absolutePos(new BlockPos(2, 2, 2));

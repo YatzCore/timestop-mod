@@ -90,7 +90,7 @@ public class RewindRuneManager {
 
     private static boolean isWatchWithRewindRune(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof AbstractWatchItem
-                && AbstractWatchItem.getSocketedRuneType(stack) == RuneType.REWIND
+                && (AbstractWatchItem.getSocketedRuneType(stack) == RuneType.REWIND || (((AbstractWatchItem) stack.getItem()).getTier() == com.timestop.item.WatchTier.CREATIVE && AbstractWatchItem.isMatrixRuneActive(stack, RuneType.REWIND)))
                 && !wasConsumed(AbstractWatchItem.getSocketedRune(stack));
     }
 
@@ -107,7 +107,7 @@ public class RewindRuneManager {
         if (!automatic && loc == null) return false;
 
         ItemStack scopeWatch = automatic ? AbstractWatchItem.findActivationWatch(player) : loc.hostStack();
-        if (!automatic) {
+        if (!automatic && !(loc.hostStack().getItem() instanceof AbstractWatchItem w && w.getTier() == com.timestop.item.WatchTier.CREATIVE)) {
             // Identity belongs to the rune, not its slot/watch; older snapshots can contain it loose.
             identifyRunes(loc.hostStack());
             ItemStack rune = AbstractWatchItem.getSocketedRune(loc.hostStack());

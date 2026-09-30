@@ -18,10 +18,18 @@ public abstract class ServerLevelMixin {
     @Unique
     private boolean timestop$extraTick;
 
+    @Inject(method = "addFreshEntity", at = @At("HEAD"), cancellable = true)
+    private void timestop$suppressDropsDuringRewind(Entity entity, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        if (com.timestop.core.rewind.RewindExecutor.isRestoringBlocks() && entity instanceof net.minecraft.world.entity.item.ItemEntity) {
+            cir.setReturnValue(false);
+        }
+    }
+
     @Inject(method = "addFreshEntity", at = @At("RETURN"))
     private void timestop$recordSpawn(Entity entity, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue()) com.timestop.core.rewind.TickRecorder.getInstance().recordEntitySpawn(entity);
     }
+
 
 
     @Inject(method = "tickNonPassenger", at = @At("HEAD"), cancellable = true)
