@@ -10,11 +10,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Pseudo
 @Mixin(targets = "com.tacz.guns.entity.EntityKineticBullet", remap = false)
-public abstract class TaczDeadEyeBulletMixin {
+public abstract class TaczDeadEyeBulletMixin implements com.timestop.combat.ProjectileDecelerationHook, com.timestop.prediction.NativePredictionPhysics {
     @Unique private boolean timestop$handledImpact;
     @Unique private Vec3 timestop$fullVelocity;
+    @Unique private double timestop$stepRate;
     @Shadow private float gravity;
     @Shadow private float friction;
+    @Override public double timestop$predictionGravity() { return gravity; }
+    @Override public double timestop$predictionDrag() { return friction; }
 
     @Inject(method = {"tick", "m_8119_"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void beforeNativeTick(CallbackInfo ci) {
@@ -23,9 +26,10 @@ public abstract class TaczDeadEyeBulletMixin {
         timestop$fullVelocity = null;
         com.timestop.combat.TaczPrecision.guide(bullet);
         if (TaczProjectileCompat.beforeTick(bullet)) { ci.cancel(); return; }
-        if (com.timestop.combat.DecelerationFieldManager.isDecelerated(bullet)) {
+        timestop$stepRate = com.timestop.combat.DecelerationFieldManager.getMovementScale(bullet);
+        if (timestop$stepRate < 1.0) {
             timestop$fullVelocity = bullet.getDeltaMovement();
-            bullet.setDeltaMovement(timestop$fullVelocity.scale(0.2));
+            bullet.setDeltaMovement(timestop$fullVelocity.scale(timestop$stepRate));
         }
     }
 
@@ -35,7 +39,7 @@ public abstract class TaczDeadEyeBulletMixin {
         if (timestop$fullVelocity == null || !bullet.isAlive() || timestop$handledImpact) return;
         double drag = bullet.isInWater() ? 0.4 : friction;
         double fall = bullet.isInWater() ? gravity * 0.6 : gravity;
-        bullet.setDeltaMovement(timestop$fullVelocity.scale(1 - drag * 0.2).add(0, -fall * 0.2, 0));
+        bullet.setDeltaMovement(timestop$fullVelocity.scale(1 - drag * timestop$stepRate).add(0, -fall * timestop$stepRate, 0));
         timestop$fullVelocity = null;
     }
 

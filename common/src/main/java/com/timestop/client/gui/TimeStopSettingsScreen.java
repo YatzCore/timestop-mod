@@ -36,7 +36,7 @@ public class TimeStopSettingsScreen extends Screen {
     private Component activeTooltip = null;
 
     private static final String[] SPEED_LABELS = {
-            "Fast Forward", "Slow Motion", "Matrix Dilation", "Superhot Idle", "Decel Drag"
+            "Fast / Self Speed", "Slow / Combat", "Matrix Dilation", "Superhot Idle", "Decel Speed"
     };
     private static final String[] SPEED_SUBS = {
             "1.1x - 50.0x (def 5.0x)",
@@ -145,7 +145,7 @@ public class TimeStopSettingsScreen extends Screen {
         this.activeTooltip = null;
 
         int modalWidth = 320;
-        int modalHeight = 285;
+        int modalHeight = 304;
         int modalX = (this.width - modalWidth) / 2;
         int modalY = (this.height - modalHeight) / 2;
 
@@ -243,6 +243,19 @@ public class TimeStopSettingsScreen extends Screen {
         // 10. Opacity Slider
         int sliderY = startY + rowH * 9 + 2;
         renderOpacitySlider(guiGraphics, modalX, sliderY, modalWidth, mouseX, mouseY);
+
+        renderToggleRow(guiGraphics, modalX, startY + rowH * 10, modalWidth, "Swim in stopped time",
+                !TimeStopConfig.COMMON.enableWaterWalkingInStasis.get(), mouseX, mouseY);
+        if(isInside(mouseX,mouseY,modalX+16,startY+rowH*10,modalWidth-32,14))
+            this.activeTooltip=Component.literal(canEditSpeeds()
+                    ? "ON: swim through stopped liquids. OFF: walk on their surface. Server-wide setting."
+                    : "Controlled by the server operator: swimming versus walking on stopped liquids.");
+
+        renderToggleRow(guiGraphics, modalX, startY + rowH * 11, modalWidth, "Casual acceleration",
+                TimeStopConfig.CLIENT.casualAcceleration.get(), mouseX, mouseY);
+        if(isInside(mouseX,mouseY,modalX+16,startY+rowH*11,modalWidth-32,14))
+            this.activeTooltip=Component.literal("ON: while Self Acceleration or your Fast Forward speeds you up, harmful things "
+                    + "(drowning, burning, freezing, harmful effects, starvation, hit immunity) keep normal speed. Helpful things still speed up. Your own setting.");
 
         // Bottom Done / Back Button
         int btnW = 100;
@@ -474,7 +487,7 @@ public class TimeStopSettingsScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
             int modalWidth = 320;
-            int modalHeight = 285;
+            int modalHeight = 304;
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
 
@@ -596,6 +609,20 @@ public class TimeStopSettingsScreen extends Screen {
                 if (isInside(mouseX, mouseY, trackX - 4, sliderY, trackW + 8, trackH)) {
                     this.draggingOpacity = true;
                     updateOpacityFromMouse(mouseX, trackX, trackW);
+                    return true;
+                }
+
+                if(isInside(mouseX,mouseY,btnX,startY+rowH*10,btnW,btnH)) {
+                    if(canEditSpeeds()) ModMessages.sendToServer(new com.timestop.network.UpdateSwimmingConfigPacket(
+                            TimeStopConfig.COMMON.enableWaterWalkingInStasis.get()));
+                    playClickSound();return true;
+                }
+
+                if(isInside(mouseX,mouseY,btnX,startY+rowH*11,btnW,btnH)) {
+                    boolean casual = !TimeStopConfig.CLIENT.casualAcceleration.get();
+                    TimeStopConfig.CLIENT.casualAcceleration.set(casual);
+                    ModMessages.sendToServer(new com.timestop.network.SetCasualAccelerationPacket(casual));
+                    saveAndPlaySound();
                     return true;
                 }
 

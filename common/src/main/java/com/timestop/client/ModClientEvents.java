@@ -15,6 +15,7 @@ import net.minecraft.client.Minecraft;
 public class ModClientEvents {
 
     public static void onClientTick() {
+        com.timestop.client.PredictionClient.tick();
         RewindBlockRenderer.tick();
         RewindMobAnimation.tick();
         RewindFadeOverlay.tick();
@@ -24,6 +25,10 @@ public class ModClientEvents {
         com.timestop.client.DeadEyeClient.clientTick(Minecraft.getInstance());
         ChronoAudioHandler.clientTick();
         KineticPalmClient.clientTick();
+
+        while (ModKeyBindings.OPEN_WATCH_KEY.consumeClick()) {
+            com.timestop.client.gui.ClientGuiOpener.openEquippedWatch();
+        }
 
         while (ModKeyBindings.TIME_STOP_KEY.consumeClick()) {
             ModMessages.sendToServer(new ToggleTimeStopPacket());
@@ -55,12 +60,57 @@ public class ModClientEvents {
             ModMessages.sendToServer(new ToggleProjectileFlowPacket());
         }
 
+        syncCasualPreference();
+
+        while (ModKeyBindings.TOGGLE_VARIANT_KEY.consumeClick()) {
+            toggleEquippedVariant();
+        }
+
         while (ModKeyBindings.OPEN_SETTINGS_KEY.consumeClick()) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.screen == null) {
                 mc.setScreen(new com.timestop.client.gui.TimeStopSettingsScreen(null, null));
             }
         }
+    }
+
+    private static Object casualSyncedFor;
+
+    /** Sends the Casual mode preference whenever a new local player exists (join, respawn, dimension change). */
+    private static void syncCasualPreference() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.getConnection() == null) { casualSyncedFor = null; return; }
+        if (casualSyncedFor == mc.player) return;
+        casualSyncedFor = mc.player;
+        ModMessages.sendToServer(new com.timestop.network.SetCasualAccelerationPacket(com.timestop.config.TimeStopConfig.CLIENT.casualAcceleration.get()));
+    }
+
+    /** Switches the equipped watch between World and Combat (Slow Motion) or World and Self (Fast Forward). */
+    private static void toggleEquippedVariant() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.screen != null) return;
+        // Edit the watch that V will activate, so B followed by V always uses the shown variant.
+        var target = com.timestop.item.WatchTarget.forActivation(mc.player);
+        if (target == null) return;
+        net.minecraft.world.item.ItemStack stack = target.resolve(mc.player);
+        com.timestop.core.TimeMode current = com.timestop.item.AbstractWatchItem.getMode(stack);
+        if (!current.hasVariant()) {
+            mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal(current.getDisplayName()
+                    + " has no variant. Select Slow Motion or Fast Forward first.").withStyle(net.minecraft.ChatFormatting.GRAY), true);
+            return;
+        }
+        com.timestop.core.TimeMode next = current.alternate();
+        com.timestop.item.AbstractWatchItem.setMode(stack, next);
+        ModMessages.sendToServer(new com.timestop.network.SelectTimeModePacket(next, target));
+        mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal(next.baseMode().getDisplayName() + ": ")
+                .withStyle(net.minecraft.ChatFormatting.GRAY)
+                .append(net.minecraft.network.chat.Component.literal(next.variantLabel()).withStyle(next.getTitleColor(), net.minecraft.ChatFormatting.BOLD))
+                .append(net.minecraft.network.chat.Component.literal(anyTimeEffectActive(next) ? "  (applies on next activation)" : "").withStyle(net.minecraft.ChatFormatting.DARK_GRAY)), true);
+        mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.6F));
+    }
+
+    private static boolean anyTimeEffectActive(com.timestop.core.TimeMode next) {
+        return ClientTimeStopManager.isTimeStopped() || ClientBubbleManager.hasActiveBubbles();
     }
 
     public static void onRenderTick(float partialTick) {
@@ -70,6 +120,8 @@ public class ModClientEvents {
     }
 
     public static void onLoggingOut() {
+        com.timestop.config.TimeStopConfig.endRemoteSync();
+        com.timestop.client.PredictionClient.clear();
         com.timestop.client.renderer.ArmillaryAnimation.clear();
         RewindBlockRenderer.clear();
         RewindMobAnimation.clear();

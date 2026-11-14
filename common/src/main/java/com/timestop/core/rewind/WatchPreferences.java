@@ -13,6 +13,7 @@ public final class WatchPreferences {
  public static Map<UUID, ItemStack> capture(ServerPlayer player) {
   Map<UUID,ItemStack> result=new HashMap<>();
   for(int i=0;i<player.getInventory().getContainerSize();i++) add(result,player.getInventory().getItem(i));
+  for(var stack: com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) add(result,stack);
   add(result,player.containerMenu.getCarried());
   return result;
  }
@@ -30,4 +31,24 @@ public final class WatchPreferences {
   }
   return result;
  }
+
+    public static UUID idOf(ItemStack stack) {
+        return stack.getItem() instanceof AbstractWatchItem && stack.hasTag() && stack.getTag().hasUUID(ID) ? stack.getTag().getUUID(ID) : null;
+    }
+
+    /** Worn watches stay in their native slots; older inventory copies must not be recreated. */
+    public static java.util.Set<UUID> equippedIds(ServerPlayer player) {
+        var ids = new java.util.HashSet<UUID>();
+        for (var stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            snapshot(stack);
+            UUID id = idOf(stack);
+            if (id != null) ids.add(id);
+        }
+        return ids;
+    }
+
+    public static ItemStack restore(ItemStack historical, Map<UUID, ItemStack> current, java.util.Set<UUID> equippedIds) {
+        UUID id = idOf(historical);
+        return id != null && equippedIds.contains(id) ? ItemStack.EMPTY : restore(historical, current);
+    }
 }

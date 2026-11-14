@@ -37,6 +37,18 @@ public class TimeStopCommand {
                                 .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.TIME_STOP))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 3600))
                                         .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.TIME_STOP))))
+                        .then(Commands.literal("prediction")
+                                .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.TIME_PREDICTION))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 3600))
+                                        .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.TIME_PREDICTION))))
+                        .then(Commands.literal("combatslow")
+                                .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.COMBAT_SLOW))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 3600))
+                                        .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.COMBAT_SLOW))))
+                        .then(Commands.literal("selfacceleration")
+                                .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.SELF_ACCELERATION))
+                                .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 3600))
+                                        .executes(ctx -> startTimeStop(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "seconds") * 20, com.timestop.core.TimeMode.SELF_ACCELERATION))))
                         .then(Commands.literal("slowmotion")
                                 .executes(ctx -> startTimeStop(ctx.getSource(), 0, com.timestop.core.TimeMode.SLOW_MOTION))
                                 .then(Commands.argument("seconds", IntegerArgumentType.integer(1, 3600))
@@ -389,6 +401,11 @@ public class TimeStopCommand {
                         .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.01, 0.99))
                                 .requires(source -> source.hasPermission(2))
                                 .executes(ctx -> setSpeed(ctx.getSource(), "slowmotion", DoubleArgumentType.getDouble(ctx, "value")))))
+                .then(Commands.literal("prediction")
+                        .executes(ctx -> showSpeed(ctx.getSource(), "prediction", TimeStopConfig.COMMON.predictionRate.get()))
+                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.01, 0.99))
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> setSpeed(ctx.getSource(), "prediction", DoubleArgumentType.getDouble(ctx, "value")))))
                 .then(Commands.literal("matrix")
                         .executes(ctx -> showSpeed(ctx.getSource(), "matrix", TimeStopConfig.COMMON.matrixRate.get()))
                         .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.01, 0.99))
@@ -415,6 +432,7 @@ public class TimeStopCommand {
         switch (key) {
             case "fastforward" -> TimeStopConfig.COMMON.fastForwardRate.set(TimeStopConfig.clampFastForward(value));
             case "slowmotion" -> TimeStopConfig.COMMON.slowMotionRate.set(TimeStopConfig.clampSlowMotion(value));
+            case "prediction" -> TimeStopConfig.COMMON.predictionRate.set(TimeStopConfig.clampPrediction(value));
             case "matrix" -> TimeStopConfig.COMMON.matrixRate.set(TimeStopConfig.clampMatrix(value));
             case "superhot" -> TimeStopConfig.COMMON.superhotIdleRate.set(TimeStopConfig.clampSuperhotIdle(value));
             case "drag" -> TimeStopConfig.COMMON.decelerationDrag.set(TimeStopConfig.clampDecelerationDrag(value));
@@ -443,6 +461,7 @@ public class TimeStopCommand {
         source.sendSuccess(() -> Component.literal("§6=== TimeStop Speed Multipliers ==="), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eFast Forward: §a%.2fx §7[1.1x - 50.0x]", TimeStopConfig.COMMON.fastForwardRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eSlow Motion:  §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.slowMotionRate.get())), false);
+        source.sendSuccess(() -> Component.literal(String.format(" §ePrediction:   §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.predictionRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eMatrix:       §a%.2fx §7[0.01x - 0.99x]", TimeStopConfig.COMMON.matrixRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eSuperhot Idle:§a%.3fx §7[0.005x - 0.80x]", TimeStopConfig.COMMON.superhotIdleRate.get())), false);
         source.sendSuccess(() -> Component.literal(String.format(" §eDecel Drag:   §a%.3fx §7[0.001x - 0.95x]", TimeStopConfig.COMMON.decelerationDrag.get())), false);

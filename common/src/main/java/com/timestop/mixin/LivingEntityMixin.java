@@ -127,6 +127,7 @@ public abstract class LivingEntityMixin {
     private int timestop$scaleLerpSteps(int steps) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity.level().isClientSide) {
+            if (com.timestop.prediction.PredictionTime.rate(entity) < 1) return steps;
             float rate = timestop$getEntityRate(entity);
             if (rate < 1.0F && rate > 0.0F) {
                 int interval = (int) Math.ceil(1.0F / rate);
@@ -145,6 +146,7 @@ public abstract class LivingEntityMixin {
     private int timestop$scaleLerpHeadSteps(int steps) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity.level().isClientSide) {
+            if (com.timestop.prediction.PredictionTime.rate(entity) < 1) return steps;
             float rate = timestop$getEntityRate(entity);
             if (rate < 1.0F && rate > 0.0F) {
                 int interval = (int) Math.ceil(1.0F / rate);
@@ -165,6 +167,7 @@ public abstract class LivingEntityMixin {
             if (com.timestop.core.ClientTimeStopManager.isGlobalTimeStopActive()) {
                 if (com.timestop.core.ClientTimeStopManager.isEntityExempt(entity)) return 1.0F;
                 TimeMode mode = com.timestop.core.ClientTimeStopManager.getCurrentMode();
+                if (mode == TimeMode.TIME_PREDICTION) return com.timestop.config.TimeStopConfig.COMMON.predictionRate.get().floatValue();
                 if (mode == TimeMode.SLOW_MOTION) return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
                 if (mode == TimeMode.MATRIX) return com.timestop.config.TimeStopConfig.COMMON.matrixRate.get().floatValue();
                 if (mode == TimeMode.TIME_STOP) return 0.0F;
@@ -179,6 +182,7 @@ public abstract class LivingEntityMixin {
             if (TimeStopManager.isGlobalTimeStopActive()) {
                 if (TimeStopManager.isEntityExempt(entity)) return 1.0F;
                 TimeMode mode = TimeStopManager.getCurrentMode();
+                if (mode == TimeMode.TIME_PREDICTION) return com.timestop.config.TimeStopConfig.COMMON.predictionRate.get().floatValue();
                 if (mode == TimeMode.SLOW_MOTION) return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
                 if (mode == TimeMode.MATRIX) return com.timestop.config.TimeStopConfig.COMMON.matrixRate.get().floatValue();
                 if (mode == TimeMode.TIME_STOP) return 0.0F;

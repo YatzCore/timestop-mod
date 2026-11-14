@@ -7,20 +7,25 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.item.ItemStack;
 
 public class SetWatchScopePacket implements IServerboundPacket {
     public static final ResourceLocation ID = new ResourceLocation(TimeStopMod.MOD_ID, "set_watch_scope");
-    private final InteractionHand hand;
+    private final WatchTarget target;
     private final boolean globalScope;
 
     public SetWatchScopePacket(InteractionHand hand, boolean globalScope) {
-        this.hand = hand;
+        this(WatchTarget.inHand(hand), globalScope);
+    }
+
+    public SetWatchScopePacket(WatchTarget target, boolean globalScope) {
+        this.target = target;
         this.globalScope = globalScope;
     }
 
     public SetWatchScopePacket(FriendlyByteBuf buf) {
-        this.hand = buf.readBoolean() ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+        this.target = WatchTarget.read(buf);
         this.globalScope = buf.readBoolean();
     }
 
@@ -31,14 +36,14 @@ public class SetWatchScopePacket implements IServerboundPacket {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeBoolean(this.hand == InteractionHand.MAIN_HAND);
+        this.target.write(buf);
         buf.writeBoolean(this.globalScope);
     }
 
     @Override
     public void handle(ServerPlayer player) {
         if (player != null) {
-            ItemStack stack = player.getItemInHand(this.hand);
+            ItemStack stack = this.target.resolve(player);
             if (stack.getItem() instanceof AbstractWatchItem watch) {
                 boolean allowed = player.isCreative() || watch.getTier() == WatchTier.CREATIVE;
                 if (this.globalScope && !allowed) {

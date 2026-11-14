@@ -52,6 +52,8 @@ public class TimeStopConfig {
         public final ConfigValue<Boolean> enableShaders = new ConfigValue<>(true);
         public final ConfigValue<Boolean> enableSounds = new ConfigValue<>(true);
         public final ConfigValue<Boolean> enableTimerHud = new ConfigValue<>(true);
+        /** Casual mode: harmful effects keep normal speed while your personal clock is accelerated. */
+        public final ConfigValue<Boolean> casualAcceleration = new ConfigValue<>(false);
         public final ConfigValue<String> superhotMobTarget = new ConfigValue<>("HOSTILE");
     }
 
@@ -84,6 +86,7 @@ public class TimeStopConfig {
         public final ConfigValue<Double> matrixRate = new ConfigValue<>(0.25);
         public final ConfigValue<Double> superhotIdleRate = new ConfigValue<>(0.05);
         public final ConfigValue<Double> decelerationDrag = new ConfigValue<>(0.10);
+        public final ConfigValue<Double> predictionRate = new ConfigValue<>(0.25);
         public final ConfigValue<Double> rewindSpeed = new ConfigValue<>(1.0);
 
         // Rewind Mechanics
@@ -96,6 +99,7 @@ public class TimeStopConfig {
 
     public static double clampFastForward(double val) { return Math.max(1.1, Math.min(50.0, val)); }
     public static double clampSlowMotion(double val) { return Math.max(0.01, Math.min(0.99, val)); }
+    public static double clampPrediction(double val) { return Double.isFinite(val) ? Math.max(0.01, Math.min(0.99, val)) : 0.25; }
     public static double clampMatrix(double val) { return Math.max(0.01, Math.min(0.99, val)); }
     public static double clampSuperhotIdle(double val) { return Math.max(0.005, Math.min(0.80, val)); }
     public static double clampDecelerationDrag(double val) { return Math.max(0.001, Math.min(0.95, val)); }
@@ -108,6 +112,7 @@ public class TimeStopConfig {
         COMMON.superhotIdleRate.set(COMMON.superhotIdleRate.getDefault());
         COMMON.decelerationDrag.set(COMMON.decelerationDrag.getDefault());
         COMMON.rewindSpeed.set(COMMON.rewindSpeed.getDefault());
+        COMMON.predictionRate.set(COMMON.predictionRate.getDefault());
         save();
     }
 
@@ -121,6 +126,38 @@ public class TimeStopConfig {
 
     public static void setConfigFile(File file) {
         configFile = file;
+    }
+
+    /** Client: this player's own values of the server-synced settings while a remote server's values are applied. */
+    private static double[] localSyncedSpeeds;
+    private static boolean localWaterWalking;
+
+    /** Client: a remote server is about to apply its speed settings. Keep ours for the config file and for later. */
+    public static synchronized void beginRemoteSync() {
+        if (localSyncedSpeeds != null) return;
+        localSyncedSpeeds = new double[]{COMMON.fastForwardRate.get(), COMMON.predictionRate.get(), COMMON.slowMotionRate.get(),
+                COMMON.matrixRate.get(), COMMON.superhotIdleRate.get(), COMMON.decelerationDrag.get(), COMMON.rewindSpeed.get()};
+        localWaterWalking = COMMON.enableWaterWalkingInStasis.get();
+    }
+
+    /** Client: the remote server is gone; this player's own settings apply again. */
+    public static synchronized void endRemoteSync() {
+        if (localSyncedSpeeds == null) return;
+        COMMON.fastForwardRate.set(localSyncedSpeeds[0]);
+        COMMON.predictionRate.set(localSyncedSpeeds[1]);
+        COMMON.slowMotionRate.set(localSyncedSpeeds[2]);
+        COMMON.matrixRate.set(localSyncedSpeeds[3]);
+        COMMON.superhotIdleRate.set(localSyncedSpeeds[4]);
+        COMMON.decelerationDrag.set(localSyncedSpeeds[5]);
+        COMMON.rewindSpeed.set(localSyncedSpeeds[6]);
+        COMMON.enableWaterWalkingInStasis.set(localWaterWalking);
+        localSyncedSpeeds = null;
+    }
+
+    /** The value to write to the config file: never a remote server's synced value. */
+    private static double ownSpeed(int index, double current) {
+        double[] local = localSyncedSpeeds;
+        return local != null ? local[index] : current;
     }
 
     public static void load() {
@@ -140,6 +177,7 @@ public class TimeStopConfig {
                     if (v.has("enableEquatorRing")) CLIENT.enableEquatorRing.set(v.get("enableEquatorRing").getAsBoolean());
                     if (v.has("enableShaders")) CLIENT.enableShaders.set(v.get("enableShaders").getAsBoolean());
                     if (v.has("enableTimerHud")) CLIENT.enableTimerHud.set(v.get("enableTimerHud").getAsBoolean());
+                    if (v.has("casualAcceleration")) CLIENT.casualAcceleration.set(v.get("casualAcceleration").getAsBoolean());
                     if (v.has("superhotMobTarget")) CLIENT.superhotMobTarget.set(v.get("superhotMobTarget").getAsString());
                 }
                 if (json.has("audio")) {
@@ -179,6 +217,7 @@ public class TimeStopConfig {
                 if (json.has("speed_multipliers")) {
                     JsonObject s = json.getAsJsonObject("speed_multipliers");
                     if (s.has("fastForwardRate")) COMMON.fastForwardRate.set(clampFastForward(s.get("fastForwardRate").getAsDouble()));
+                    if (s.has("predictionRate")) COMMON.predictionRate.set(clampPrediction(s.get("predictionRate").getAsDouble()));
                     if (s.has("slowMotionRate")) COMMON.slowMotionRate.set(clampSlowMotion(s.get("slowMotionRate").getAsDouble()));
                     if (s.has("matrixRate")) COMMON.matrixRate.set(clampMatrix(s.get("matrixRate").getAsDouble()));
                     if (s.has("superhotIdleRate")) COMMON.superhotIdleRate.set(clampSuperhotIdle(s.get("superhotIdleRate").getAsDouble()));
@@ -219,6 +258,7 @@ public class TimeStopConfig {
             visuals.addProperty("enableEquatorRing", CLIENT.enableEquatorRing.get());
             visuals.addProperty("enableShaders", CLIENT.enableShaders.get());
             visuals.addProperty("enableTimerHud", CLIENT.enableTimerHud.get());
+            visuals.addProperty("casualAcceleration", CLIENT.casualAcceleration.get());
             visuals.addProperty("superhotMobTarget", CLIENT.superhotMobTarget.get());
             root.add("visuals", visuals);
 
@@ -227,18 +267,19 @@ public class TimeStopConfig {
             root.add("audio", audio);
 
             JsonObject mechanics = new JsonObject();
-            mechanics.addProperty("enableWaterWalkingInStasis", COMMON.enableWaterWalkingInStasis.get());
+            mechanics.addProperty("enableWaterWalkingInStasis", localSyncedSpeeds != null ? localWaterWalking : COMMON.enableWaterWalkingInStasis.get());
             mechanics.addProperty("friendRequestExpirySeconds", COMMON.friendRequestExpirySeconds.get());
             mechanics.addProperty("allowPlayerProjectilesInStasis", COMMON.allowPlayerProjectilesInStasis.get());
             root.add("mechanics", mechanics);
 
             JsonObject speeds = new JsonObject();
-            speeds.addProperty("fastForwardRate", COMMON.fastForwardRate.get());
-            speeds.addProperty("slowMotionRate", COMMON.slowMotionRate.get());
-            speeds.addProperty("matrixRate", COMMON.matrixRate.get());
-            speeds.addProperty("superhotIdleRate", COMMON.superhotIdleRate.get());
-            speeds.addProperty("decelerationDrag", COMMON.decelerationDrag.get());
-            speeds.addProperty("rewindSpeed", COMMON.rewindSpeed.get());
+            speeds.addProperty("fastForwardRate", ownSpeed(0, COMMON.fastForwardRate.get()));
+            speeds.addProperty("predictionRate", ownSpeed(1, COMMON.predictionRate.get()));
+            speeds.addProperty("slowMotionRate", ownSpeed(2, COMMON.slowMotionRate.get()));
+            speeds.addProperty("matrixRate", ownSpeed(3, COMMON.matrixRate.get()));
+            speeds.addProperty("superhotIdleRate", ownSpeed(4, COMMON.superhotIdleRate.get()));
+            speeds.addProperty("decelerationDrag", ownSpeed(5, COMMON.decelerationDrag.get()));
+            speeds.addProperty("rewindSpeed", ownSpeed(6, COMMON.rewindSpeed.get()));
             root.add("speed_multipliers", speeds);
 
             JsonObject rewind = new JsonObject();
@@ -247,7 +288,7 @@ public class TimeStopConfig {
             rewind.addProperty("rewindMemoryCapMB", COMMON.rewindMemoryCapMB.get());
             rewind.addProperty("rollbackPlayerInventory", COMMON.rollbackPlayerInventory.get());
             rewind.addProperty("rewindMode", COMMON.rewindMode.get());
-            rewind.addProperty("rewindSpeed", COMMON.rewindSpeed.get());
+            rewind.addProperty("rewindSpeed", ownSpeed(6, COMMON.rewindSpeed.get()));
             root.add("rewind", rewind);
 
             JsonObject radii = new JsonObject();

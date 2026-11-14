@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "timestop_accessory_tests",
+  "version": "1.0.0",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "com.timestop.fabric.test.WatchAccessoryTests"
+    ],
+    "client": [
+      "com.timestop.fabric.test.WatchAccessoryClientQa"
+    ]
+  },
+  "depends": {
+    "timestop": "*",
+    "fabric-gametest-api-v1": "*"
+  }
+}

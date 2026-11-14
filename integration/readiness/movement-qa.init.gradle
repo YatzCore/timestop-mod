@@ -1,0 +1,28 @@
+// Opt-in real-client movement/multiplayer QA (MovementQa in the Fabric gametest source set). Nothing here is released.
+//   Singleplayer:  gradlew -I integration/readiness/movement-qa.init.gradle :fabric:runMovementQaClient
+//   Multiplayer:   start :fabric:runMovementQaServer, wait for "Done", then run the client with -PmovementQaServer=localhost:25599
+//   Extra mods go in fabric/build/movement-qa-client/mods and fabric/build/movement-qa-server/mods.
+gradle.beforeProject { p ->
+    if (p.name != 'fabric') return
+    p.afterEvaluate {
+        p.loom.runs {
+            movementQaClient {
+                client()
+                source p.sourceSets.gametest
+                vmArg '-Dtimestop.movementQa=true'
+                // Sodium 0.5.x refuses the dev environment's LWJGL build; this is its documented opt-out.
+                vmArg '-Dsodium.checks.issue2561=false'
+                if (p.rootProject.findProperty('movementQaServer')) vmArg "-Dtimestop.movementQa.server=${p.rootProject.findProperty('movementQaServer')}"
+                programArgs '--width', '1280', '--height', '720', '--username', 'QaBot'
+                runDir 'build/movement-qa-client'
+            }
+            movementQaServer {
+                server()
+                source p.sourceSets.gametest
+                vmArg '-Dtimestop.movementQa=true'
+                programArgs '--nogui', '--port', '25599'
+                runDir 'build/movement-qa-server'
+            }
+        }
+    }
+}

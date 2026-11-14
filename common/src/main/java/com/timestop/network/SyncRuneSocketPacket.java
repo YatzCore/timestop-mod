@@ -4,20 +4,25 @@ import com.timestop.TimeStopMod;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.item.ItemStack;
 
 public class SyncRuneSocketPacket implements IClientboundPacket {
     public static final ResourceLocation ID = new ResourceLocation(TimeStopMod.MOD_ID, "sync_rune_socket");
-    private final InteractionHand hand;
+    private final WatchTarget target;
     private final ItemStack socketedRune;
 
     public SyncRuneSocketPacket(InteractionHand hand, ItemStack socketedRune) {
-        this.hand = hand;
+        this(WatchTarget.inHand(hand), socketedRune);
+    }
+
+    public SyncRuneSocketPacket(WatchTarget target, ItemStack socketedRune) {
+        this.target = target;
         this.socketedRune = socketedRune.copy();
     }
 
     public SyncRuneSocketPacket(FriendlyByteBuf buf) {
-        this.hand = buf.readEnum(InteractionHand.class);
+        this.target = WatchTarget.read(buf);
         this.socketedRune = buf.readItem();
     }
 
@@ -28,12 +33,12 @@ public class SyncRuneSocketPacket implements IClientboundPacket {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeEnum(this.hand);
+        this.target.write(buf);
         buf.writeItem(this.socketedRune);
     }
 
     @Override
     public void handleClient() {
-        com.timestop.client.ClientPacketHandlers.syncRune(hand, socketedRune);
+        com.timestop.client.ClientPacketHandlers.syncRune(target, socketedRune);
     }
 }

@@ -131,6 +131,8 @@ public class PlayerDelta {
     }
 
     public static PlayerDelta fromPlayer(ServerPlayer player, @Nullable SharedInventory cachedInventory) {
+        // Identify watches even while they are outside the vanilla inventory.
+        com.timestop.core.rewind.WatchPreferences.equippedIds(player);
         SharedInventory inv = (cachedInventory != null && cachedInventory.matches(player))
                 ? cachedInventory
                 : SharedInventory.capture(player);
@@ -192,6 +194,7 @@ public class PlayerDelta {
 
     public void restoreTo(ServerPlayer player, boolean rollbackInventory) {
         var watchPreferences = com.timestop.core.rewind.WatchPreferences.capture(player);
+        var equippedWatchIds = com.timestop.core.rewind.WatchPreferences.equippedIds(player);
         // Using an item or a stale container after its inventory was replaced can swallow clicks.
         player.stopUsingItem();
         ((com.timestop.core.rewind.RewindPlayerInteraction) player.gameMode).timestop$resetBreaking();
@@ -217,11 +220,11 @@ public class PlayerDelta {
             player.getInventory().clearContent();
             List<ItemStack> inv = inventory();
             for (int i = 0; i < Math.min(inv.size(), player.getInventory().getContainerSize()); i++) {
-                player.getInventory().setItem(i, com.timestop.core.rewind.WatchPreferences.restore(inv.get(i), watchPreferences));
+                player.getInventory().setItem(i, com.timestop.core.rewind.WatchPreferences.restore(inv.get(i), watchPreferences, equippedWatchIds));
             }
             player.getInventory().selected = Math.max(0, Math.min(8, selectedSlot));
             player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket(player.getInventory().selected));
-            player.containerMenu.setCarried(com.timestop.core.rewind.WatchPreferences.restore(carried(), watchPreferences));
+            player.containerMenu.setCarried(com.timestop.core.rewind.WatchPreferences.restore(carried(), watchPreferences, equippedWatchIds));
             com.timestop.combat.RewindRuneManager.applyRuneConsumption(player);
             player.getInventory().setChanged();
             player.inventoryMenu.broadcastFullState();

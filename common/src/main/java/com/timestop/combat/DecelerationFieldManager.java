@@ -11,16 +11,11 @@ import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.ArrayList;
+import net.minecraft.world.phys.Vec3;
+import com.timestop.config.TimeStopConfig;
 
-/**
- * Pure physics engine manager for the Deceleration Field (Bullet-Dodge).
- * Scales dynamically according to the player's watch tier:
- * - Copper: No passive field (primitive mechanism)
- * - Gilded: 3.5m radius
- * - Diamond: 4.5m radius
- * - Netherite: 5.5m radius
- * - Creative: 6.0m radius
- */
+/** Selected bubble/global projectile time fields, plus independent legacy player defense auras. */
 public class DecelerationFieldManager {
 
     /**
@@ -39,6 +34,12 @@ public class DecelerationFieldManager {
             }
         }
 
+        for (var stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier().hasOffhandPassive()) {
+                maxWatchRadius = Math.max(maxWatchRadius, watch.getTier().getDecelerationRadius());
+            }
+        }
+
         // 4. Defensive Rune Check: Any socketed/held defensive rune projects at least a 3.8m shield
         if (RuneManager.hasRune(player, RuneType.DEFLECTION) || RuneManager.hasRune(player, RuneType.PHASING)
                 || RuneManager.hasRune(player, RuneType.SNATCHING) || RuneManager.hasRune(player, RuneType.ORBITAL)
@@ -51,17 +52,17 @@ public class DecelerationFieldManager {
 
 
 
-        // 5. Active DECELERATION_FIELD mode (or MATRIX / SLOW_MOTION bullet-time) in engine
+        // Legacy player defense aura in MATRIX / SLOW_MOTION; Deceleration uses its selected scope.
         boolean isModeActive;
         if (player.level().isClientSide) {
             TimeMode mode = ClientTimeStopManager.getCurrentMode();
             isModeActive = ClientTimeStopManager.isTimeStopped()
-                    && (mode == TimeMode.DECELERATION_FIELD || mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION)
+                    && (mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION)
                     && ClientTimeStopManager.isEntityExempt(player);
         } else {
             TimeMode mode = TimeStopManager.getCurrentMode();
             isModeActive = TimeStopManager.isGlobalTimeStopped()
-                    && (mode == TimeMode.DECELERATION_FIELD || mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION)
+                    && (mode == TimeMode.MATRIX || mode == TimeMode.SLOW_MOTION)
                     && TimeStopManager.isEntityExempt(player);
         }
 
@@ -93,7 +94,7 @@ public class DecelerationFieldManager {
 
         for (Player player : players) {
             if (!player.isAlive() || player.isSpectator()) continue;
-            // Player's own shots are NEVER slowed!
+            // A passive defense aura excludes its owner's shots; active Deceleration scopes include them.
             if (projectile.getOwner() == player) continue;
 
             double radius = getDecelerationRadius(player);
@@ -118,17 +119,110 @@ public class DecelerationFieldManager {
      * Checks if this projectile is currently inside any active deceleration field.
      */
     public static boolean isDecelerated(Projectile projectile) {
-        return isPedestalDecelerated(projectile) || getProtectingPlayer(projectile) != null;
+        return isGlobalFieldActive(projectile.level()) || isPedestalDecelerated(projectile) || getProtectingPlayer(projectile) != null;
     }
 
     public static boolean isPedestalDecelerated(Projectile projectile) {
-        if (projectile.level().isClientSide) {
-            var bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(projectile.position());
-            return bubble != null && bubble.stationary && bubble.mode == TimeMode.DECELERATION_FIELD
-                    && !(projectile.getOwner() instanceof Player player && bubble.canEntityAct(player));
+        Vec3 position = worldPosition(projectile, projectile.position());
+        for (Sphere field : activeFields(projectile)) {
+            if (position.distanceToSqr(field.center()) <= field.radius() * field.radius()) return true;
         }
-        var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(projectile.level().dimension(), projectile.position());
-        return bubble != null && bubble.isStationary() && bubble.getMode() == TimeMode.DECELERATION_FIELD
-                && !(projectile.getOwner() instanceof Player player && bubble.canEntityAct(player));
+        return false;
+    }
+
+    public static boolean isGlobalFieldActive(Level level) {
+        return level.isClientSide
+                ? ClientTimeStopManager.isGlobalTimeStopActive() && ClientTimeStopManager.getCurrentMode() == TimeMode.DECELERATION_FIELD
+                : TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.DECELERATION_FIELD;
+    }
+
+    public static double getTimeRate(Projectile projectile) {
+        // Budget custom physics using its swept step, including fast entry from outside.
+        return getMovementScale(projectile);
+    }
+
+    /** Native movement hooks handle these; every other Projectile uses a full-physics tick budget. */
+    public static boolean hasMovementHook(Projectile projectile) {
+        return projectile instanceof net.minecraft.world.entity.projectile.AbstractArrow
+                || projectile instanceof net.minecraft.world.entity.projectile.ThrowableProjectile
+                || projectile instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile
+                || projectile instanceof net.minecraft.world.entity.projectile.LlamaSpit
+                || projectile instanceof ProjectileDecelerationHook;
+    }
+
+    /** Advance only the part of a fast native step that fits in this tick's time budget. */
+    public static double getMovementScale(Projectile projectile) {
+        return getFieldMovementScale(projectile) * com.timestop.prediction.PredictionTime.rate(projectile);
+    }
+
+    private static double getFieldMovementScale(Projectile projectile) {
+        double rate = TimeStopConfig.COMMON.decelerationDrag.get();
+        if (isGlobalFieldActive(projectile.level())) return rate;
+        List<Sphere> fields = activeFields(projectile);
+        for (Player player : projectile.level().players()) {
+            if (player == projectile.getOwner() || !player.isAlive() || player.isSpectator()) continue;
+            double radius = getDecelerationRadius(player);
+            if (radius > 0) fields.add(new Sphere(player.position().add(0, player.getEyeHeight() * .5, 0), radius));
+        }
+        if (fields.isEmpty()) return 1.0;
+        Vec3 start = worldPosition(projectile, projectile.position());
+        Vec3 end = worldPosition(projectile, projectile.position().add(projectile.getDeltaMovement()));
+        return movementScale(start, end.subtract(start), fields, rate);
+    }
+
+    public record Sphere(Vec3 center, double radius) {}
+
+    public static double movementScale(Vec3 start, Vec3 travel, List<Sphere> fields, double rate) {
+        if (travel.lengthSqr() < 1e-12) {
+            for (Sphere field : fields) if (start.distanceToSqr(field.center()) <= field.radius() * field.radius()) return rate;
+            return 1.0;
+        }
+        List<double[]> intervals = new ArrayList<>();
+        List<Double> boundaries = new ArrayList<>(List.of(0.0, 1.0));
+        double a = travel.lengthSqr();
+        for (Sphere field : fields) {
+            Vec3 offset = start.subtract(field.center());
+            double b = offset.dot(travel);
+            double discriminant = b * b - a * (offset.lengthSqr() - field.radius() * field.radius());
+            if (discriminant <= 0) continue;
+            double root = Math.sqrt(discriminant);
+            double enter = Math.max(0, (-b - root) / a);
+            double exit = Math.min(1, (-b + root) / a);
+            if (enter >= exit) continue;
+            intervals.add(new double[]{enter, exit});
+            boundaries.add(enter);
+            boundaries.add(exit);
+        }
+        boundaries.sort(Double::compare);
+        double remainingTime = 1.0;
+        for (int i = 1; i < boundaries.size(); i++) {
+            double from = boundaries.get(i - 1), to = boundaries.get(i), midpoint = (from + to) * .5;
+            boolean inside = false;
+            for (double[] interval : intervals) if (midpoint >= interval[0] && midpoint <= interval[1]) { inside = true; break; }
+            double localRate = inside ? rate : 1.0;
+            double time = (to - from) / localRate;
+            if (time >= remainingTime) return Math.min(1.0, from + remainingTime * localRate);
+            remainingTime -= time;
+        }
+        return 1.0;
+    }
+
+    private static List<Sphere> activeFields(Projectile projectile) {
+        List<Sphere> fields = new ArrayList<>();
+        if (projectile.level().isClientSide) {
+            String dimension = projectile.level().dimension().location().toString();
+            for (var bubble : com.timestop.core.ClientBubbleManager.getActiveBubbles())
+                if (bubble.mode == TimeMode.DECELERATION_FIELD && bubble.dimensionId.equals(dimension))
+                    fields.add(new Sphere(bubble.getCenter(), bubble.radius));
+        } else {
+            for (var bubble : com.timestop.core.TemporalBubbleManager.getActiveBubbles().values())
+                if (bubble.getMode() == TimeMode.DECELERATION_FIELD && bubble.getDimension().equals(projectile.level().dimension()))
+                    fields.add(new Sphere(bubble.getCenter(), bubble.getRadius()));
+        }
+        return fields;
+    }
+
+    private static Vec3 worldPosition(Projectile projectile, Vec3 position) {
+        return position;
     }
 }

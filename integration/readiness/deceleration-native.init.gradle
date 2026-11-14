@@ -1,0 +1,38 @@
+// Opt-in actual TaCZ gameplay QA; source sets and dependencies stay out of release jars.
+gradle.beforeProject { p ->
+    if (p.name != 'forge') return
+    p.plugins.withId('net.neoforged.moddev.legacyforge') {
+        def dependency = p.file(p.findProperty('decelerationTaczJar') ?: 'D:/.minecraft/versions/Time stop mod/mods/tacz-1.20.1-1.1.8-hotfix (3).jar')
+        if (!dependency.isFile()) throw new GradleException('Supply -PdecelerationTaczJar=<TaCZ jar>')
+        def dependencyDir = p.file('build/deceleration-dependency')
+        p.copy { from dependency; into dependencyDir; rename { 'tacz-1.1.8.jar' } }
+        p.repositories.flatDir { dirs dependencyDir }
+        p.dependencies.add('modRuntimeOnly', 'decelerationqa:tacz:1.1.8')
+        p.sourceSets {
+            decelerationTest {
+                java.srcDir p.file('src/deceltest/java')
+                resources.srcDir p.file('src/deceltest/resources')
+                compileClasspath += main.compileClasspath + main.output
+                runtimeClasspath += main.runtimeClasspath + main.output
+            }
+        }
+        p.legacyForge.mods { timestop { sourceSet(p.sourceSets.decelerationTest) } }
+        p.legacyForge.runs.create('decelerationTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/deceleration-test-run')
+            systemProperty 'forge.enabledGameTestNamespaces', 'timestop'
+            systemProperty 'mixin.env.remapRefMap', 'true'
+            systemProperty 'mixin.env.refMapRemappingFile', p.file('build/moddev/artifacts/intermediateToNamed.srg').absolutePath
+        }
+        p.tasks.matching { it.name == 'runDecelerationTests' }.configureEach {
+            maxHeapSize = '3G'
+            doFirst {
+                def runDir = p.file('build/deceleration-test-run')
+                runDir.mkdirs()
+                new File(runDir, 'eula.txt').text = 'eula=true\n'
+                // The remapped runtime dependency is loaded directly; remove only the old QA copy.
+                new File(runDir, 'mods/' + dependency.name).delete()
+            }
+        }
+    }
+}

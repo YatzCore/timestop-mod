@@ -24,6 +24,15 @@ sourceSets {
 }
 
 dependencies {
+    modCompileOnly "dev.emi:trinkets:${project.trinkets_version}"
+    if (providers.gradleProperty('accessoryRuntime').orElse('true').get().toBoolean()) {
+        // The official 1.20.1 release has correctly remapped client mixin shadows.
+        modLocalRuntime "maven.modrinth:trinkets:AHxQGtuC"
+        // Loom flattens dependencies; use CCA modules directly in development.
+        modLocalRuntime "dev.onyxstudios.cardinal-components-api:cardinal-components-base:5.2.3"
+        modLocalRuntime "dev.onyxstudios.cardinal-components-api:cardinal-components-entity:5.2.3"
+    }
+
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
 
@@ -60,6 +69,22 @@ loom {
         timestop_tests { sourceSet sourceSets.gametest }
     }
     runs {
+        predictionVisual {
+            client()
+            name 'Time Prediction visual QA (isolated world)'
+            source sourceSets.gametest
+            vmArg '-Dtimestop.predictionVisualQa=true'
+            programArgs '--width', '1600', '--height', '900'
+            runDir 'build/prediction-visual-run'
+        }
+        watchRadiusVisual {
+            client()
+            name 'Creative Watch radius UI QA (isolated world)'
+            source sourceSets.gametest
+            vmArg '-Dtimestop.radiusVisualQa=true'
+            programArgs '--width', '1600', '--height', '900'
+            runDir 'build/watch-radius-visual-run'
+        }
         gametest {
             server()
             name 'Time Stop regression tests'

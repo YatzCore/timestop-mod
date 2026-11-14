@@ -16,7 +16,18 @@ public abstract class MinecraftServerMixin implements com.timestop.core.IMinecra
         com.timestop.core.rewind.TickRecorder.getInstance().serverTick((MinecraftServer) (Object) this);
     }
 
+    @Inject(method = "tickServer", at = @At("TAIL"))
+    private void timestop$predictionTick(java.util.function.BooleanSupplier hasTimeLeft, CallbackInfo ci) {
+        com.timestop.prediction.PredictionTeleports.tick((MinecraftServer) (Object) this);
+        com.timestop.prediction.PredictionServer.tick((MinecraftServer) (Object) this);
+    }
+
     @Shadow private long nextTickTime;
+
+    @Inject(method = "stopServer", at = @At("HEAD"))
+    private void timestop$clearPrediction(CallbackInfo ci) {
+        com.timestop.prediction.PredictionServer.clear();
+    }
     @Shadow private long delayedTasksMaxNextTickTime;
 
     @Override

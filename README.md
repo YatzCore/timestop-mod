@@ -1,5 +1,15 @@
 # Ultimate Time Stop
 
+Pocket watches support optional [Curios / Trinkets accessory slots](ACCESSORIES.md) on both supported Minecraft versions, wherever the API is available.
+
+**New in 1.8.0 (Minecraft 1.20.1):** [Time variants](TIME_VARIANTS.md): Combat Slow Motion slows mobs and projectiles while players and the world stay normal. Self Acceleration speeds up only your movement. Use the <> control on the existing Slow Motion/Fast Forward cards. Settings also expose synchronized swimming versus walking on stopped liquids.
+
+**New in 1.7.5 (Minecraft 1.20.1):** [Time Prediction](PREDICTION.md) supports right-click arrow catching, with recovered potion data and reach/cover checks. Mob forecasts use body-sized terrain collisions and native steps, separate jumping/falling from navigation, and feed those future bodies into arrow interceptions. Long arcs retain sharp turns and exact contacts. Flowing white paths, transparent holograms, potion footprints, explosion warnings and existing overlay limits remain available.
+
+**New in 1.6.6 (Minecraft 1.20.1):** Deceleration Field slows projectiles, including TaCZ bullets and owner shots, within the selected bubble or across the server in global scope. Players, mobs, blocks and other non-projectiles continue at normal speed. `speeds.decelerationDrag` sets the projectile time rate (default **0.10**, or 10% speed).
+
+**New in 1.6.3 (Minecraft 1.20.1):** Shift + Right-Click the Creative Watch and select **Bubble radius** to set its local radius from **1–512 blocks**. Existing watches keep the server-configured default until edited. The setting is saved per watch and takes effect on the next local activation, including rewind. Global scope continues to affect the full server. Crosshair redirection now converges on the aimed block or entity for `/timestop redirect look`, Vector Control, and kinetic barrier volleys.
+
 **New in 1.6.0:** explore [Ruined Observatories](OBSERVATORY.md) in highlands and forests, discover their hidden archives, and recover watches, runes, and abandoned armillary pedestals.
 
 **New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation. Editable models and previews are in `art/pedestals`.
@@ -24,7 +34,7 @@
 
 ---
 
-A temporal manipulation mod supporting both **Minecraft 1.20.1** and **Minecraft 1.21.1** across **Forge**, **Fabric**, and **NeoForge**. Freeze entities, projectile trajectories, fluids, block updates, and daylight across localized spherical bubbles or server-wide fields. Features six temporal modes, tiered pocket watches, socketable combat runes, in-game speed calibration, and version-specific firearm integration.
+A temporal manipulation mod supporting both **Minecraft 1.20.1** and **Minecraft 1.21.1** across **Forge**, **Fabric**, and **NeoForge**. Freeze entities, projectile trajectories, fluids, block updates, and daylight across localized spherical bubbles or server-wide fields. Features eight temporal modes, tiered pocket watches, socketable combat runes, in-game speed calibration, and version-specific firearm integration.
 
 ---
 
@@ -63,7 +73,8 @@ Modes can be activated using Pocket Watches or administrative commands (`/timest
 - **SUPERHOT**: Movement-driven time dilation. The world runs at 5% speed (1 TPS) when standing still; moving, sprinting, jumping, attacking, or using items advances time in real time.
   - **Free Camera Aiming**: Looking around with the crosshair does **not** progress time, allowing risk-free target acquisition.
   - **Entity Shaders**: Features a crystal-red entity outline shader with configurable filtering (`HOSTILE`, `PASSIVE`, or `ALL`).
-- **Deceleration Field**: Projects a localized temporal barrier (3.5m–6.0m radius) that applies an 80% velocity drag to incoming hostile projectiles.
+- **Deceleration Field**: Slows only projectiles in the selected bubble or global scope, including owner shots and TaCZ bullets. Uses the configured projectile time rate; the rest of the world stays at normal speed.
+- **Time Prediction**: Netherite and Creative watches reveal two seconds of projectile trajectories and estimated mob/player movement while slowing affected entities to 25% speed. Only the owner sees the tactical overlay.
 - **Fast Forward**: Accelerates server-side simulation to 500% speed (100 TPS default; calibratable up to 50x). Speeds up mob movement, daylight cycles, crop growth, and block entities (furnaces, blast furnaces, smokers, brewing stands).
 
 ---
@@ -152,14 +163,14 @@ Available to all survival players without operator permissions (Permission Level
 ### Administrative Commands (`/timestop`)
 Requires Operator permission (Level 2):
 - `/timestop pedestal affectplayers [true|false]`: Configure whether pedestal fields affect non-exempt players (default: `true`).
-- `/timestop start <mode> [seconds]`: Force server-wide time distortion (`timestop`, `slowmotion`, `matrix`, `superhot`, `fastforward`, `deceleration`, `rewind`).
+- `/timestop start <mode> [seconds]`: Force server-wide time distortion (`timestop`, `slowmotion`, `matrix`, `superhot`, `fastforward`, `deceleration`, `rewind`, `prediction`).
 - `/timestop stop`: Immediately collapse all active localized bubbles and server-wide freezes.
 - `/timestop toggle [seconds]`: Toggle between running time and stopped time.
 - `/timestop scope <watch|sphere|global>`: Configure watch scoping policy (`watch` = respect item tier; `sphere` = enforce local bubbles; `global` = force server-wide freeze).
 - `/timestop redirect <look|return>`: Configure projectile deflection policy (`look` = crosshair aim; `return` = reflect to shooter).
 - `/timestop exempt <add|remove> <player>`: Manage player whitelist for global time stop immunity.
 - `/timestop speed`: Inspect all active speed dilation multipliers and valid ranges.
-- `/timestop speed <fastforward|slowmotion|matrix|superhot|drag> [value]`: Configure temporal mode speed and drag multipliers.
+- `/timestop speed <fastforward|slowmotion|matrix|superhot|drag|prediction> [value]`: Configure temporal mode speed and drag multipliers.
 - `/timestop speed reset`: Reset all mode speed multipliers to default calibrations.
 - `/timestop rewind [seconds]`: Rewind the world timeline backwards (respects configured continuous or burst mode).
 - `/timestop rewind include <true|false>`: Enable or disable Rewind mode inclusion across all watches and commands (aliases: `/timestop allowrewind [true|false]`, `/timestop rewindinclude [true|false]`, `/timestop rewind on|off|enable|disable`). When disabled, Rewind mode completely disappears from watches and selection menus.

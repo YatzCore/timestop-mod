@@ -1,7 +1,6 @@
 package com.timestop.network;
 
 import com.timestop.TimeStopMod;
-import com.timestop.core.TimeStopManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -50,7 +49,7 @@ public class SlapProjectilePacket implements IServerboundPacket {
         if (player == null) return;
 
         Entity entity = player.serverLevel().getEntity(this.entityId);
-        if (entity instanceof Projectile projectile && (TimeStopManager.isProjectileSuspended(projectile) || com.timestop.core.TemporalBubbleManager.isEntityInStasis(projectile) || com.timestop.combat.DecelerationFieldManager.isDecelerated(projectile))) {
+        if (entity instanceof Projectile projectile) {
             if (player.distanceToSqr(projectile) > 25.0) return;
 
             if (com.timestop.combat.ProjectileInteraction.redirect(player, projectile)) {

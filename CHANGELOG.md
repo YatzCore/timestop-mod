@@ -1,6 +1,112 @@
+# 1.8.4 — Sodium crash, Tachyon mining and config fixes
+
+- Fixed a startup crash with Sodium 0.5.x on Fabric 1.20.1 ("Mixin transformation of LevelRenderer failed"): the cloud freeze now lives in its own optional mixin, so a renderer that replaces cloud rendering can no longer stop the game from starting.
+- Rune of the Tachyon: the documented 3x mining speed in Slow Motion / Matrix now actually applies on Forge (it already worked on Fabric).
+- Fast Forward above 5x: inside your own watch field the server now runs your personal clock at the same capped rate as your client (5x), instead of the raw configured rate. Eating, hunger, effects and cooldowns no longer run ahead of what you see.
+- Joining a server no longer changes your own settings: a server's speed calibration and swimming setting are used only while you are connected, are never written to your config file, and your own values return when you leave.
+- Network protocol unchanged (Forge 19): 1.8.3 and 1.8.4 can play together.
+
+# 1.8.3 — Accelerated harm, falling, Fast Forward personal clock and Casual mode
+
+- Self Acceleration now also speeds up harmful processes on your personal clock: drowning (and recovering air), burning, freezing, harmful effects, starvation and the hit-immunity window, plus falling (jump height unchanged; fall speed capped below the server movement check).
+- Fast Forward: inside your own watch field the server now runs your personal clock too (eating, attack recharge, cooldowns, effects, healing, hunger, breath, burning, freezing, mining), matching your already-fast client.
+- New **Casual acceleration** setting (H → Visuals & FX): harmful processes keep normal speed while you are accelerated; helpful ones still speed up. Per-player, saved in your client config.
+- Mode descriptions corrected: Slow Motion slows you too (only attack recharge, item use and cooldowns keep real-time speed); Matrix shows its real calibration (default 25%, previously said 20%) and 4x movement/attack; all speed-based modes show current calibration values.
+- The **B** variant hotkey now changes the watch that **V** activates (previously it could edit a worn watch while V used the held one).
+- Forge protocol 19 (new serverbound Casual setting packet); use 1.8.3 on both client and server.
+
+# 1.8.2 — Self Acceleration personal clock and variant switching
+
+- Self Acceleration now speeds up your whole personal clock at the Fast Forward rate, not just movement: mining and the delay between broken blocks, placing/using delay, eating, drinking and item use (bows, crossbows, shields), attack recharge, item cooldowns, status-effect timers, hunger and natural healing. Gravity, breath, fire and the world keep normal time.
+- Easier variant switching: Slow Motion and Fast Forward cards show **World · Combat** / **World · Self**. Click a word to pick it; scroll, right-click or press the card's number again to switch while keeping the watch open. The watch remembers your last variant per card. New **B** hotkey (Switch Time Variant) flips the variant without opening the watch.
+- Mode descriptions now match actual behavior and show the current Speed Calibration values (previously hard-coded 25% / 500%).
+
+# 1.8.1 — Lithium compatibility fix
+
+- Fixed a startup crash with Lithium (`alloc.chunk_random`): both mods redirected the same random-tick calls in `ServerLevel.tickChunk`. Time Stop now hooks `BlockState.randomTick` / `FluidState.randomTick` instead, so it composes with any mod that rewrites chunk ticking.
+- Random-tick behavior is unchanged: frozen, slowed, accelerated and rewinding areas apply the same rates as before. Network protocol unchanged; 1.8.0 and 1.8.1 can play together.
+
+# 1.8.0 — Combat slow motion, self acceleration and stopped-water swimming
+
+- Add Combat Slow Motion and Self Acceleration as alternate choices on the existing watch cards; keep old mode ordinals, original modes and compact layouts.
+- Combat slows mob movement/AI and all projectile flight using continuous physics while players and non-combat world processes retain native clocks.
+- Self scales only the owner's voluntary movement through native collision, without persistent attribute/ability changes or world acceleration.
+- Add an operator/host-controlled Swim in stopped time toggle using the existing frozen-fluid collision preference. Persist and synchronize it on changes and joins.
+- Share existing speed sliders with the corresponding variants; add command aliases. Forge protocol 18, Minecraft 1.20.1 only.
+
+# 1.7.5 — Body collisions and arrow catching (Minecraft 1.20.1)
+
+- Enable right-click catching during Prediction through the client key route, native interaction callback and validated custom packet. Preserve recovered arrow potion data and reject duplicate, distant, covered or inactive-field catches.
+- Forecast mob bodies against loaded terrain using native collision and step selection, including the loader's actual step height. Copy native step height and jump boost without creating attribute instances. Keep gravity and planned jumps independent from ground navigation; slide along walls and settle onto floors after route steps.
+- Solve arrow interceptions against those same future bodies. Preserve sharp turns and timed positions when compressing long trajectories, keeping exact contacts within the existing packet budget. Interpolate the cropped flight origin’s time so arrow silhouettes advance consistently.
+- Retain the white holograms, overlay limits, movement clocks; carry immutable step height with Forge protocol 17. Minecraft 1.21.1 is unchanged.
+
+# 1.7.4 — Holograms and impact outcomes (Minecraft 1.20.1)
+
+- Refine animated white paths with distance-based flow, softer edges, translucent scan bands, bounded model outlines, and near-camera fades. Batch model draws and preserve anchored future contacts.
+- Align block landing reticles to their collision surface. Preserve arrow redirection, distant flight, native archer preparation and Enderman tells.
+- Preview splash-potion search/distance/intensity and native immunity rules, with affected future bodies. Show lingering potions’ initial three-block cloud footprint.
+- Add potential large-fireball, primed TNT and swelling-creeper explosion zones using actual power and loaded-terrain exposure. Conditional creeper cues retract when swelling ends.
+- Forecast copied TNT motion, collision/friction, standard fluid pushes and fuse ticks, including fractional tick credit and field-boundary rate changes. Restrict detonation cues to the next three real seconds; stop incomplete forecasts at unloaded or unsupported callback terrain.
+- Cap outcome snapshots at four and rendered areas at two; prioritize player danger and held aim. Keep twelve paths, eight projectile silhouettes and twelve future-body silhouettes, without new prediction text.
+- Carry immutable effect profiles, impact normals and outcome data through the owner-only snapshot; Forge protocol is now 16. Never dispatch potion-application events while predicting.
+
+# 1.7.3 — Arrow interaction and pre-release projections (Minecraft 1.20.1)
+
+- Handle arrow attack clicks with the custom redirection packet in Prediction, including hostile arrow ownership and refreshed forecast direction. Suppress invalid vanilla arrow attacks when a temporal mode ends.
+- Synchronize reflected projectile ownership to tracking clients so owner exemptions and flight speed agree after reflection.
+- Remove the conflicting server packet gate that rejected slow projectiles before the authoritative mode/reach/visibility checks.
+- Add translucent arrow/trident geometry and throwable item silhouettes to both held aim and released flights, capped at eight projectile ghosts.
+- Preview native skeleton bow and pillager crossbow central aim before release. Use dashed arcs, current target/muzzle/speed, no live projectile creation, no consumed ammunition, and no random-source mutation.
+- Keep the twelve-path budget; allow up to three bounded prepared shots in server snapshots. Bump Forge protocol to 15.
+
+# 1.7.2 — Prediction stability and interactions (Minecraft 1.20.1)
+
+- Keep flight geometry and landing points anchored in world coordinates; remove index-based path blending and whole-path entity offsets.
+- Use render-time player position, rotation, and inherited velocity for moving weapon previews.
+- Send bounded server-computed paths, preserving owned flight outside local bubbles and past client tracking distance, up to 256 blocks from the viewer.
+- Solve projectile intercepts against the same time-sampled navigation paths used for future silhouettes, including relative between-tick motion and vanilla collision margins. Highlight predicted mob contacts in warm gold.
+- Keep navigation, move, look, and jump controls running every tick between slowed AI decisions, eliminating steering freeze frames.
+- Limit mob forecasts to three seconds of continued motion or six seconds of navigation; remove invented speed for stationary mobs and omit unsupported distant future intercepts.
+- Reveal selected Enderman teleport destinations with a lavender ring and ghost during a prediction-only 0.6-second windup. Preserve native validation, Forge events, sound, and immediate ordinary teleports.
+- Bump Forge protocol to 14; both sides must update together.
+
+# 1.7.1 — Time Prediction rework (Minecraft 1.20.1)
+
+- Replace barely visible motion estimates with bright animated white navigation trails and translucent future mob models.
+- Copy mobs' current navigation waypoints, including turns and destinations, without modifying their AI or ticking future worlds.
+- Trace full loaded projectile flights to impact, including arrows, tridents, snowballs, eggs, pearls, potions, experience bottles, fireballs, and optional TaCZ bullets. Show landing rings and held-bow previews.
+- Keep server/client clocks at 20 TPS. Integrate slowed living/projectile motion every tick; budget mob decisions separately. Global world time/weather remain slowed independently.
+- Exclude embedded projectiles and preserve normal owner movement. Retain owner-only visibility, depth testing, and twelve-path cap.
+- Bump Forge protocol to 13 for bounded navigation route synchronization; update both sides of multiplayer connections.
+
+# 1.7.0 — Time Prediction (Minecraft 1.20.1)
+
+- Add Netherite/Creative Time Prediction mode with independent 25% slowdown and two-second forecasts.
+- Add owner-only cyan projectile paths, dashed movement estimates, aimed previews, and amber threat markers with a twelve-path limit.
+- Support optional native TaCZ bullet physics and nominal gun-pack aimed previews.
+- Keep the eight-card watch menu compact and suppress the bubble shell during prediction.
+- Add prediction commands, speed configuration, bounded motion synchronization, and isolated physics/visual tests.
+
+# Minecraft 1.20.1 — 1.6.6
+
+- Reworked Deceleration Field to slow only projectiles within the selected watch/pedestal bubble, or everywhere in global mode. Owner-fired projectiles are included.
+- Use the configured `speeds.decelerationDrag` as the projectile time rate (default 0.10). Players, mobs, TNT, blocks, and the server clock stay at normal speed, including players with lower-tier watches.
+- Apply native movement, gravity, drag, acceleration and collision over the slowed step. Preserve momentum on exit, and sweep fast arrows and TaCZ bullets through field boundaries.
+- Added a native tick budget for other projectile physics models and dedicated gameplay checks with actual TaCZ 1.1.8 bullets, vanilla projectile families, impacts, boundary crossing and unaffected entities.
+
 # Changelog
 
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
+
+## [1.6.3] - 2026-10-03
+
+### Added
+- Minecraft 1.20.1: Creative Watch local radius editor (Shift + Right-Click → Bubble radius), with a slider and exact input from 1 to 512 blocks. Existing watches retain the server-configured default until edited. The setting persists on each watch and applies to the next local field activation, including rewind.
+
+### Fixed
+- Minecraft 1.20.1: `/timestop redirect look` and Vector Control now converge on the block or entity under the crosshair, accounting for each projectile's starting position. Applies to dynamic deflection, punched suspended projectiles, and kinetic barrier volleys.
+- Crosshair-directed arrows fly without gravity until block impact, preventing downward drift away from the aim point. Return-to-shooter behavior is preserved.
 
 ## [1.6.2] - 2026-09-30
 

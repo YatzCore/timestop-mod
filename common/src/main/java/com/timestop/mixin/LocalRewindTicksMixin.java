@@ -36,12 +36,7 @@ public abstract class LocalRewindTicksMixin {
             ci.cancel();
         }
     }
-    @Redirect(method="tickChunk",at=@At(value="INVOKE",target="Lnet/minecraft/world/level/block/state/BlockState;randomTick(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/util/RandomSource;)V"))
-    private void randomBlock(net.minecraft.world.level.block.state.BlockState state,ServerLevel level,BlockPos pos,net.minecraft.util.RandomSource random) {
-        if(!LocalRewind.contains(level.dimension(),pos)) com.timestop.pedestal.PedestalWorldTime.randomBlock(state,level,pos,random);
-    }
-    @Redirect(method="tickChunk",at=@At(value="INVOKE",target="Lnet/minecraft/world/level/material/FluidState;randomTick(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/util/RandomSource;)V"))
-    private void randomFluid(net.minecraft.world.level.material.FluidState state,net.minecraft.world.level.Level level,BlockPos pos,net.minecraft.util.RandomSource random) {
-        if(!LocalRewind.contains(level.dimension(),pos) && !com.timestop.core.TemporalBubbleManager.isPositionInStasis(level.dimension(),net.minecraft.world.phys.Vec3.atCenterOf(pos)))state.randomTick(level,pos,random);
-    }
+    // Random block/fluid ticks are handled by RandomTickBlockStateMixin / RandomTickFluidStateMixin.
+    // They used to be @Redirects on ServerLevel.tickChunk, which crashed with Lithium
+    // (alloc.chunk_random redirects the same two calls; two redirects cannot share a call site).
 }

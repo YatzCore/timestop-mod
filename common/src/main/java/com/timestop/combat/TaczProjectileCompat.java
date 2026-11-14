@@ -26,7 +26,7 @@ public final class TaczProjectileCompat {
         if (data.getBoolean("KineticPalmCaptured") || data.getBoolean("InStasisOrbit")) return true;
         if (TimeStopManager.isProjectileSuspended(bullet)) return true;
         Vec3 start = bullet.position();
-        Vec3 end = start.add(bullet.getDeltaMovement());
+        Vec3 end = start.add(bullet.getDeltaMovement().scale(DecelerationFieldManager.getMovementScale(bullet)));
         var wall = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, bullet));
         if (wall.getType() != HitResult.Type.MISS) end = wall.getLocation();
         // Sweep defenses along the whole native step: bullets can cross a field in one tick.
@@ -66,24 +66,6 @@ public final class TaczProjectileCompat {
             RuneManager.evaluateRuneDefense(bullet, defender);
             if (!bullet.isAlive() || bullet.getOwner() == defender || data.getBoolean("InStasisOrbit")) return true;
             bullet.setPos(start);
-        }
-        // Stop at entry for one tick when a fast round would otherwise cross an entire field.
-        for (var player : level.players()) {
-            if (player == bullet.getOwner() || !player.isAlive() || player.isSpectator()) continue;
-            double radius = DecelerationFieldManager.getDecelerationRadius(player);
-            if (radius <= 0) continue;
-            Vec3 center = player.position().add(0, player.getEyeHeight() * 0.5, 0);
-            if (start.distanceToSqr(center) <= radius * radius) continue;
-            Vec3 travel = end.subtract(start);
-            double length = travel.length();
-            if (length < 1e-8) continue;
-            double t = Math.max(0, Math.min(1, center.subtract(start).dot(travel) / travel.lengthSqr()));
-            Vec3 near = start.add(travel.scale(t));
-            if (near.distanceToSqr(center) >= radius * radius) continue;
-            double entryT = Math.max(0, t - Math.sqrt(radius * radius - near.distanceToSqr(center)) / length);
-            bullet.setPos(start.add(travel.scale(Math.min(1, entryT + 0.00001))));
-            bullet.hasImpulse = true;
-            return true;
         }
         // Coins use a swept hit box so native high-speed bullets cannot tunnel through them.
         ChronoCoinEntity coinHit = null;

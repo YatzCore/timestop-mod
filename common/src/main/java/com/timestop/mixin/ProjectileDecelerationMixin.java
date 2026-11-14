@@ -1,15 +1,9 @@
 package com.timestop.mixin;
 
 import com.timestop.combat.DecelerationFieldManager;
-import com.timestop.core.TimeMode;
-import com.timestop.core.TimeStopManager;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.AbstractHurtingProjectile;
-import net.minecraft.world.entity.projectile.LlamaSpit;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.entity.projectile.ShulkerBullet;
-import net.minecraft.world.entity.projectile.ThrowableProjectile;
+import com.timestop.combat.ProjectileCombatHelper;
+import com.timestop.combat.RuneManager;
+import net.minecraft.world.entity.projectile.*;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -17,80 +11,54 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Directly targets the concrete projectile subclasses that implement tick() movement:
- * AbstractArrow, ThrowableProjectile, AbstractHurtingProjectile, ShulkerBullet, and LlamaSpit.
- *
- * Scales per-tick displacement to 20% (80% slowdown) while inside the deceleration field,
- * preserving natural parabolic trajectory and true velocity upon exit.
- */
-@Mixin({AbstractArrow.class, ThrowableProjectile.class, AbstractHurtingProjectile.class, ShulkerBullet.class, LlamaSpit.class})
+/** Continuous native movement/collision steps; other projectile models use their native tick budget. */
+@Mixin({AbstractArrow.class, ThrowableProjectile.class, AbstractHurtingProjectile.class, LlamaSpit.class})
 public abstract class ProjectileDecelerationMixin {
-
-    @Unique
-    private Vec3 timestop$preTickVelocity = null;
+    @Unique private Vec3 timestop$fullVelocity;
+    @Unique private double timestop$stepRate;
+    @Unique private double timestop$gravity;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void onHeadTick(CallbackInfo ci) {
+        timestop$fullVelocity = null;
         Projectile projectile = (Projectile) (Object) this;
-        if (!projectile.isAlive() || projectile.onGround()) {
-            this.timestop$preTickVelocity = null;
-            return;
-        }
-
-        // Complete TIME_STOP is handled via stasis cancellation, not continuous deceleration
-        if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
-            this.timestop$preTickVelocity = null;
-            return;
-        }
-
-        Player protecting = DecelerationFieldManager.getProtectingPlayer(projectile);
-        if (protecting != null || DecelerationFieldManager.isPedestalDecelerated(projectile)) {
-            // Evaluate automated rune defense (auto-parry, auto-snatch, auto-phase)
-            if (protecting != null) com.timestop.combat.RuneManager.evaluateRuneDefense(projectile, protecting);
-
-            if (!projectile.isAlive() || (protecting != null && projectile.getOwner() == protecting)) {
-                this.timestop$preTickVelocity = null;
-                return;
-            }
-
-            Vec3 vel = projectile.getDeltaMovement();
-            if (vel.lengthSqr() > 1.0E-5) {
-                this.timestop$preTickVelocity = vel;
-                // Scale displacement for this tick's movement/collision to 20% (80% slowdown)
-                projectile.setDeltaMovement(vel.scale(0.2D));
-            } else {
-                this.timestop$preTickVelocity = null;
-            }
-        } else {
-            this.timestop$preTickVelocity = null;
-        }
+        if (!ProjectileCombatHelper.isActiveInFlight(projectile)
+                || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("KineticPalmCaptured")
+                || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("InStasisOrbit")) return;
+        var defender = DecelerationFieldManager.getProtectingPlayer(projectile);
+        if (defender != null) RuneManager.evaluateRuneDefense(projectile, defender);
+        if (!ProjectileCombatHelper.isActiveInFlight(projectile)
+                || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("KineticPalmCaptured")
+                || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("InStasisOrbit")) return;
+        timestop$stepRate = DecelerationFieldManager.getMovementScale(projectile);
+        if (timestop$stepRate >= 1.0) return;
+        timestop$fullVelocity = projectile.getDeltaMovement();
+        timestop$gravity = projectile.isNoGravity() ? 0 : projectile instanceof ThrowableProjectile
+                ? ((ThrowableProjectilePhysicsAccessor) projectile).timestop$gravity()
+                : projectile instanceof AbstractArrow ? .05 : projectile instanceof LlamaSpit ? .06 : 0;
+        projectile.setDeltaMovement(timestop$fullVelocity.scale(timestop$stepRate));
     }
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void onTailTick(CallbackInfo ci) {
-        if (this.timestop$preTickVelocity != null) {
-            Projectile projectile = (Projectile) (Object) this;
-            Vec3 orig = this.timestop$preTickVelocity;
-            this.timestop$preTickVelocity = null;
-
-            if (!projectile.isAlive() || projectile.onGround()) {
-                return;
-            }
-
-            // In water, drag is 0.6, in air 0.99
-            double drag = projectile.isInWater() ? 0.6D : 0.99D;
-            double gravity = (projectile instanceof AbstractArrow) ? 0.05D : 0.03D;
-            if (projectile.isNoGravity()) {
-                gravity = 0.0D;
-            }
-
-            // Step true velocity by 1 tick at 20% time rate
-            double newX = orig.x * (1.0D - (1.0D - drag) * 0.2D);
-            double newY = (orig.y * (1.0D - (1.0D - drag) * 0.2D)) - (gravity * 0.2D);
-            double newZ = orig.z * (1.0D - (1.0D - drag) * 0.2D);
-
-            projectile.setDeltaMovement(new Vec3(newX, newY, newZ));
+        if (timestop$fullVelocity == null) return;
+        Projectile projectile = (Projectile) (Object) this;
+        Vec3 original = timestop$fullVelocity;
+        timestop$fullVelocity = null;
+        if (!ProjectileCombatHelper.isActiveInFlight(projectile)
+                || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("KineticPalmCaptured")
+                || com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("InStasisOrbit")) return;
+        double rate = timestop$stepRate;
+        if (projectile instanceof AbstractHurtingProjectile hurting) {
+            var access = (HurtingProjectilePhysicsAccessor) hurting;
+            double inertia = hurting.isInWater() ? .8 : access.timestop$inertia();
+            Vec3 acceleration = new Vec3(hurting.xPower, hurting.yPower, hurting.zPower);
+            projectile.setDeltaMovement(original.scale(1 + (inertia - 1) * rate).add(acceleration.scale(inertia * rate)));
+        } else {
+            // Native drag already acted on v * rate. Keep that change, but integrate
+            // the native gravity for only the elapsed projectile time, not a whole tick.
+            Vec3 change = projectile.getDeltaMovement().subtract(original.scale(rate));
+            projectile.setDeltaMovement(original.add(change).add(0, timestop$gravity * (1 - rate), 0));
         }
     }
 }

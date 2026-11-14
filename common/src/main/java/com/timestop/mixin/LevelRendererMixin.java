@@ -79,16 +79,7 @@ public abstract class LevelRendererMixin {
         return partialTick;
     }
 
-    @Redirect(
-            method = "renderClouds",
-            at = @At(value = "FIELD", target = "Lnet/minecraft/client/renderer/LevelRenderer;ticks:I")
-    )
-    private int redirectCloudTicks(LevelRenderer renderer) {
-        if (ClientTimeStopManager.isTimeStopped()) {
-            return WeatherFreezeManager.getEffectiveTicks(this.ticks);
-        }
-        return this.ticks;
-    }
+    // The cloud tick redirect lives in LevelRendererCloudMixin (Sodium overwrites renderClouds).
 
     @Inject(method = "tickRain", at = @At("HEAD"), cancellable = true)
     private void onTickRain(Camera camera, CallbackInfo ci) {

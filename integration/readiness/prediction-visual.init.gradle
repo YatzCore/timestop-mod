@@ -1,0 +1,15 @@
+// Reuse the actual TaCZ development dependency and isolated test source set.
+apply from: new File(gradle.startParameter.currentDir, 'integration/readiness/deceleration-native.init.gradle')
+gradle.beforeProject { p ->
+    if (p.name != 'forge') return
+    p.plugins.withId('net.neoforged.moddev.legacyforge') {
+        p.legacyForge.runs.create('predictionVisual') {
+            type = 'client'
+            gameDirectory = p.file('build/prediction-visual-run')
+            systemProperty 'timestop.predictionVisualQa', 'true'
+            systemProperty 'mixin.env.remapRefMap', 'true'
+            systemProperty 'mixin.env.refMapRemappingFile', p.file('build/moddev/artifacts/intermediateToNamed.srg').absolutePath
+            programArguments.addAll('--width', '1600', '--height', '900')
+        }
+    }
+}

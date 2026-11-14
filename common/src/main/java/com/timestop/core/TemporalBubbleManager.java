@@ -180,7 +180,7 @@ public class TemporalBubbleManager {
             cooldown = 0;
         }
 
-        double radius = tier.getBubbleRadius();
+        double radius = watch.isEmpty() ? tier.getBubbleRadius() : AbstractWatchItem.getBubbleRadius(watch);
         UUID bubbleId = UUID.randomUUID();
         Vec3 center = player.position().add(0, player.getBbHeight() * 0.5, 0);
 

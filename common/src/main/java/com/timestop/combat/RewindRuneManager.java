@@ -65,6 +65,10 @@ public class RewindRuneManager {
             return new RewindRuneLocation(true, mainhand, -1);
         }
 
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (isWatchWithRewindRune(stack)) return new RewindRuneLocation(true, stack, -3);
+        }
+
         // 3. Entire inventory check
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
@@ -286,6 +290,7 @@ public class RewindRuneManager {
 
     public static void applyRuneConsumption(ServerPlayer player) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) removeConsumedRune(player.getInventory().getItem(i));
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) removeConsumedRune(stack);
         removeConsumedRune(player.containerMenu.getCarried());
         player.getInventory().setChanged();
     }

@@ -10,6 +10,12 @@ import net.minecraft.world.entity.Entity;
 
 public class FabricPlatformHelper implements IPlatformHelper {
     @Override
+    public java.util.Map<String, net.minecraft.world.item.ItemStack> getEquippedWatchSlots(net.minecraft.world.entity.player.Player player) {
+        if (player == null || !isModLoaded("trinkets")) return java.util.Map.of();
+        return TrinketsWatchCompat.getEquippedWatchSlots(player);
+    }
+
+    @Override
     public String getPlatformName() {
         return "Fabric";
     }

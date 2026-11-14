@@ -12,7 +12,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public class ForgeNetworkHelper implements INetworkHelper {
-    private static final String PROTOCOL_VERSION = "9";
+    private static final String PROTOCOL_VERSION = "19";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(TimeStopMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -41,14 +41,19 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerServer(SingleFireProjectilePacket.class, SingleFireProjectilePacket::new);
         registerServer(TranspositionSwapPacket.class, TranspositionSwapPacket::new);
         registerServer(SetWatchScopePacket.class, SetWatchScopePacket::new);
+        registerServer(SetWatchRadiusPacket.class, SetWatchRadiusPacket::new);
         registerServer(KineticPalmActionPacket.class, KineticPalmActionPacket::new);
         registerServer(FlipCoinPacket.class, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.class, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.class, UpdateSpeedConfigPacket::new);
+        registerServer(UpdateSwimmingConfigPacket.class, UpdateSwimmingConfigPacket::new);
+        registerServer(com.timestop.network.SetCasualAccelerationPacket.class, com.timestop.network.SetCasualAccelerationPacket::new);
         registerServer(ToggleMatrixRunePacket.class, ToggleMatrixRunePacket::new);
         registerServer(SetRewindExemptPacket.class, SetRewindExemptPacket::new);
 
         // Clientbound packets
+        registerClient(PredictionSnapshotPacket.class, PredictionSnapshotPacket::new);
+        registerClient(ProjectileOwnerSyncPacket.class, ProjectileOwnerSyncPacket::new);
         registerClient(TimeStopSyncPacket.class, TimeStopSyncPacket::new);
         registerClient(SyncSpeedConfigPacket.class, SyncSpeedConfigPacket::new);
         registerClient(SyncOrbitCountPacket.class, SyncOrbitCountPacket::new);

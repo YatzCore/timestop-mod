@@ -14,6 +14,8 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
     private final double superhotIdle;
     private final double decelerationDrag;
     private final double rewindSpeed;
+    private double prediction = 0.25;
+    private boolean waterWalking = true;
 
     public SyncSpeedConfigPacket(double fastForward, double slowMotion, double matrix, double superhotIdle, double decelerationDrag, double rewindSpeed) {
         this.fastForward = fastForward;
@@ -22,6 +24,8 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
         this.superhotIdle = superhotIdle;
         this.decelerationDrag = decelerationDrag;
         this.rewindSpeed = rewindSpeed;
+        this.prediction = TimeStopConfig.COMMON.predictionRate.get();
+        this.waterWalking = TimeStopConfig.COMMON.enableWaterWalkingInStasis.get();
     }
 
     public static SyncSpeedConfigPacket current() {
@@ -42,6 +46,8 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
         this.superhotIdle = buf.readDouble();
         this.decelerationDrag = buf.readDouble();
         this.rewindSpeed = buf.isReadable() ? buf.readDouble() : 1.0;
+        this.prediction = buf.isReadable() ? TimeStopConfig.clampPrediction(buf.readDouble()) : 0.25;
+        this.waterWalking = buf.isReadable() ? buf.readBoolean() : true;
     }
 
     @Override
@@ -57,16 +63,22 @@ public class SyncSpeedConfigPacket implements IClientboundPacket {
         buf.writeDouble(this.superhotIdle);
         buf.writeDouble(this.decelerationDrag);
         buf.writeDouble(this.rewindSpeed);
+        buf.writeDouble(this.prediction);
+        buf.writeBoolean(this.waterWalking);
     }
 
     @Override
     public void handleClient() {
+        // On someone else's server these values are borrowed: keep our own for the config file and for after we leave.
+        if (!net.minecraft.client.Minecraft.getInstance().hasSingleplayerServer()) TimeStopConfig.beginRemoteSync();
         TimeStopConfig.COMMON.fastForwardRate.set(this.fastForward);
         TimeStopConfig.COMMON.slowMotionRate.set(this.slowMotion);
         TimeStopConfig.COMMON.matrixRate.set(this.matrix);
         TimeStopConfig.COMMON.superhotIdleRate.set(this.superhotIdle);
         TimeStopConfig.COMMON.decelerationDrag.set(this.decelerationDrag);
         TimeStopConfig.COMMON.rewindSpeed.set(this.rewindSpeed);
+        TimeStopConfig.COMMON.predictionRate.set(this.prediction);
+        TimeStopConfig.COMMON.enableWaterWalkingInStasis.set(this.waterWalking);
 
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.screen instanceof com.timestop.client.gui.TimeStopSettingsScreen settingsScreen) {

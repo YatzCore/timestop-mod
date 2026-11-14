@@ -10,24 +10,29 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.item.ItemStack;
 
 public class ToggleMatrixRunePacket implements IServerboundPacket {
     public static final ResourceLocation ID = new ResourceLocation(TimeStopMod.MOD_ID, "toggle_matrix_rune");
-    private final InteractionHand hand;
+    private final WatchTarget target;
     private final RuneType runeType;
     private final boolean enable;
     private final boolean all;
 
     public ToggleMatrixRunePacket(InteractionHand hand, RuneType runeType, boolean enable, boolean all) {
-        this.hand = hand;
+        this(WatchTarget.inHand(hand), runeType, enable, all);
+    }
+
+    public ToggleMatrixRunePacket(WatchTarget target, RuneType runeType, boolean enable, boolean all) {
+        this.target = target;
         this.runeType = runeType != null ? runeType : RuneType.BLANK;
         this.enable = enable;
         this.all = all;
     }
 
     public ToggleMatrixRunePacket(FriendlyByteBuf buf) {
-        this.hand = buf.readEnum(InteractionHand.class);
+        this.target = WatchTarget.read(buf);
         this.runeType = buf.readEnum(RuneType.class);
         this.enable = buf.readBoolean();
         this.all = buf.readBoolean();
@@ -40,7 +45,7 @@ public class ToggleMatrixRunePacket implements IServerboundPacket {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeEnum(this.hand);
+        this.target.write(buf);
         buf.writeEnum(this.runeType);
         buf.writeBoolean(this.enable);
         buf.writeBoolean(this.all);
@@ -49,7 +54,7 @@ public class ToggleMatrixRunePacket implements IServerboundPacket {
     @Override
     public void handle(ServerPlayer player) {
         if (player != null) {
-            ItemStack watchStack = player.getItemInHand(this.hand);
+            ItemStack watchStack = this.target.resolve(player);
             if (watchStack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE) {
                 if (this.all) {
                     AbstractWatchItem.setAllMatrixRunes(watchStack, this.enable);

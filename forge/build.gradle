@@ -35,11 +35,18 @@ mixin {
 }
 
 dependencies {
+    compileOnly "top.theillusivec4.curios:curios-forge:${project.curios_version}:api"
+    if (providers.gradleProperty('accessoryRuntime').orElse('true').get().toBoolean()) {
+        modRuntimeOnly "top.theillusivec4.curios:curios-forge:${project.curios_version}"
+    }
+
     compileOnly project(':common')
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 tasks.named('processResources', ProcessResources) {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 

@@ -6,7 +6,8 @@
   "refmap": "timestop.refmap.json",
   "mixins": [
     "EntityDataSaverMixin",
-    "FabricProjectileImpactMixin"
+    "FabricProjectileImpactMixin",
+    "PlayerBreakSpeedMixin"
   ],
   "client": [
     "SoundEngineMixin",

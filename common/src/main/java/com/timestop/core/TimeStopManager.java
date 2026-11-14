@@ -54,6 +54,7 @@ public class TimeStopManager {
         public int hitCount = 0;
         public double totalDamageBonus = 0.0;
         public boolean originalNoGravity;
+        public boolean straightFlight;
         @Nullable
         public UUID originalShooterUuid = null;
         @Nullable
@@ -72,8 +73,9 @@ public class TimeStopManager {
         }
 
         public void addPunch(Projectile projectile, Player player) {
-            if (com.timestop.combat.ProjectileRedirection.usesLook(player)) {
-                this.direction = player.getLookAngle().normalize();
+            this.straightFlight = com.timestop.combat.ProjectileRedirection.usesLook(player);
+            if (this.straightFlight) {
+                this.direction = com.timestop.combat.ProjectileRedirection.lookDirection(projectile, player);
             } else if (this.hitCount == 0) {
                 // 1st time hit: lock return trajectory towards original shooter!
                 Level level = projectile.level();
@@ -177,6 +179,8 @@ public class TimeStopManager {
             switch (currentMode) {
                 case FAST_FORWARD:
                     return (long) Math.max(10L, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get()));
+                case TIME_PREDICTION:
+                    return 50L; // Prediction never throttles the world/network clock.
                 case SLOW_MOTION:
                     return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get()));
                 case MATRIX:
@@ -520,6 +524,7 @@ public class TimeStopManager {
                     level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
                             SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 2.5F, 0.6F);
                     break;
+                case TIME_PREDICTION:
                 case SLOW_MOTION:
                     level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
                             SoundEvents.CONDUIT_DEACTIVATE, SoundSource.PLAYERS, 2.0F, 0.5F);
@@ -939,6 +944,8 @@ public class TimeStopManager {
         projectile.setNoGravity(true);
         projectile.setOwner(player);
 
+        ModMessages.sendToTracking(new com.timestop.network.ProjectileOwnerSyncPacket(projectile), projectile);
+
         Vec3 dir = data.direction;
         double horiz = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
         float yRot = (float) (Mth.atan2(dir.x, dir.z) * (180.0D / Math.PI));
@@ -1006,8 +1013,11 @@ public class TimeStopManager {
         com.timestop.combat.ProjectileRedirection.clearGuidance(projectile);
 
         double speed = Math.max(1.8, projectile.getDeltaMovement().length() * 1.35);
+        com.timestop.combat.ProjectileRedirection.setStraightFlight(projectile, com.timestop.combat.ProjectileRedirection.usesLook(player));
         projectile.setDeltaMovement(returnDir.scale(speed));
         projectile.setOwner(player);
+
+        ModMessages.sendToTracking(new com.timestop.network.ProjectileOwnerSyncPacket(projectile), projectile);
 
         if (projectile instanceof AbstractHurtingProjectile hurting) {
             hurting.xPower = returnDir.x * 0.1D;
@@ -1112,6 +1122,7 @@ public class TimeStopManager {
             Vec3 velocity = data.getDischargeVelocity();
 
             projectile.setNoGravity(data.originalNoGravity);
+            if (data.hitCount > 0) com.timestop.combat.ProjectileRedirection.setStraightFlight(projectile, data.straightFlight);
             projectile.setDeltaMovement(velocity);
 
             double horiz = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);

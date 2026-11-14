@@ -24,6 +24,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
         FabricNetworkHelper.registerClientReceivers();
 
         // 2. Keybindings
+        KeyBindingHelper.registerKeyBinding(ModKeyBindings.OPEN_WATCH_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.TIME_STOP_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.RELEASE_PROJECTILES_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.TRANSPOSITION_KEY);
@@ -33,6 +34,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.KINETIC_BARRIER_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.OPEN_SETTINGS_KEY);
+        KeyBindingHelper.registerKeyBinding(ModKeyBindings.TOGGLE_VARIANT_KEY);
 
         // 3. Entity Renderers
         EntityRendererRegistry.register(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);
@@ -74,6 +76,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
         // 6. World Rendering & Render Ticks
         WorldRenderEvents.START.register(context -> ModClientEvents.onRenderTick(context.tickDelta()));
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
+            com.timestop.client.PredictionRenderer.render(context.matrixStack(), context.camera(), context.tickDelta());
             DeadEyeRenderer.renderWorld(context.matrixStack(), context.camera(), context.tickDelta());
             TemporalBubbleRenderer.renderLevel(context.matrixStack(), context.camera(), context.tickDelta());
             KineticPalmRenderer.renderLevel(context.matrixStack(), context.camera(), context.tickDelta());

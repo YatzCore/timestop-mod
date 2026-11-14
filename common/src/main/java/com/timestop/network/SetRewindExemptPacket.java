@@ -10,20 +10,25 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.item.ItemStack;
 
 public class SetRewindExemptPacket implements IServerboundPacket {
     public static final ResourceLocation ID = new ResourceLocation(TimeStopMod.MOD_ID, "set_rewind_exempt");
-    private final InteractionHand hand;
+    private final WatchTarget target;
     private final boolean exempt;
 
     public SetRewindExemptPacket(InteractionHand hand, boolean exempt) {
-        this.hand = hand;
+        this(WatchTarget.inHand(hand), exempt);
+    }
+
+    public SetRewindExemptPacket(WatchTarget target, boolean exempt) {
+        this.target = target;
         this.exempt = exempt;
     }
 
     public SetRewindExemptPacket(FriendlyByteBuf buf) {
-        this.hand = buf.readEnum(InteractionHand.class);
+        this.target = WatchTarget.read(buf);
         this.exempt = buf.readBoolean();
     }
 
@@ -34,7 +39,7 @@ public class SetRewindExemptPacket implements IServerboundPacket {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeEnum(this.hand);
+        this.target.write(buf);
         buf.writeBoolean(this.exempt);
     }
 
@@ -44,7 +49,7 @@ public class SetRewindExemptPacket implements IServerboundPacket {
             if (!TimeStopManager.isRewindExemptAllowed()) {
                 return;
             }
-            ItemStack watchStack = player.getItemInHand(this.hand);
+            ItemStack watchStack = this.target.resolve(player);
             if (watchStack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE) {
                 AbstractWatchItem.setRewindInitiatorExempt(watchStack, this.exempt);
                 player.inventoryMenu.broadcastChanges();

@@ -42,6 +42,7 @@ public class ForgeClientSetup {
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {
+        event.register(ModKeyBindings.OPEN_WATCH_KEY);
         event.register(ModKeyBindings.TIME_STOP_KEY);
         event.register(ModKeyBindings.RELEASE_PROJECTILES_KEY);
         event.register(ModKeyBindings.TRANSPOSITION_KEY);
@@ -51,6 +52,7 @@ public class ForgeClientSetup {
         event.register(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         event.register(ModKeyBindings.KINETIC_BARRIER_KEY);
         event.register(ModKeyBindings.OPEN_SETTINGS_KEY);
+        event.register(ModKeyBindings.TOGGLE_VARIANT_KEY);
     }
 
     public static void registerOverlays(RegisterGuiOverlaysEvent event) {
@@ -125,6 +127,7 @@ public class ForgeClientSetup {
         @SubscribeEvent
         public void onRenderLevelStage(RenderLevelStageEvent event) {
             if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+                com.timestop.client.PredictionRenderer.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
                 DeadEyeRenderer.renderWorld(event.getPoseStack(), event.getCamera(), event.getPartialTick());
                 TemporalBubbleRenderer.renderLevel(event.getPoseStack(), event.getCamera(), event.getPartialTick());
                 KineticPalmRenderer.renderLevel(event.getPoseStack(), event.getCamera(), event.getPartialTick());

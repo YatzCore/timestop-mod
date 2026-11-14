@@ -1,0 +1,24 @@
+// Opt-in compatibility QA: adds production (SRG-named) Forge mod jars to the dev runtime, remapped by ModDevGradle.
+// Forge 1.20.1 dev runs cannot load production jars from a mods folder, so they are added as dependencies instead.
+//   gradlew -I integration/readiness/deceleration-native.init.gradle -I integration/readiness/compat-mods.init.gradle
+//           "-PcompatMods=<folder with jars>" :forge:runDecelerationTests
+// Use prediction-visual.init.gradle + :forge:runPredictionVisual for a real client. Nothing here is released.
+gradle.beforeProject { p ->
+    if (p.name != 'forge') return
+    p.plugins.withId('net.neoforged.moddev.legacyforge') {
+        def dir = p.rootProject.findProperty('compatMods')
+        if (!dir) return
+        def staged = p.file('build/compat-mods-dependency')
+        p.delete(staged)
+        staged.mkdirs()
+        def jars = new File(dir.toString()).listFiles().findAll { it.name.endsWith('.jar') }.sort { it.name }
+        if (jars.isEmpty()) throw new GradleException("No jars in ${dir}")
+        p.repositories.flatDir { dirs staged }
+        jars.eachWithIndex { jar, i ->
+            def id = "compatmod${i}"
+            p.copy { from jar; into staged; rename { "${id}-1.jar" } }
+            p.dependencies.add('modRuntimeOnly', "compatqa:${id}:1")
+            p.logger.lifecycle("Compatibility mod: ${jar.name}")
+        }
+    }
+}

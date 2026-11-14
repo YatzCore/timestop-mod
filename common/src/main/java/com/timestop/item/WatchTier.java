@@ -59,7 +59,7 @@ public enum WatchTier {
             0x8B5CF6, // Twilight Purple
             true,
             true, // 1 Rune Socket
-            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND, TimeMode.TIME_PREDICTION)
     ),
     CREATIVE(
             5,
@@ -72,7 +72,7 @@ public enum WatchTier {
             0xEC4899, // Cosmic Pink
             true,
             true, // 1 Rune Socket
-            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND)
+            java.util.List.of(TimeMode.SLOW_MOTION, TimeMode.FAST_FORWARD, TimeMode.DECELERATION_FIELD, TimeMode.SUPERHOT, TimeMode.MATRIX, TimeMode.TIME_STOP, TimeMode.REWIND, TimeMode.TIME_PREDICTION)
     );
 
     private final int tierLevel;
@@ -186,7 +186,7 @@ public enum WatchTier {
         if (mode == TimeMode.REWIND && !com.timestop.core.TimeStopManager.isRewindAllowed()) {
             return false;
         }
-        return unlockedModes.contains(mode);
+        return unlockedModes.contains(mode.baseMode());
     }
 
     public static WatchTier getMinimumTierFor(TimeMode mode) {

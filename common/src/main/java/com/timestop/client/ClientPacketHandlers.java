@@ -11,11 +11,19 @@ import java.util.UUID;
 public final class ClientPacketHandlers {
     private ClientPacketHandlers() {}
 
-    public static void syncRune(InteractionHand hand, ItemStack rune) {
+    public static void syncProjectileOwner(int entityId, UUID uuid, int ownerId) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || !(level.getEntity(entityId) instanceof net.minecraft.world.entity.projectile.Projectile projectile)
+                || !uuid.equals(projectile.getUUID())) return;
+        var owner = level.getEntity(ownerId);
+        if (ownerId == -1 || owner != null) projectile.setOwner(owner);
+    }
+
+    public static void syncRune(com.timestop.item.WatchTarget target, ItemStack rune) {
         var minecraft = Minecraft.getInstance();
         if (minecraft.player == null) return;
         // Vanilla container synchronization owns inventory; an acknowledgement must not modify a newly selected watch.
-        if (minecraft.screen instanceof TimeModeSelectionScreen screen) screen.onServerSync(rune);
+        if (minecraft.screen instanceof TimeModeSelectionScreen screen && screen.matchesTarget(target)) screen.onServerSync(rune);
     }
 
     public static void syncKineticCapture(int entityId, UUID owner, boolean captured, net.minecraft.world.phys.Vec3 position) {

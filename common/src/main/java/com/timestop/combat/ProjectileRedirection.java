@@ -7,6 +7,10 @@ import com.timestop.item.rune.TemporalRuneItem;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class ProjectileRedirection {
@@ -18,6 +22,10 @@ public final class ProjectileRedirection {
         // Vector Control is a modifier and can accompany the barrier rune in another watch or hand.
         if (player.getOffhandItem().getItem() instanceof TemporalRuneItem r && r.getType() == RuneType.VECTOR) return true;
         if (player.getMainHandItem().getItem() instanceof TemporalRuneItem r && r.getType() == RuneType.VECTOR) return true;
+        for (var stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch
+                    && AbstractWatchItem.getSocketedRuneType(stack) == RuneType.VECTOR) return true;
+        }
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             var stack = player.getInventory().getItem(i);
             if (stack.getItem() instanceof AbstractWatchItem
@@ -28,12 +36,37 @@ public final class ProjectileRedirection {
     }
 
     public static Vec3 direction(Projectile projectile, Player player, Entity shooter, Vec3 originalVelocity) {
-        if (usesLook(player)) return player.getLookAngle().normalize();
+        if (usesLook(player)) return lookDirection(projectile, player);
         if (shooter != null && shooter != player && shooter.isAlive()) {
             Vec3 toward = shooter.getEyePosition().subtract(projectile.position());
             if (toward.lengthSqr() > 1e-8) return toward.normalize();
         }
         return originalVelocity.lengthSqr() > 1e-8 ? originalVelocity.reverse().normalize() : player.getLookAngle().normalize();
+    }
+
+    /** Resolve the eye's aim ray, then converge from each projectile's own position. */
+    public static Vec3 lookDirection(Projectile projectile, Player player) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getLookAngle().normalize().scale(256));
+        Vec3 target = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player)).getLocation();
+        var hit = ProjectileUtil.getEntityHitResult(player, eye, target, new AABB(eye, target).inflate(1),
+                entity -> entity != projectile && !entity.isSpectator() && entity.isPickable(), eye.distanceToSqr(target));
+        if (hit != null) target = hit.getLocation();
+        Vec3 toward = target.subtract(projectile.position());
+        return toward.lengthSqr() > 1e-8 ? toward.normalize() : player.getLookAngle().normalize();
+    }
+
+    /** Gravity would pull a crosshair-directed arrow below its resolved target. */
+    public static void setStraightFlight(Projectile projectile, boolean enabled) {
+        if (!(projectile instanceof AbstractArrow)) return;
+        var data = com.timestop.platform.EntityDataHelper.getPersistentData(projectile);
+        if (enabled) {
+            if (!data.contains("VectorOriginalNoGravity")) data.putBoolean("VectorOriginalNoGravity", projectile.isNoGravity());
+            projectile.setNoGravity(true);
+        } else if (data.contains("VectorOriginalNoGravity")) {
+            projectile.setNoGravity(data.getBoolean("VectorOriginalNoGravity"));
+            data.remove("VectorOriginalNoGravity");
+        }
     }
 
     public static void clearGuidance(Projectile projectile) {

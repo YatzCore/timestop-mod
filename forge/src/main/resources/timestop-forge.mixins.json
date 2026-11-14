@@ -6,7 +6,8 @@
   "refmap": "timestop.refmap.json",
   "mixins": [
     "TaczDeadEyeShotMixin",
-    "TaczDeadEyeBulletMixin"
+    "TaczDeadEyeBulletMixin",
+    "ForgePlayerDigSpeedMixin"
   ],
   "injectors": {
     "defaultRequire": 1

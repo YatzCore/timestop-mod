@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="timestop"
-version="1.6.2"
+version="${version}"
 displayName="Ultimate Time Stop"
 authors="YatzCore"
 description='''
@@ -29,4 +29,11 @@ config="timestop-forge.mixins.json"
     mandatory=true
     versionRange="[1.20.1,1.20.2)"
     ordering="NONE"
+    side="BOTH"
+
+[[dependencies.timestop]]
+    modId="curios"
+    mandatory=false
+    versionRange="[5.9.1,6)"
+    ordering="AFTER"
     side="BOTH"

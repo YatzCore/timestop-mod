@@ -269,6 +269,12 @@ public class TemporalBubble {
      * Calculates the time dilation speed factor for an entity inside this bubble.
      */
     public float getTimeDilationFactor(Entity entity) {
+        // Projectile movement/tick hooks handle this mode; the rest of the world stays normal.
+        if (mode == TimeMode.DECELERATION_FIELD) return 1.0F;
+            if (mode == TimeMode.SELF_ACCELERATION) return 1.0F;
+            if (mode == TimeMode.COMBAT_SLOW) return entity instanceof net.minecraft.world.entity.Mob
+                    || entity instanceof net.minecraft.world.entity.projectile.Projectile
+                    ? com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue() : 1.0F;
         if (canEntityAct(entity)) return 1.0F;
         if (stationary && mode == TimeMode.SLOW_MOTION) return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
         if (stationary && mode == TimeMode.FAST_FORWARD) return com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get().floatValue();
@@ -283,7 +289,9 @@ public class TemporalBubble {
         switch (mode) {
             case TIME_STOP:
                 return 0.0F;
-            case SLOW_MOTION:
+            case TIME_PREDICTION:
+                    return com.timestop.config.TimeStopConfig.COMMON.predictionRate.get().floatValue();
+                case SLOW_MOTION:
             case MATRIX:
                 return 0.25F;
             case FAST_FORWARD:

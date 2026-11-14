@@ -21,6 +21,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public abstract class AbstractWatchItem extends Item {
+    public static final int MIN_CREATIVE_RADIUS = 1;
+    public static final int MAX_CREATIVE_RADIUS = 512;
     protected final WatchTier tier;
 
     public AbstractWatchItem(Properties properties, WatchTier tier) {
@@ -38,6 +40,13 @@ public abstract class AbstractWatchItem extends Item {
         if (player.getOffhandItem().getItem() instanceof AbstractWatchItem) return player.getOffhandItem();
         ItemStack best = ItemStack.EMPTY;
         int bestTier = -1;
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier().getTierLevel() > bestTier) {
+                best = stack;
+                bestTier = watch.getTier().getTierLevel();
+            }
+        }
+        if (!best.isEmpty()) return best;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
             if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier().getTierLevel() > bestTier) {
@@ -66,6 +75,20 @@ public abstract class AbstractWatchItem extends Item {
 
     public static void setMode(ItemStack stack, TimeMode mode) {
         stack.getOrCreateTag().putString("TimeMode", mode.name());
+        if (mode.hasVariant()) stack.getOrCreateTag().putString("Variant_" + mode.baseMode().name(), mode.name());
+    }
+
+    /** Last variant chosen for a Slow Motion / Fast Forward card (World variant if never chosen). */
+    public static TimeMode getPreferredVariant(ItemStack stack, TimeMode base) {
+        if (!base.hasVariant()) return base;
+        base = base.baseMode();
+        if (stack.hasTag() && stack.getTag().contains("Variant_" + base.name())) {
+            try {
+                TimeMode mode = TimeMode.valueOf(stack.getTag().getString("Variant_" + base.name()));
+                if (mode.baseMode() == base) return mode;
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return base;
     }
 
     public static boolean isGlobalScope(ItemStack stack) {
@@ -83,6 +106,20 @@ public abstract class AbstractWatchItem extends Item {
 
     public static void setGlobalScope(ItemStack stack, boolean global) {
         stack.getOrCreateTag().putBoolean("GlobalScope", global);
+    }
+
+    public static double getBubbleRadius(ItemStack stack) {
+        if (!(stack.getItem() instanceof AbstractWatchItem watch)) return WatchTier.CREATIVE.getBubbleRadius();
+        if (watch.getTier() == WatchTier.CREATIVE && stack.hasTag() && stack.getTag().contains("BubbleRadius", Tag.TAG_ANY_NUMERIC)) {
+            return Math.max(MIN_CREATIVE_RADIUS, Math.min(MAX_CREATIVE_RADIUS, stack.getTag().getInt("BubbleRadius")));
+        }
+        return watch.getTier().getBubbleRadius();
+    }
+
+    public static void setBubbleRadius(ItemStack stack, int radius) {
+        if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE) {
+            stack.getOrCreateTag().putInt("BubbleRadius", Math.max(MIN_CREATIVE_RADIUS, Math.min(MAX_CREATIVE_RADIUS, radius)));
+        }
     }
 
     public static ItemStack getSocketedRune(ItemStack stack) {
@@ -354,7 +391,7 @@ public abstract class AbstractWatchItem extends Item {
         String durationStr = tier.getDurationTicks() == 0 ? "Unlimited" : (tier.getDurationTicks() / 20) + "s";
         String cooldownStr = tier.getCooldownTicks() == 0 ? "None" : (tier.getCooldownTicks() / 20) + "s";
         tooltipComponents.add(Component.literal("- Domain Radius: ").withStyle(ChatFormatting.GRAY)
-                .append(Component.literal((int) tier.getBubbleRadius() + "m").withStyle(ChatFormatting.AQUA))
+                .append(Component.literal((int) getBubbleRadius(stack) + "m").withStyle(ChatFormatting.AQUA))
                 .append(Component.literal(" | Duration: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(durationStr).withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(" | Cooldown: ").withStyle(ChatFormatting.GRAY))

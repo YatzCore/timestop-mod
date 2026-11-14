@@ -6,6 +6,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.timestop.fabric.test.FabricRegressionTests",
+      "com.timestop.fabric.test.WatchRadiusAndAimTests",
       "com.timestop.fabric.test.RewindRegressionTests",
       "com.timestop.fabric.test.ExplosionRewindTests",
       "com.timestop.fabric.test.BlockAnimationTests",
@@ -18,11 +19,23 @@
       "com.timestop.fabric.test.BurstRewindTests",
       "com.timestop.fabric.test.PedestalTests",
       "com.timestop.fabric.test.ObservatoryTests",
-      "com.timestop.fabric.test.RewindAllowedCommandTests"
+      "com.timestop.fabric.test.RewindAllowedCommandTests",
+      "com.timestop.fabric.test.DecelerationFieldTests",
+      "com.timestop.fabric.test.PredictionTests",
+      "com.timestop.fabric.test.PredictionOutcomeTests",
+      "com.timestop.fabric.test.PredictionAccuracyTests",
+      "com.timestop.fabric.test.TimeVariantsTests",
+      "com.timestop.fabric.test.EdgeCaseTests"
     ],
     "client": [
+      "com.timestop.fabric.test.WatchRadiusVisualQa",
+      "com.timestop.fabric.test.PredictionVisualQa",
       "com.timestop.fabric.test.PedestalVisualQa",
-      "com.timestop.fabric.test.ObservatoryVisualQa"
+      "com.timestop.fabric.test.ObservatoryVisualQa",
+      "com.timestop.fabric.test.MovementQa"
+    ],
+    "server": [
+      "com.timestop.fabric.test.MovementQaServer"
     ]
   },
   "depends": {

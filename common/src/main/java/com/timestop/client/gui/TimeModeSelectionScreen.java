@@ -19,6 +19,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
@@ -49,7 +50,7 @@ public class TimeModeSelectionScreen extends Screen {
             RuneType.REWIND
     );
 
-    private final InteractionHand hand;
+    private final WatchTarget target;
     private TimeMode currentMode = TimeMode.TIME_STOP;
     private WatchTier currentTier = WatchTier.COPPER;
     private ItemStack watchStack = ItemStack.EMPTY;
@@ -91,9 +92,15 @@ public class TimeModeSelectionScreen extends Screen {
     );
 
     public TimeModeSelectionScreen(InteractionHand hand) {
-        super(Component.literal("Watch Interface"));
-        this.hand = hand;
+        this(WatchTarget.inHand(hand));
     }
+
+    public TimeModeSelectionScreen(WatchTarget target) {
+        super(Component.literal("Watch Interface"));
+        this.target = target;
+    }
+
+    public boolean matchesTarget(WatchTarget target) { return this.target.equals(target); }
 
     @Override
     protected void init() {
@@ -119,7 +126,11 @@ public class TimeModeSelectionScreen extends Screen {
         this.availableRunes.clear();
 
         if (player != null) {
-            this.watchStack = player.getItemInHand(this.hand);
+            this.watchStack = this.target.resolve(player);
+            if (this.watchStack.isEmpty()) {
+                Minecraft.getInstance().setScreen(null);
+                return;
+            }
             this.currentMode = AbstractWatchItem.getMode(this.watchStack);
             this.socketedRune = AbstractWatchItem.getSocketedRune(this.watchStack);
             if (this.watchStack.getItem() instanceof AbstractWatchItem watch) {
@@ -128,9 +139,8 @@ public class TimeModeSelectionScreen extends Screen {
 
             // Scan inventory for usable tactical runes if watch supports sockets
             if (this.currentTier.hasRuneSocket()) {
-                int watchSlot = (this.hand == InteractionHand.MAIN_HAND) ? player.getInventory().selected : 40;
                 for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-                    if (i == watchSlot) continue; // Never scan the watch itself
+                    if (player.getInventory().getItem(i) == this.watchStack) continue; // Never scan the watch itself
                     ItemStack invStack = player.getInventory().getItem(i);
                     if (!invStack.isEmpty() && invStack.getCount() > 0 && invStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
                         this.availableRunes.add(new InventoryRuneEntry(i, invStack, runeItem.getType()));
@@ -164,8 +174,8 @@ public class TimeModeSelectionScreen extends Screen {
         }
         int modeCount = getDisplayModes().size();
         int rows = Math.max(1, (modeCount + 1) / 2);
-        int extra = (this.currentTier == WatchTier.CREATIVE) ? 20 : 0;
-        return 224 + (rows - 2) * 37 + extra;
+        if (this.currentTier == WatchTier.CREATIVE) return 141 + rows * 34;
+        return 224 + (rows - 2) * 37;
     }
 
     @Override
@@ -249,6 +259,15 @@ public class TimeModeSelectionScreen extends Screen {
         guiGraphics.fill(modalX + 12, modalY + 26, modalX + modalWidth - 12, modalY + 27, 0x22FFFFFF);
 
         int currentY = modalY + 32;
+
+        if (this.currentTier == WatchTier.CREATIVE) {
+            String label = "Bubble radius: " + (int) AbstractWatchItem.getBubbleRadius(this.watchStack) + " blocks  [Edit]";
+            boolean hovered = mouseX >= modalX + 14 && mouseX <= modalX + modalWidth - 14
+                    && mouseY >= currentY && mouseY <= currentY + 16;
+            guiGraphics.fill(modalX + 14, currentY, modalX + modalWidth - 14, currentY + 16, hovered ? 0x88421438 : 0x44280E23);
+            guiGraphics.drawString(this.font, label, modalX + 18, currentY + 4, hovered ? 0xFFF472B6 : 0xFF94A3B8, false);
+            currentY += 22;
+        }
 
         // 3. Socket Row & Rune Tray (or Rune Matrix for Creative Watch)
         if (this.currentTier == WatchTier.CREATIVE) {
@@ -440,7 +459,7 @@ public class TimeModeSelectionScreen extends Screen {
                 TimeMode mode = displayModes.get(i);
                 int cy = currentY + i * (cardH + gapY);
                 boolean isHovered = mouseX >= modalX + 12 && mouseX <= modalX + 12 + cardW && mouseY >= cy && mouseY <= cy + cardH;
-                boolean isSelected = (mode == this.currentMode);
+                boolean isSelected = (mode == this.currentMode.baseMode());
 
                 renderModeCard(guiGraphics, theme, modalX + 12, cy, cardW, cardH, mode, i + 1, isSelected, isHovered);
                 if (isHovered) hoveredMode = mode;
@@ -460,7 +479,7 @@ public class TimeModeSelectionScreen extends Screen {
                 int cy = currentY + row * (cardH + gapY);
 
                 boolean isHovered = mouseX >= cx && mouseX <= cx + cardW && mouseY >= cy && mouseY <= cy + cardH;
-                boolean isSelected = (mode == this.currentMode);
+                boolean isSelected = (mode == this.currentMode.baseMode());
 
                 renderModeCard(guiGraphics, theme, cx, cy, cardW, cardH, mode, i + 1, isSelected, isHovered);
 
@@ -514,7 +533,18 @@ public class TimeModeSelectionScreen extends Screen {
         if (hoveredChipTooltip != null) {
             guiGraphics.renderTooltip(this.font, hoveredChipTooltip, mouseX, mouseY);
         } else if (hoveredMode != null) {
-            guiGraphics.renderTooltip(this.font, Component.literal(getCleanDescription(hoveredMode)), mouseX, mouseY);
+            TimeMode hoveredVariant = variantAt(mouseX, mouseY);
+            TimeMode described = hoveredVariant != null ? hoveredVariant : cardVariant(hoveredMode);
+            List<net.minecraft.util.FormattedCharSequence> lines = new ArrayList<>();
+            lines.add(Component.literal(described.getDisplayName()).withStyle(described.getTitleColor(), ChatFormatting.BOLD).getVisualOrderText());
+            lines.addAll(this.font.split(Component.literal(described.describe()).withStyle(ChatFormatting.GRAY), 220));
+            if (hoveredMode.hasVariant()) {
+                lines.addAll(this.font.split(Component.literal("Click World or " + hoveredMode.alternate().variantLabel()
+                        + " to pick it. Scroll, right-click or press " + (displayIndex(hoveredMode) + 1)
+                        + " again to switch. In game: " + com.timestop.client.ModKeyBindings.TOGGLE_VARIANT_KEY.getTranslatedKeyMessage().getString()
+                        + " switches without opening the watch.").withStyle(ChatFormatting.DARK_GRAY), 220));
+            }
+            guiGraphics.renderTooltip(this.font, lines, mouseX, mouseY);
         }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
@@ -537,11 +567,30 @@ public class TimeModeSelectionScreen extends Screen {
 
         String keyText = "[" + hotkeyNum + "] ";
         int keyW = this.font.width(keyText);
-        guiGraphics.drawString(this.font, keyText, textX, textY, 0xFF64748B, false);
+        if (!mode.hasVariant()) guiGraphics.drawString(this.font, keyText, textX, textY, 0xFF64748B, false);
 
         int nameColor = isSelected ? theme.accent : (isHovered ? 0xFFFFFFFF : 0xFFE2E8F0);
-        guiGraphics.drawString(this.font, mode.getDisplayName(), textX + keyW, textY, nameColor, false);
 
+        if (mode.hasVariant()) {
+            // Two lines: the card name, then a World / Combat (or World / Self) picker.
+            int titleY = y + (h - 19) / 2;
+            int pickerY = titleY + 11;
+            guiGraphics.drawString(this.font, keyText, textX, titleY, 0xFF64748B, false);
+            guiGraphics.drawString(this.font, mode.getDisplayName(), textX + keyW, titleY, nameColor, false);
+            TimeMode active = cardVariant(mode);
+            for (TimeMode option : new TimeMode[]{mode, mode.alternate()}) {
+                int[] r = variantLabelRect(option, textX + keyW, pickerY);
+                boolean on = option == active;
+                int color = on ? (isSelected ? theme.accent : 0xFFE2E8F0) : 0xFF64748B;
+                guiGraphics.drawString(this.font, option.variantLabel(), r[0], pickerY, color, false);
+                if (on) guiGraphics.fill(r[0], pickerY + 9, r[0] + r[2], pickerY + 10, color);
+            }
+            guiGraphics.drawString(this.font, "·", variantLabelRect(mode, textX + keyW, pickerY)[0]
+                    + this.font.width(mode.variantLabel()) + 3, pickerY, 0xFF475569, false);
+            return;
+        }
+
+        guiGraphics.drawString(this.font, mode.getDisplayName(), textX + keyW, textY, nameColor, false);
         if (isSelected) {
             guiGraphics.drawString(this.font, "●", x + w - 12, textY, theme.accent, false);
         }
@@ -557,16 +606,56 @@ public class TimeModeSelectionScreen extends Screen {
         };
     }
 
-    private static String getCleanDescription(TimeMode mode) {
-        return switch (mode) {
-            case TIME_STOP -> "Freezes all entity movement and physical interactions.";
-            case SLOW_MOTION -> "Slows world entities to 25% speed while you remain accelerated.";
-            case MATRIX -> "Grants hyper-speed player reflexes and attack speed.";
-            case SUPERHOT -> "Time moves only when you physically move or attack.";
-            case DECELERATION_FIELD -> "Creates an 80% projectile slowing field around you.";
-            case FAST_FORWARD -> "Accelerates world time and crop growth by 500%.";
-            case REWIND -> "Rewinds blocks, entities, and player state backwards in time.";
-        };
+    /** The variant a card currently shows: the active one if selected, otherwise the watch's remembered choice. */
+    private TimeMode cardVariant(TimeMode card) {
+        if (!card.hasVariant()) return card;
+        return card == this.currentMode.baseMode() ? this.currentMode : AbstractWatchItem.getPreferredVariant(this.watchStack, card);
+    }
+
+    private int displayIndex(TimeMode card) {
+        return getDisplayModes().indexOf(card.baseMode());
+    }
+
+    /** {x, y, w, h} of card i; mirrors the layout used by render(). */
+    private int[] cardRect(int i) {
+        int mw = getModalWidth(), mx = (width - mw) / 2, my = (height - getModalHeight()) / 2;
+        int top = my + (currentTier == WatchTier.CREATIVE ? 123 : currentTier.hasRuneSocket() ? 86 : 32);
+        if (currentTier == WatchTier.COPPER) return new int[]{mx + 12, top + i * 40, mw - 24, 32};
+        int cw = (mw - 32) / 2;
+        return new int[]{mx + 12 + i % 2 * (cw + 8), top + i / 2 * 34, cw, 28};
+    }
+
+    private int cardIndexAt(double mouseX, double mouseY) {
+        int count = getDisplayModes().size();
+        for (int i = 0; i < count; i++) {
+            int[] r = cardRect(i);
+            if (mouseX >= r[0] && mouseX <= r[0] + r[2] && mouseY >= r[1] && mouseY <= r[1] + r[3]) return i;
+        }
+        return -1;
+    }
+
+    /** {x, y, w, h} of a World / Combat / Self label; pickerX is where the card name starts. */
+    private int[] variantLabelRect(TimeMode option, int pickerX, int pickerY) {
+        TimeMode base = option.baseMode();
+        int x = option == base ? pickerX : pickerX + this.font.width(base.variantLabel()) + 9;
+        return new int[]{x, pickerY, this.font.width(option.variantLabel()), 9};
+    }
+
+    /** The variant label under the mouse, or null. */
+    private TimeMode variantAt(double mouseX, double mouseY) {
+        int i = cardIndexAt(mouseX, mouseY);
+        if (i < 0) return null;
+        TimeMode card = getDisplayModes().get(i);
+        if (!card.hasVariant()) return null;
+        int[] r = cardRect(i);
+        boolean selected = card == this.currentMode.baseMode();
+        int pickerX = r[0] + (selected ? 9 : 8) + this.font.width("[" + (i + 1) + "] ");
+        int pickerY = r[1] + (r[3] - 19) / 2 + 11;
+        for (TimeMode option : new TimeMode[]{card, card.alternate()}) {
+            int[] l = variantLabelRect(option, pickerX, pickerY);
+            if (mouseX >= l[0] - 2 && mouseX <= l[0] + l[2] + 2 && mouseY >= l[1] - 2 && mouseY <= l[1] + l[3] + 2) return option;
+        }
+        return null;
     }
 
     private static String getCleanRuneTag(RuneType type) {
@@ -589,12 +678,22 @@ public class TimeModeSelectionScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if ((button==0 || button==1) && clickVariant(mouseX,mouseY,button)) return true;
         if (button == 0) { // Left click
             int modalWidth = getModalWidth();
             int modalHeight = getModalHeight();
             int modalX = (this.width - modalWidth) / 2;
             int modalY = (this.height - modalHeight) / 2;
             int currentY = modalY + 32;
+
+            if (this.currentTier == WatchTier.CREATIVE) {
+                if (mouseX >= modalX + 14 && mouseX <= modalX + modalWidth - 14
+                        && mouseY >= currentY && mouseY <= currentY + 16) {
+                    this.minecraft.setScreen(new CreativeWatchRadiusScreen(this, this.target));
+                    return true;
+                }
+                currentY += 22;
+            }
 
             // Settings Button Click
             String statBadge = getStatBadge();
@@ -607,7 +706,7 @@ public class TimeModeSelectionScreen extends Screen {
 
             if (mouseX >= settingsBtnX && mouseX <= settingsBtnX + settingsBtnW && mouseY >= settingsBtnY && mouseY <= settingsBtnY + settingsBtnH) {
                 if (this.minecraft != null) {
-                    this.minecraft.setScreen(new com.timestop.client.gui.TimeStopSettingsScreen(this, this.hand));
+                    this.minecraft.setScreen(new com.timestop.client.gui.TimeStopSettingsScreen(this, null));
                     if (this.minecraft.player != null) {
                         this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.2F);
                     }
@@ -625,7 +724,7 @@ public class TimeModeSelectionScreen extends Screen {
                 if (mouseX >= scopeBtnX && mouseX <= scopeBtnX + scopeBtnW && mouseY >= scopeBtnY && mouseY <= scopeBtnY + scopeBtnH) {
                     boolean newScope = !AbstractWatchItem.isGlobalScope(this.watchStack);
                     AbstractWatchItem.setGlobalScope(this.watchStack, newScope);
-                    ModMessages.sendToServer(new com.timestop.network.SetWatchScopePacket(this.hand, newScope));
+                    ModMessages.sendToServer(new com.timestop.network.SetWatchScopePacket(this.target, newScope));
                     if (this.minecraft != null && this.minecraft.player != null) {
                         this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, newScope ? 1.4F : 1.0F);
                     }
@@ -654,7 +753,7 @@ public class TimeModeSelectionScreen extends Screen {
                 if (mouseY >= matrixStartY && mouseY <= matrixStartY + 12) {
                     if (mouseX >= enableX - 4 && mouseX <= enableX + enableW + 4) {
                         AbstractWatchItem.setAllMatrixRunes(this.watchStack, true);
-                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.hand, null, true, true));
+                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.target, null, true, true));
                         if (this.minecraft != null && this.minecraft.player != null) {
                             this.minecraft.player.playSound(SoundEvents.ARMOR_EQUIP_NETHERITE, 1.0F, 1.2F);
                         }
@@ -662,7 +761,7 @@ public class TimeModeSelectionScreen extends Screen {
                     }
                     if (mouseX >= disableX - 4 && mouseX <= disableX + disableW + 4) {
                         AbstractWatchItem.setAllMatrixRunes(this.watchStack, false);
-                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.hand, null, false, true));
+                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.target, null, false, true));
                         if (this.minecraft != null && this.minecraft.player != null) {
                             this.minecraft.player.playSound(SoundEvents.ARMOR_EQUIP_GENERIC, 1.0F, 0.8F);
                         }
@@ -687,7 +786,7 @@ public class TimeModeSelectionScreen extends Screen {
                         boolean currentState = AbstractWatchItem.isMatrixRuneActive(this.watchStack, type);
                         boolean newState = !currentState;
                         AbstractWatchItem.setMatrixRune(this.watchStack, type, newState);
-                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.hand, type, newState, false));
+                        ModMessages.sendToServer(new ToggleMatrixRunePacket(this.target, type, newState, false));
                         if (this.minecraft != null && this.minecraft.player != null) {
                             this.minecraft.player.playSound(newState ? SoundEvents.ARMOR_EQUIP_NETHERITE : SoundEvents.ARMOR_EQUIP_GENERIC, 1.0F, newState ? 1.2F : 0.8F);
                         }
@@ -719,7 +818,7 @@ public class TimeModeSelectionScreen extends Screen {
                         if (mouseX >= badgeX - 2 && mouseX <= badgeX + this.font.width(modeBadge) + 2 && mouseY >= socketSlotY && mouseY <= socketSlotY + slotSize) {
                             com.timestop.combat.ChainTargetFilter next = filter.next();
                             TemporalRuneItem.setTargetFilter(this.socketedRune, next);
-                            ModMessages.sendToServer(new com.timestop.network.CycleRuneModePacket());
+                            ModMessages.sendToServer(new com.timestop.network.CycleRuneModePacket(this.target));
                             if (this.minecraft != null && this.minecraft.player != null) {
                                 this.minecraft.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 1.0F, 1.8F);
                             }
@@ -764,7 +863,7 @@ public class TimeModeSelectionScreen extends Screen {
                 for (int i = 0; i < displayModes.size(); i++) {
                     int cy = currentY + i * (cardH + gapY);
                     if (mouseX >= modalX + 12 && mouseX <= modalX + 12 + cardW && mouseY >= cy && mouseY <= cy + cardH) {
-                        selectMode(displayModes.get(i));
+                        selectMode(cardVariant(displayModes.get(i)));
                         return true;
                     }
                 }
@@ -782,7 +881,7 @@ public class TimeModeSelectionScreen extends Screen {
                     TimeMode mode = displayModes.get(i);
 
                     if (this.currentTier == WatchTier.CREATIVE && mode == TimeMode.REWIND) {
-                        boolean isSelected = (mode == this.currentMode);
+                        boolean isSelected = (mode == this.currentMode.baseMode());
                         boolean exemptAllowed = com.timestop.core.TimeStopManager.isRewindExemptAllowed();
                         boolean exempt = AbstractWatchItem.isRewindInitiatorExempt(this.watchStack);
                         String chipText = !exemptAllowed ? "[Self: LOCKED]" : (exempt ? "[Self: OFF]" : "[Self: ON]");
@@ -795,7 +894,7 @@ public class TimeModeSelectionScreen extends Screen {
                             if (exemptAllowed) {
                                 boolean newExempt = !exempt;
                                 AbstractWatchItem.setRewindInitiatorExempt(this.watchStack, newExempt);
-                                ModMessages.sendToServer(new SetRewindExemptPacket(this.hand, newExempt));
+                                ModMessages.sendToServer(new SetRewindExemptPacket(this.target, newExempt));
                                 if (this.minecraft != null && this.minecraft.player != null) {
                                     this.minecraft.player.playSound(newExempt ? SoundEvents.ARMOR_EQUIP_NETHERITE : SoundEvents.ARMOR_EQUIP_GENERIC, 1.0F, newExempt ? 1.2F : 0.8F);
                                 }
@@ -809,7 +908,7 @@ public class TimeModeSelectionScreen extends Screen {
                     }
 
                     if (mouseX >= cx && mouseX <= cx + cardW && mouseY >= cy && mouseY <= cy + cardH) {
-                        selectMode(displayModes.get(i));
+                        selectMode(cardVariant(displayModes.get(i)));
                         return true;
                     }
                 }
@@ -818,27 +917,55 @@ public class TimeModeSelectionScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
+    /**
+     * Variant clicks: left-click on World / Combat / Self picks that variant and closes;
+     * right-click anywhere on a variant card switches its variant and keeps the watch open.
+     */
+    private boolean clickVariant(double mouseX,double mouseY,int button) {
+        if (button == 0) {
+            TimeMode option = variantAt(mouseX, mouseY);
+            if (option == null) return false;
+            selectMode(option, true);
+            return true;
+        }
+        int i = cardIndexAt(mouseX, mouseY);
+        if (i < 0 || !getDisplayModes().get(i).hasVariant()) return false;
+        switchVariant(getDisplayModes().get(i));
+        return true;
+    }
+
+    /** Switches a card to its other variant, selecting that card, and keeps the screen open. */
+    private void switchVariant(TimeMode card) {
+        selectMode(cardVariant(card).alternate(), false);
+    }
+
     private void selectMode(TimeMode mode) {
-        ModMessages.sendToServer(new SelectTimeModePacket(mode, this.hand));
+        selectMode(mode, true);
+    }
+
+    private void selectMode(TimeMode mode, boolean close) {
+        ModMessages.sendToServer(new SelectTimeModePacket(mode, this.target));
         Player player = Minecraft.getInstance().player;
         if (player != null) {
-            ItemStack stack = player.getItemInHand(this.hand);
+            ItemStack stack = this.target.resolve(player);
             AbstractWatchItem.setMode(stack, mode);
+            if (stack != this.watchStack) AbstractWatchItem.setMode(this.watchStack, mode);
         }
-        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.3F));
-        this.onClose();
+        this.currentMode = mode;
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, close ? 1.3F : 1.6F));
+        if (close) this.onClose();
     }
 
     private void ejectRune() {
         if (runeRequestPending || socketedRune.isEmpty()) return;
         runeRequestPending = true;
-        ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, -1, RuneType.BLANK));
+        ModMessages.sendToServer(new SocketSpecificRunePacket(this.target, -1, RuneType.BLANK));
     }
 
     private void socketSpecificRune(InventoryRuneEntry entry) {
         if (runeRequestPending) return;
         runeRequestPending = true;
-        ModMessages.sendToServer(new SocketSpecificRunePacket(this.hand, entry.slotIndex, entry.type));
+        ModMessages.sendToServer(new SocketSpecificRunePacket(this.target, entry.slotIndex, entry.type));
     }
 
     @Override
@@ -847,7 +974,12 @@ public class TimeModeSelectionScreen extends Screen {
         if (keyCode >= GLFW.GLFW_KEY_1 && keyCode <= GLFW.GLFW_KEY_9) {
             int index = keyCode - GLFW.GLFW_KEY_1;
             if (index < displayModes.size()) {
-                selectMode(displayModes.get(index));
+                TimeMode mode=displayModes.get(index);
+                if (mode.hasVariant() && mode == currentMode.baseMode() && !hasShiftDown()) {
+                    switchVariant(mode); // pressing the selected card's number again switches World / Combat or Self
+                } else {
+                    selectMode(hasShiftDown() && mode.hasVariant() ? cardVariant(mode).alternate() : cardVariant(mode));
+                }
                 return true;
             }
         }
@@ -857,6 +989,11 @@ public class TimeModeSelectionScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        int card = cardIndexAt(mouseX, mouseY);
+        if (card >= 0 && delta != 0 && getDisplayModes().get(card).hasVariant()) {
+            switchVariant(getDisplayModes().get(card));
+            return true;
+        }
         if (this.availableRunes.size() > 10) {
             if (delta > 0) {
                 this.trayScrollOffset = Math.max(0, this.trayScrollOffset - 1);

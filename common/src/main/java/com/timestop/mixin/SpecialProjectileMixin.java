@@ -6,6 +6,7 @@ import com.timestop.core.TimeStopManager;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.DragonFireball;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.SmallFireball;
 import net.minecraft.world.entity.projectile.WitherSkull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,7 +28,8 @@ public abstract class SpecialProjectileMixin {
         boolean timeActive = entity.level().isClientSide ? ClientTimeStopManager.isTimeStopped() : TimeStopManager.isGlobalTimeStopped();
         if (timeActive) {
             TimeMode mode = entity.level().isClientSide ? ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
-            if (mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD) {
+            if ((mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD)
+                    && (mode != TimeMode.DECELERATION_FIELD || entity instanceof Projectile p && com.timestop.combat.DecelerationFieldManager.isDecelerated(p))) {
                 cir.setReturnValue(true);
                 return;
             }

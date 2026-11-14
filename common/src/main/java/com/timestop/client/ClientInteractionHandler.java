@@ -48,12 +48,12 @@ public class ClientInteractionHandler {
         boolean timeActive = ClientTimeStopManager.isTimeStopped();
 
         if (!timeActive && !fieldActive) {
-            return false;
+            return blocksVanillaArrowAttack(mc);
         }
 
         TimeMode mode = timeActive ? ClientTimeStopManager.getCurrentMode() : TimeMode.DECELERATION_FIELD;
-        if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT && mode != TimeMode.DECELERATION_FIELD) {
-            return false;
+        if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT && mode != TimeMode.DECELERATION_FIELD && mode != TimeMode.TIME_PREDICTION && mode != TimeMode.COMBAT_SLOW) {
+            return blocksVanillaArrowAttack(mc);
         }
 
         // 1. LEFT-CLICK (Attack / Deflect / Slap)
@@ -75,7 +75,13 @@ public class ClientInteractionHandler {
             }
         }
 
-        return false;
+        return blocksVanillaArrowAttack(mc);
+    }
+
+    /** Vanilla disconnects clients that send an ordinary attack packet for an arrow. */
+    private static boolean blocksVanillaArrowAttack(Minecraft mc) {
+        return mc.hitResult instanceof EntityHitResult hit
+                && hit.getEntity() instanceof net.minecraft.world.entity.projectile.AbstractArrow;
     }
 
     public static boolean onUseItemKey(Minecraft mc, InteractionHand hand) {
@@ -99,7 +105,7 @@ public class ClientInteractionHandler {
         }
 
         TimeMode mode = timeActive ? ClientTimeStopManager.getCurrentMode() : TimeMode.DECELERATION_FIELD;
-        if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT && mode != TimeMode.DECELERATION_FIELD) {
+        if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT && mode != TimeMode.DECELERATION_FIELD && mode != TimeMode.TIME_PREDICTION && mode != TimeMode.COMBAT_SLOW) {
             return false;
         }
 
@@ -138,7 +144,7 @@ public class ClientInteractionHandler {
         if (mc.player == null || mc.level == null) return null;
 
         // 1. Direct hit result
-        if (mc.hitResult instanceof EntityHitResult entityHit && entityHit.getEntity() instanceof Projectile p && com.timestop.combat.ProjectileCombatHelper.isActiveInFlight(p)) {
+        if (mc.hitResult instanceof EntityHitResult entityHit && entityHit.getEntity() instanceof Projectile p && com.timestop.combat.ProjectileCombatHelper.isActiveInFlight(p) && reachable(mc, p)) {
             return p;
         }
 
@@ -156,7 +162,7 @@ public class ClientInteractionHandler {
         for (Projectile p : nearby) {
             AABB aabb = p.getBoundingBox().inflate(0.65);
             Optional<Vec3> clip = aabb.clip(eyePos, reachVec);
-            if (clip.isPresent()) {
+            if (clip.isPresent() && reachable(mc, p)) {
                 double dist = eyePos.distanceToSqr(clip.get());
                 if (dist < bestDistSqr) {
                     bestDistSqr = dist;
@@ -166,6 +172,13 @@ public class ClientInteractionHandler {
         }
 
         return best;
+    }
+
+    private static boolean reachable(Minecraft mc, Projectile projectile) {
+        return mc.player.distanceToSqr(projectile) <= 25
+                && mc.level.clip(new net.minecraft.world.level.ClipContext(mc.player.getEyePosition(), projectile.position(),
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player)).getType() == HitResult.Type.MISS;
     }
 
     private static long lastSingleFireTick = -1;

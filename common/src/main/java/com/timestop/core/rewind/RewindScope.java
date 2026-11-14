@@ -28,8 +28,7 @@ public record RewindScope(ResourceKey<Level> dimension, Vec3 center, double radi
         if (global) return null;
         var bubble = TemporalBubbleManager.getPlayerBubble(player.getUUID());
         if (bubble != null) return new RewindScope(bubble.getDimension(), bubble.getCenter(), bubble.getRadius());
-        var tier = watch.getItem() instanceof AbstractWatchItem item ? item.getTier() : WatchTier.CREATIVE;
-        return new RewindScope(player.level().dimension(), player.position().add(0, player.getBbHeight() * 0.5, 0), tier.getBubbleRadius());
+        return new RewindScope(player.level().dimension(), player.position().add(0, player.getBbHeight() * 0.5, 0), AbstractWatchItem.getBubbleRadius(watch));
     }
     public boolean contains(ResourceKey<Level> dim, Vec3 point) {
         return dimension.equals(dim) && center.distanceToSqr(point) <= radius * radius;

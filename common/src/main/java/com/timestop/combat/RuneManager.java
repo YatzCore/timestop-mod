@@ -117,7 +117,7 @@ public class RuneManager {
 
     /**
      * Resolves the active socketed RuneType protecting this player.
-     * Evaluates off-hand watch/rune first, then main-hand watch/rune, then inventory watches.
+     * Evaluates off-hand, main-hand, equipped accessory watches, then inventory watches.
      */
     @Nullable
     public static RuneType getSocketedRuneType(@Nullable Player player) {
@@ -148,6 +148,13 @@ public class RuneManager {
         if (mainhand.getItem() instanceof TemporalRuneItem runeItem) {
             if (runeItem.getType() != RuneType.BLANK && runeItem.getType() != RuneType.VECTOR) {
                 return runeItem.getType();
+            }
+        }
+
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch) {
+                RuneType rune = AbstractWatchItem.getSocketedRuneType(stack);
+                if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) return rune;
             }
         }
 
@@ -184,6 +191,11 @@ public class RuneManager {
             }
         }
 
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE
+                    && AbstractWatchItem.isMatrixRuneActive(stack, type)) return true;
+        }
+
         // 2. Standard single socketed rune / held rune
         return getSocketedRuneType(player) == type;
     }
@@ -204,6 +216,13 @@ public class RuneManager {
             if (isActiveRune(rune)) return rune;
         }
         if (isActiveRune(mainhand)) return mainhand;
+
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch) {
+                ItemStack rune = AbstractWatchItem.getSocketedRune(stack);
+                if (isActiveRune(rune)) return rune;
+            }
+        }
 
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
