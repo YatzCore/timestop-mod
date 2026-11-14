@@ -28,7 +28,7 @@ Pocket watches support optional [Curios / Trinkets accessory slots](ACCESSORIES.
   <img src="https://img.shields.io/badge/Minecraft-1.20.1%20%7C%201.21.1-brightgreen?style=flat-square" alt="Minecraft Versions" />
   <img src="https://img.shields.io/badge/Loaders-Forge%20%7C%20Fabric%20%7C%20NeoForge-orange?style=flat-square" alt="Loaders" />
   <img src="https://img.shields.io/badge/Java-17%20%2F%2021-red?style=flat-square" alt="Java Versions" />
-  <img src="https://img.shields.io/badge/TACZ-1.20.1%20Only-purple?style=flat-square" alt="TACZ Support" />
+  <img src="https://img.shields.io/badge/TACZ-1.20.1%20%7C%201.21.1-purple?style=flat-square" alt="TACZ Support" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" /></a>
 </p>
 
@@ -47,14 +47,14 @@ A temporal manipulation mod supporting both **Minecraft 1.20.1** and **Minecraft
 | **Core Temporal Engine** | Full (6 modes, bubbles, watches, runes) | Full (6 modes, bubbles, watches, runes) |
 | **Speed Calibration GUI (H)** | Yes | Yes |
 | **Multiplayer Time Sync (/sync)** | Yes | Yes |
-| **TACZ Firearm Compatibility** | **Yes** *(Native soft-dependency support)* | **No** *(Vanilla ballistics only)* |
-| **Chrono Coins & +RICOSHOT** | **Yes** *(With TACZ)* | N/A |
+| **TACZ Firearm Compatibility** | **Yes** *(Native soft-dependency support)* | **Yes** *(Community 1.21.1 TaCZ ports)* |
+| **Chrono Coins & +RICOSHOT** | **Yes** *(With TACZ)* | **Yes** *(With TACZ)* |
 
 > [!IMPORTANT]
 > **TACZ (Timeless and Classics Zero) Support**:
-> Upstream TACZ is currently available exclusively for Minecraft 1.20.1.
+> TaCZ is a separate, optional download. Upstream TACZ targets Minecraft 1.20.1; Minecraft 1.21.1 uses community ports.
 > - **1.20.1**: Includes deep ballistic integration for firearms, kinetic projectiles, explosive ordnance, and Chrono Coins.
-> - **1.21.1**: Pure vanilla projectile mechanics (arrows, tridents, fireballs, potions). All gun-specific mechanics and keybinds are excluded.
+> - **1.21.1** (since 1.8.4): the same integration on Fabric, Forge and NeoForge with these tested ports. NeoForge: [TACZ 1.21.1 by MUKSC](https://github.com/MUKSC/TACZ-1.21.1/releases/tag/neoforge-1.1.8-hotfix-r7) (1.1.8-hotfix-r7); Fabric: [TaCZ Refabricated](https://modrinth.com/mod/tacz-refabricated/versions) (1.21.1-0.7.1, with Forge Config API Port); Forge: [TACZ 1.21.1 by MUKSC](https://github.com/MUKSC/TACZ-1.21.1/releases/tag/1.1.6-hotfix-r1) (1.1.6-hotfix-r1). Other TaCZ builds may work but are untested.
 
 ---
 
@@ -116,14 +116,14 @@ Socketable into Tier 2–4 pocket watches via the **Watch Management GUI** (**Sh
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_transposition.png" width="24" height="24" /> | **Rune of Spatial Transposition** | `timestop:rune_transposition` | Instantly swaps positions with any targeted entity or projectile within sight (**G**). Inverts projectile vectors 180°. | 1.20.1 & 1.21.1 |
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_barrier.png" width="24" height="24" /> | **Rune of the Kinetic Barrier** | `timestop:rune_barrier` | Hold **Middle Click** (Neo's Palm) to freeze incoming projectiles/bullets in mid-air. Attack to return fire. | 1.20.1 & 1.21.1 *(+ TACZ)* |
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_vector.png" width="24" height="24" /> | **Rune of Vector Control** | `timestop:rune_vector` | Directs struck projectiles and kinetic barrier volleys straight along your crosshair aim vector. | 1.20.1 & 1.21.1 *(+ TACZ)* |
-| <img src="common/src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | `timestop:rune_coin` | Tap **C** to toss Chrono Coins into the air and shoot them with firearms to deflect lethal critical headshots. | **1.20.1 Only** *(TACZ)* |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | `timestop:rune_coin` | Tap **C** to toss Chrono Coins into the air and shoot them with firearms to deflect lethal critical headshots. | 1.20.1 & 1.21.1 *(TACZ)* |
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_rewind.png" width="24" height="24" /> | **Rune of Rewind (Auto Death Rewind)** | `timestop:rune_rewind` | Automatically intercepts lethal damage, rewinding the timeline right before death to restore health, position, and reverse the fatal event. | 1.20.1 |
 
 ---
 
-## Timeless and Classics Zero (TACZ) Integration *(1.20.1 Only)*
+## Timeless and Classics Zero (TACZ) Integration *(1.20.1 and 1.21.1)*
 
-Ultimate Time Stop features native soft-dependency integration for **Timeless and Classics Zero (1.1.8-hotfix+)** on **Minecraft 1.20.1**:
+Ultimate Time Stop features native soft-dependency integration for **Timeless and Classics Zero (1.1.8-hotfix+)** on **Minecraft 1.20.1**, and for the community TaCZ ports on **Minecraft 1.21.1** (see the compatibility notes above):
 
 - **Native Ballistics in Stasis**: Kinetic bullets, shotgun pellets, 40mm grenades, and RPG-7 rockets behave as physical entities in stasis. They freeze in mid-air, maintain ballistic velocity upon resumption, and interact with deflection, slapping, and orbital shields.
 - **Rune of the Kinetic Barrier (Neo's Palm)**: Hold **Middle Click** to freeze incoming gunfire directly in front of you. Release to let spent rounds drop, or attack to redirect the entire volley forward.
@@ -144,7 +144,7 @@ Ultimate Time Stop features native soft-dependency integration for **Timeless an
 | **R** | Release orbiting projectile shield | Equipped *Rune of Orbital Redirection* | 1.20.1 & 1.21.1 |
 | **G** | Trigger Spatial Transposition position swap | Equipped *Rune of Spatial Transposition* | 1.20.1 & 1.21.1 |
 | **Middle Click** *(Hold)* | Deploy Kinetic Barrier (Neo's Palm) | Equipped *Rune of the Kinetic Barrier* | 1.20.1 & 1.21.1 |
-| **C** | Flip Chrono Coin into mid-air | Equipped *Rune of the Marksman* & TACZ installed | **1.20.1 Only** |
+| **C** | Flip Chrono Coin into mid-air | Equipped *Rune of the Marksman* & TACZ installed | 1.20.1 & 1.21.1 |
 | **K** | Toggle projectile flow state (suspended vs flowing stasis) | Any active stasis field | 1.20.1 & 1.21.1 |
 
 ---
@@ -191,15 +191,15 @@ Requires Operator permission (Level 2):
 ## Installation
 
 ### Minecraft 1.20.1 (Java 17)
-- **Fabric**: Install Fabric Loader (0.15.11+) + Fabric API. Place `timestop-fabric-1.20.1-1.6.1.jar` in `.minecraft/mods`.
-- **Forge / NeoForge**: Install Minecraft Forge (47.3.0+) or NeoForge. Place `timestop-forge-1.20.1-1.6.1.jar` in `.minecraft/mods`.
+- **Fabric**: Install Fabric Loader (0.15.11+) + Fabric API. Place `timestop-fabric-1.20.1-1.8.4.jar` in `.minecraft/mods`.
+- **Forge / NeoForge**: Install Minecraft Forge (47.3.0+) or NeoForge. Place `timestop-forge-1.20.1-1.8.4.jar` in `.minecraft/mods`.
 - *(Optional)*: Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
 
 ### Minecraft 1.21.1 (Java 21)
-- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.4.0.jar` in `.minecraft/mods`.
-- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-1.21.1-1.4.0.jar` in `.minecraft/mods`.
-- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.4.0.jar` in `.minecraft/mods`.
-- *Note*: Upstream TACZ does not currently offer a 1.21.1 build; 1.21.1 runs with vanilla ballistics.
+- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.8.4.jar` in `.minecraft/mods`.
+- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.8.4.jar` in `.minecraft/mods`.
+- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.8.4.jar` in `.minecraft/mods`.
+- *(Optional)*: For firearm integration on 1.21.1, install the tested TaCZ port for your loader. NeoForge: [TACZ 1.21.1 by MUKSC](https://github.com/MUKSC/TACZ-1.21.1/releases/tag/neoforge-1.1.8-hotfix-r7) (1.1.8-hotfix-r7); Fabric: [TaCZ Refabricated](https://modrinth.com/mod/tacz-refabricated/versions) (1.21.1-0.7.1, with Forge Config API Port); Forge: [TACZ 1.21.1 by MUKSC](https://github.com/MUKSC/TACZ-1.21.1/releases/tag/1.1.6-hotfix-r1) (1.1.6-hotfix-r1).
 
 ---
 
