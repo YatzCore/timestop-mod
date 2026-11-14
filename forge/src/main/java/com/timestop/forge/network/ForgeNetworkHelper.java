@@ -16,7 +16,7 @@ import net.minecraftforge.network.SimpleChannel;
 import java.util.function.Function;
 
 public class ForgeNetworkHelper implements INetworkHelper {
-    private static final int PROTOCOL_VERSION = 2;
+    private static final int PROTOCOL_VERSION = 6;
     public static final SimpleChannel INSTANCE = ChannelBuilder.named(ResourceLocation.fromNamespaceAndPath(TimeStopMod.MOD_ID, "main"))
             .networkProtocolVersion(PROTOCOL_VERSION)
             .acceptedVersions(Channel.VersionTest.exact(PROTOCOL_VERSION))
@@ -40,14 +40,21 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerServer(SingleFireProjectilePacket.class, SingleFireProjectilePacket::new);
         registerServer(TranspositionSwapPacket.class, TranspositionSwapPacket::new);
         registerServer(SetWatchScopePacket.class, SetWatchScopePacket::new);
+        registerServer(SetWatchRadiusPacket.class, SetWatchRadiusPacket::new);
+        registerServer(ToggleMatrixRunePacket.class, ToggleMatrixRunePacket::new);
+        registerServer(SetRewindExemptPacket.class, SetRewindExemptPacket::new);
         registerServer(KineticPalmActionPacket.class, KineticPalmActionPacket::new);
         registerServer(FlipCoinPacket.class, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.class, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.class, UpdateSpeedConfigPacket::new);
+        registerServer(UpdateSwimmingConfigPacket.class, UpdateSwimmingConfigPacket::new);
+        registerServer(com.timestop.network.SetCasualAccelerationPacket.class, com.timestop.network.SetCasualAccelerationPacket::new);
 
         // Clientbound packets
         registerClient(TimeStopSyncPacket.class, TimeStopSyncPacket::new);
         registerClient(SyncSpeedConfigPacket.class, SyncSpeedConfigPacket::new);
+        registerClient(PredictionSnapshotPacket.class, PredictionSnapshotPacket::new);
+        registerClient(ProjectileOwnerSyncPacket.class, ProjectileOwnerSyncPacket::new);
         registerClient(SyncOrbitCountPacket.class, SyncOrbitCountPacket::new);
         registerClient(SyncOrbitalEntityPacket.class, SyncOrbitalEntityPacket::new);
         registerClient(SyncRuneSocketPacket.class, SyncRuneSocketPacket::new);
@@ -61,6 +68,7 @@ public class ForgeNetworkHelper implements INetworkHelper {
         registerClient(RewindPistonPacket.class, RewindPistonPacket::new);
         registerClient(RewindFadePacket.class, RewindFadePacket::new);
         registerClient(SyncRewindAllowedPacket.class, SyncRewindAllowedPacket::new);
+        registerClient(SyncRewindExemptAllowedPacket.class, SyncRewindExemptAllowedPacket::new);
     }
 
     private static <T extends IServerboundPacket> void registerServer(Class<T> type, Function<FriendlyByteBuf, T> decoder) {

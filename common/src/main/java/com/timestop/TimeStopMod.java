@@ -26,6 +26,7 @@ public class TimeStopMod {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public static void init() {
+        com.timestop.compat.TemporalWorlds.initialize();
         LOGGER.info("[TimeStop] Ultimate Time Stop Mod (Common) initialized!");
     }
 

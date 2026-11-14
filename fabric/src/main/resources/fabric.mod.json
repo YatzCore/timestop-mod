@@ -11,6 +11,7 @@
   "license": "MIT",
   "icon": "assets/timestop/textures/item/chronos_watch.png",
   "environment": "*",
+  "accessWidener": "timestop.accesswidener",
   "entrypoints": {
     "main": [
       "com.timestop.fabric.TimeStopFabricMod"
@@ -21,12 +22,16 @@
   },
   "mixins": [
     "timestop-common.mixins.json",
-    "timestop-fabric.mixins.json"
+    "timestop-fabric.mixins.json",
+    "timestop-fabric-tacz.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.16.0",
     "minecraft": "1.21.1",
     "java": ">=21",
     "fabric-api": "*"
+  },
+  "suggests": {
+    "trinkets": ">=3.10.0"
   }
 }

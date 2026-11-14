@@ -1,0 +1,47 @@
+{
+  "ammo": "tacz:762x39",
+  "ammo_amount": 9,
+  "bolt": "open_bolt",
+  "rpm": 600,
+  "draw_time": 0,
+  "put_away_time": 0,
+  "fire_mode": [
+    "semi",
+    "burst"
+  ],
+  "burst_data": {
+    "count": 3,
+    "bpm": 600,
+    "min_interval": 0.3
+  },
+  "bullet": {
+    "life": 10,
+    "bullet_amount": 1,
+    "damage": 4,
+    "speed": 100,
+    "gravity": 0,
+    "friction": 0,
+    "pierce": 3,
+    "extra_damage": {
+      "armor_ignore": 0,
+      "head_shot_multiplier": 2,
+      "damage_adjust": [
+        {
+          "distance": "infinite",
+          "damage": 4
+        }
+      ]
+    }
+  },
+  "inaccuracy": {
+    "stand": 0,
+    "move": 0,
+    "sneak": 0,
+    "lie": 0,
+    "aim": 0
+  },
+  "recoil": {
+    "pitch": [],
+    "yaw": []
+  }
+}

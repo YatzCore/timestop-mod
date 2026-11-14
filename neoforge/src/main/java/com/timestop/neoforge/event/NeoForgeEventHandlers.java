@@ -90,6 +90,7 @@ public class NeoForgeEventHandlers {
                     TimeStopManager.getExemptPlayers()), player);
             ModMessages.sendToPlayer(SyncSpeedConfigPacket.current(), player);
             ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(TimeStopManager.isRewindAllowed()), player);
+            ModMessages.sendToPlayer(new com.timestop.network.SyncRewindExemptAllowedPacket(TimeStopManager.isRewindExemptAllowed()), player);
             CoinManager.onPlayerLoggedIn(player);
             OrbitalProjectileManager.onPlayerLoggedIn(player);
         }
@@ -185,6 +186,8 @@ public class NeoForgeEventHandlers {
     @SubscribeEvent
     public static void onProjectileImpact(ProjectileImpactEvent event) {
         Projectile projectile = event.getProjectile();
+        // Native TaCZ callbacks dispatch our pre/post handlers themselves.
+        if (com.timestop.combat.TaczProjectileCompat.isBullet(projectile)) return;
         HitResult hitResult = event.getRayTraceResult();
 
         if (OrbitalProjectileManager.onProjectileImpact(projectile, hitResult)) {

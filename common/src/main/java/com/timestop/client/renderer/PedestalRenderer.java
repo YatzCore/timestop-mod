@@ -39,8 +39,9 @@ public class PedestalRenderer implements BlockEntityRenderer<PedestalBlockEntity
         var assembly=MODELS[pedestal.pedestalTier().ordinal()];
         var animation=ArmillaryAnimation.state(pedestal);
         double time=ArmillaryAnimation.seconds();
+        net.minecraft.world.phys.Vec3 worldPos = com.timestop.compat.TemporalWorlds.toWorld(pedestal.getLevel(), net.minecraft.world.phys.Vec3.atCenterOf(pedestal.getBlockPos()));
         double distance=Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
-                .distanceToSqr(pedestal.getBlockPos().getX()+.5,pedestal.getBlockPos().getY()+profile.centerY(),pedestal.getBlockPos().getZ()+.5);
+                .distanceToSqr(worldPos.x, worldPos.y + profile.centerY() - 0.5, worldPos.z);
         int detail=distance>400?0:distance>100?1:2;
         var buffer=buffers.getBuffer(assembly.material());
         for(int i=0;i<3;i++) {

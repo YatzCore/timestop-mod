@@ -43,7 +43,7 @@ public class RewindRegressionTests implements FabricGameTest {
 
     @GameTest(template = EMPTY_STRUCTURE, batch = "rewind")
     public void rewindClearsUnfinishedMining(GameTestHelper h) {
-        var player = h.makeMockServerPlayerInLevel();
+        var player = RewindRuneTests.survivalPlayer(h);
         player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
         player.setPos(h.absoluteVec(new net.minecraft.world.phys.Vec3(1.5, 2, 1.5)));
         var pos = h.absolutePos(new BlockPos(3, 2, 1));
@@ -72,7 +72,7 @@ public class RewindRegressionTests implements FabricGameTest {
     private void checkInteractionAfterRewind(GameTestHelper h, boolean continuous) {
         var level = h.getLevel();
         var recorder = TickRecorder.getInstance();
-        var player = h.makeMockServerPlayerInLevel();
+        var player = RewindRuneTests.survivalPlayer(h);
         var packets = new java.util.ArrayList<net.minecraft.network.protocol.Packet<?>>();
         player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(level.getServer(),
                 new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), player, net.minecraft.server.network.CommonListenerCookie.createInitial(player.getGameProfile(), false)) {
@@ -198,7 +198,7 @@ public class RewindRegressionTests implements FabricGameTest {
 
     @GameTest(template = EMPTY_STRUCTURE, batch = "rewind")
     public void playerInventoryExperienceAndPositionRestore(GameTestHelper h) {
-        var player = h.makeMockServerPlayerInLevel();
+        var player = RewindRuneTests.survivalPlayer(h);
         player.setPos(h.absoluteVec(new net.minecraft.world.phys.Vec3(1, 2, 1)));
         player.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 5));
         player.getInventory().selected = 2;

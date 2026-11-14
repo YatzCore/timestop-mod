@@ -1,0 +1,31 @@
+// Opt-in actual TaCZ gameplay QA; source sets and dependencies stay out of release jars.
+gradle.beforeProject { p ->
+    if (p.name != 'neoforge') return
+    p.plugins.withId('net.neoforged.moddev') {
+        p.sourceSets {
+            decelerationTest {
+                java.srcDir p.file('src/deceltest/java')
+                resources.srcDir p.file('src/deceltest/resources')
+                compileClasspath += main.compileClasspath + main.output
+                runtimeClasspath += main.runtimeClasspath + main.output
+            }
+        }
+        p.neoForge.mods { timestop { sourceSet(p.sourceSets.decelerationTest) } }
+        p.neoForge.runs.create('decelerationTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/deceleration-test-run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'timestop'
+        }
+        p.tasks.matching { it.name == 'runDecelerationTests' }.configureEach {
+            maxHeapSize = '3G'
+            doFirst {
+                def runDir = p.file('build/deceleration-test-run')
+                runDir.mkdirs()
+                new File(runDir, 'eula.txt').text = 'eula=true\n'
+                def dependency = p.file(p.findProperty('decelerationTaczJar') ?: 'D:/.minecraft/versions/Invincible/mods/tacz-neoforge-1.21.1-1.1.8-hotfix-r6.jar')
+                if (!dependency.isFile()) throw new GradleException('Supply -PdecelerationTaczJar=<TaCZ jar>')
+                p.copy { from dependency; into new File(runDir, 'mods') }
+            }
+        }
+    }
+}

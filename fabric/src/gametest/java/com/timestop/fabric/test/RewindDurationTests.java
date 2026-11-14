@@ -22,7 +22,7 @@ public class RewindDurationTests implements FabricGameTest {
         buffer.resizeSeconds(60);
         h.assertTrue(buffer.getMaxMemoryBytes()==100*mb,"60 seconds must receive 100 MB from the default 50 MB baseline");
         for(int i=0;i<1200;i++) buffer.pushFrame(new TickFrame(i) {
-            @Override public int getEstimatedMemoryBytes(){return 80*1024;}
+            @Override public long getEstimatedMemoryBytes(){return 80*1024;}
         });
         h.assertTrue(buffer.getFrameCount()==1200 && buffer.getMemoryEvictedFrames()==0,"A 94 MB simulated history must retain the complete 60 seconds");
         buffer.resizeSeconds(30);buffer.resizeSeconds(60);buffer.resizeSeconds(60);

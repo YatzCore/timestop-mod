@@ -1,0 +1,53 @@
+// Isolated API gameplay checks; test sources never enter release jars.
+gradle.beforeProject { p ->
+    if (p.name == 'fabric') p.plugins.withId('fabric-loom') {
+        p.sourceSets {
+            accessorytest {
+                java.srcDirs = [p.file('src/accessorytest/java')]
+                resources.srcDirs = [p.file('src/accessorytest/resources')]
+                compileClasspath += main.compileClasspath + main.output
+                runtimeClasspath += main.runtimeClasspath + main.output
+            }
+        }
+        p.loom.mods { timestop_accessory_tests { sourceSet(p.sourceSets.accessorytest) } }
+        p.afterEvaluate { p.loom.mods.remove(p.loom.mods.findByName('timestop_tests')) }
+        p.loom.runs.create('accessoryClientQa') {
+            client()
+            source p.sourceSets.accessorytest
+            vmArg '-Dtimestop.accessoryClientQa=true'
+            vmArg '-Dfabric.disableGui=true'
+            programArgs '--width', '1280', '--height', '900'
+            runDir 'build/accessory-client-qa'
+        }
+        p.loom.runs.create('accessoryTests') {
+            server()
+            source p.sourceSets.accessorytest
+            vmArg '-Dfabric-api.gametest'
+            runDir 'build/accessory-test-run'
+        }
+    }
+    if (p.name == 'neoforge') p.plugins.withId('net.neoforged.moddev') {
+        p.sourceSets {
+            accessorytest {
+                java.srcDirs = [p.file('src/accessorytest/java')]
+                resources.srcDirs = [p.file('src/accessorytest/resources')]
+                compileClasspath += main.compileClasspath + main.output
+                runtimeClasspath += main.runtimeClasspath + main.output
+            }
+        }
+        p.neoForge.mods { timestop { sourceSet(p.sourceSets.accessorytest) } }
+        p.neoForge.runs.create('accessoryTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/accessory-test-run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'timestop'
+            
+        }
+    }
+    p.tasks.matching { it.name == 'runAccessoryTests' }.configureEach {
+        doFirst {
+            def runDir = p.file('build/accessory-test-run')
+            runDir.mkdirs()
+            new File(runDir, 'eula.txt').text = 'eula=true\n'
+        }
+    }
+}

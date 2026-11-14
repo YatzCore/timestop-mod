@@ -56,12 +56,12 @@ public class ClientBubbleManager {
                 if (mc.level != null) {
                     if (mc.player != null && ownerUuid.equals(mc.player.getUUID())) {
                         Vec3 pPos = mc.player.getPosition(partialTick);
-                        return pPos.add(0, mc.player.getBbHeight() * 0.5, 0);
+                        return com.timestop.compat.TemporalWorlds.toWorld(mc.level, pPos.add(0, mc.player.getBbHeight() * 0.5, 0));
                     }
                     Player other = mc.level.getPlayerByUUID(ownerUuid);
                     if (other != null) {
                         Vec3 oPos = other.getPosition(partialTick);
-                        return oPos.add(0, other.getBbHeight() * 0.5, 0);
+                        return com.timestop.compat.TemporalWorlds.toWorld(mc.level, oPos.add(0, other.getBbHeight() * 0.5, 0));
                     }
                 }
             }
@@ -80,9 +80,10 @@ public class ClientBubbleManager {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level == null || !mc.level.dimension().location().toString().equals(dimensionId)) return false;
             Vec3 currentCenter = getCenter();
-            double dx = px - currentCenter.x;
-            double dy = py - currentCenter.y;
-            double dz = pz - currentCenter.z;
+            Vec3 world = com.timestop.compat.TemporalWorlds.toWorld(mc.level, new Vec3(px, py, pz));
+            double dx = world.x - currentCenter.x;
+            double dy = world.y - currentCenter.y;
+            double dz = world.z - currentCenter.z;
             return (dx * dx + dy * dy + dz * dz) <= this.radiusSq;
         }
 
@@ -124,6 +125,12 @@ public class ClientBubbleManager {
         }
 
         public float getTimeDilationFactor(Entity entity) {
+            // Projectile movement/tick hooks handle this mode; the rest of the world stays normal.
+            if (mode == TimeMode.DECELERATION_FIELD) return 1.0F;
+            if (mode == TimeMode.SELF_ACCELERATION) return 1.0F;
+            if (mode == TimeMode.COMBAT_SLOW) return entity instanceof net.minecraft.world.entity.Mob
+                    || entity instanceof net.minecraft.world.entity.projectile.Projectile
+                    ? com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue() : 1.0F;
             if (mode == TimeMode.FAST_FORWARD && entity instanceof Player) return 1.0F;
             if (canEntityAct(entity)) return 1.0F;
             if (stationary && mode == TimeMode.SLOW_MOTION) return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
@@ -139,6 +146,8 @@ public class ClientBubbleManager {
             switch (mode) {
                 case TIME_STOP:
                     return 0.0F;
+                case TIME_PREDICTION:
+                    return com.timestop.config.TimeStopConfig.COMMON.predictionRate.get().floatValue();
                 case SLOW_MOTION:
                     return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
                 case MATRIX:

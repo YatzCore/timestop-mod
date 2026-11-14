@@ -60,31 +60,14 @@ public class TemporalInteractionEvents {
     }
 
     public static InteractionResult onEntityInteract(Player player, Entity target, InteractionHand hand) {
-        TimeMode mode;
-        if (com.timestop.core.TemporalBubbleManager.hasActiveBubbles()) {
-            com.timestop.core.TemporalBubble b = com.timestop.core.TemporalBubbleManager.getDominantBubble(player.level().dimension(), player.position());
-            if (b == null || !b.canEntityAct(player)) return InteractionResult.PASS;
-            mode = b.getMode();
-        } else {
-            if (!TimeStopManager.isGlobalTimeStopped() || !TimeStopManager.isEntityExempt(player)) {
-                return InteractionResult.PASS;
-            }
-            mode = TimeStopManager.getCurrentMode();
-        }
-
-        if (mode != TimeMode.TIME_STOP && mode != TimeMode.SLOW_MOTION && mode != TimeMode.MATRIX && mode != TimeMode.SUPERHOT) {
-            return InteractionResult.PASS;
-        }
-
-        // BULLET SNATCHING: Plucking suspended or slow-motion projectiles directly into inventory!
-        if (target instanceof Projectile projectile) {
-            snatchProjectile(projectile, player);
-            return InteractionResult.sidedSuccess(player.level().isClientSide());
+        if (target instanceof Projectile projectile && ProjectileInteraction.snatch(player, projectile)) {
+            return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;
     }
 
     public static void snatchProjectile(Projectile projectile, Player player) {
+        if (player.level().isClientSide || !ProjectileCombatHelper.isActiveInFlight(projectile)) return;
         ItemStack stackToGive = getDroppedItemForProjectile(projectile);
 
         if (!player.level().isClientSide) {

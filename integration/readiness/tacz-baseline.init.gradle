@@ -1,0 +1,41 @@
+gradle.beforeProject { p ->
+    if (p.name != 'forge') return
+    p.plugins.withId('net.neoforged.moddev.legacyforge') {
+        def dependency = new File(gradle.startParameter.projectProperties['taczJar'])
+        def dependencyDir = p.file('build/native-tacz-dependency')
+        p.copy {from dependency; into dependencyDir; rename { 'tacz-1.1.8.jar' } }
+        p.repositories.flatDir { dirs dependencyDir }
+        p.dependencies.add('modRuntimeOnly', 'taczqa:tacz:1.1.8')
+        p.sourceSets.create('nativeTacz') {
+            java.srcDir p.file('src/tacztest/java')
+            java.srcDir p.rootProject.file('common/src/tacztest/java')
+            resources.srcDir p.file('src/tacztest/resources')
+            compileClasspath += p.sourceSets.main.compileClasspath + p.sourceSets.main.output
+            runtimeClasspath += p.sourceSets.main.runtimeClasspath + p.sourceSets.main.output
+        }
+        p.legacyForge.mods { timestop { sourceSet(p.sourceSets.nativeTacz) } }
+        p.legacyForge.runs.create('nativeTaczClient') {
+            type = 'client'
+            gameDirectory = p.file('build/native-tacz-client')
+            systemProperty 'timestop.nativeTaczClientQa', 'true'
+            systemProperty 'mixin.env.remapRefMap', 'true'
+            systemProperty 'mixin.env.refMapRemappingFile', p.file('build/moddev/artifacts/intermediateToNamed.srg').absolutePath
+            programArguments.addAll('--width', '1280', '--height', '720')
+        }
+        p.legacyForge.runs.create('nativeTaczTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/native-tacz-run')
+            systemProperty 'forge.enabledGameTestNamespaces', 'timestop'
+            systemProperty 'mixin.env.remapRefMap', 'true'
+            systemProperty 'mixin.env.refMapRemappingFile', p.file('build/moddev/artifacts/intermediateToNamed.srg').absolutePath
+        }
+        p.tasks.matching {it.name=='runNativeTaczTests'}.configureEach {
+            maxHeapSize='3G'
+            doFirst {
+                def runDir=p.file('build/native-tacz-run');runDir.mkdirs()
+                new File(runDir,'eula.txt').text='eula=true\n'
+                p.copy {from p.rootProject.file('integration/readiness/tacz-pack');into new File(runDir,'tacz/uts_native_qa')}
+            }
+        }
+    }
+}

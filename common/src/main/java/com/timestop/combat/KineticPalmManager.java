@@ -293,13 +293,15 @@ public class KineticPalmManager {
 
                 Vec3 incoming = capturedVelocity(p);
                 // Returning an outgoing shot to its own shooter would send an RPG back into the defender.
-                Vec3 shootDir = p.getOwner() == player ? player.getLookAngle().normalize()
+                boolean straightFlight = p.getOwner() == player || ProjectileRedirection.usesLook(player);
+                Vec3 shootDir = p.getOwner() == player ? ProjectileRedirection.lookDirection(p, player)
                         : ProjectileRedirection.direction(p, player, p.getOwner(), incoming);
                 releaseCaptured(p, player);
                 ProjectileRedirection.clearGuidance(p);
                 com.timestop.platform.EntityDataHelper.getPersistentData(p).putBoolean("KineticPalmRepulsed", true);
                 p.setOwner(player);
                 p.setNoGravity(com.timestop.platform.EntityDataHelper.getPersistentData(p).getBoolean("NeoOriginalNoGravity"));
+                ProjectileRedirection.setStraightFlight(p, straightFlight);
                 double speed = Math.max(3.2, incoming.length());
                 p.setDeltaMovement(shootDir.scale(speed));
                 if (p instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile fireball) {

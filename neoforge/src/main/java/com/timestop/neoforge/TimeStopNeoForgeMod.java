@@ -24,6 +24,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 public class TimeStopNeoForgeMod {
 
     public TimeStopNeoForgeMod(IEventBus modEventBus) {
+        TimeStopMod.init();
         TimeStopMod.LOGGER.info("[TimeStop] Initializing NeoForge module for Minecraft 1.21.1...");
 
         com.timestop.pedestal.ModPedestals.bootstrap();

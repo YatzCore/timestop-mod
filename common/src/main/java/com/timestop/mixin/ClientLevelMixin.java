@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin {
+    @Unique private final java.util.Map<Entity, Float> timestop$predictionProgress = new java.util.WeakHashMap<>();
     @Unique
     private final java.util.Map<Entity, Float> timestop$projectileProgress = new java.util.WeakHashMap<>();
     @Unique
@@ -19,6 +20,14 @@ public abstract class ClientLevelMixin {
 
     @Unique
     private float timestop$projectileRate(Entity entity) {
+        if(entity instanceof net.minecraft.world.entity.projectile.Projectile p
+                && com.timestop.combat.DecelerationFieldManager.hasMovementHook(p)
+                && com.timestop.prediction.PredictionTime.rate(p)<1) return 1;
+        if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile
+                && !com.timestop.combat.DecelerationFieldManager.hasMovementHook(projectile)) {
+            double rate = com.timestop.combat.DecelerationFieldManager.getTimeRate(projectile);
+            if (rate < 1.0) return (float) rate;
+        }
         if (!(entity instanceof net.minecraft.world.entity.projectile.Projectile)
                 || ClientTimeStopManager.isGlobalTimeStopActive()
                 || ClientTimeStopManager.getClientTickMs() != 50.0F) return 1.0F;
@@ -53,9 +62,28 @@ public abstract class ClientLevelMixin {
             ci.cancel();
             return;
         }
+        if (ClientTimeStopManager.isGlobalTimeStopActive() && ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_PREDICTION
+                && ClientTimeStopManager.getClientTickMs() <= 50.0F) {
+            // Remote living entities interpolate authoritative positions at the normal client rate.
+            float rate = entity instanceof net.minecraft.world.entity.LivingEntity || entity instanceof net.minecraft.world.entity.projectile.Projectile
+                    ? 1.0F : (float) com.timestop.prediction.PredictionTime.rate(entity);
+            float progress = timestop$predictionProgress.getOrDefault(entity, 0.0F) + rate;
+            if (rate < 1.0F) {
+                timestop$predictionProgress.put(entity, progress >= 1.0F ? progress-1.0F : progress);
+                if (progress < 1.0F) { entity.setOldPosAndRot(); ci.cancel(); return; }
+            } else timestop$predictionProgress.remove(entity);
+        }
         if (com.timestop.core.ClientBubbleManager.hasActiveBubbles()) {
             com.timestop.core.ClientBubbleManager.ClientBubble bubble = com.timestop.core.ClientBubbleManager.getDominantBubble(entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
             if (bubble != null) {
+                if (!ClientTimeStopManager.isGlobalTimeStopActive() && (bubble.mode == TimeMode.TIME_PREDICTION || bubble.mode == TimeMode.COMBAT_SLOW)) {
+                    float rate = entity instanceof net.minecraft.world.entity.LivingEntity || entity instanceof net.minecraft.world.entity.projectile.Projectile ? 1.0F : bubble.getTimeDilationFactor(entity);
+                    float progress = timestop$predictionProgress.getOrDefault(entity, 0.0F) + rate;
+                    if (rate < 1.0F) {
+                        timestop$predictionProgress.put(entity, progress >= 1.0F ? progress - 1.0F : progress);
+                        if (progress < 1.0F) { entity.setOldPosAndRot(); ci.cancel(); return; }
+                    } else timestop$predictionProgress.remove(entity);
+                } else timestop$predictionProgress.remove(entity);
                 if (bubble.mode == TimeMode.TIME_STOP && !bubble.canEntityAct(entity)) {
                     entity.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
                     entity.setOldPosAndRot();
@@ -143,6 +171,12 @@ public abstract class ClientLevelMixin {
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
         if (ClientTimeStopManager.isGlobalTimeStopActive()) {
+            if (ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_PREDICTION && ClientTimeStopManager.getClientTickMs() <= 50.0F) {
+                timestop$bubbleSkyProgress += com.timestop.config.TimeStopConfig.COMMON.predictionRate.get().floatValue();
+                if (timestop$bubbleSkyProgress < 1.0F) ci.cancel();
+                else timestop$bubbleSkyProgress -= 1.0F;
+                return;
+            }
             if (ClientTimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
                 ci.cancel(); // Freeze sun/moon progression in global TIME_STOP
                 return;

@@ -35,6 +35,7 @@ public class ForgeClientSetup {
     }
 
     public static void registerKeys(RegisterKeyMappingsEvent event) {
+        event.register(ModKeyBindings.OPEN_WATCH_KEY);
         event.register(ModKeyBindings.TIME_STOP_KEY);
         event.register(ModKeyBindings.RELEASE_PROJECTILES_KEY);
         event.register(ModKeyBindings.TRANSPOSITION_KEY);
@@ -43,6 +44,7 @@ public class ForgeClientSetup {
         }
         event.register(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         event.register(ModKeyBindings.KINETIC_BARRIER_KEY);
+        event.register(ModKeyBindings.TOGGLE_VARIANT_KEY);
     }
 
     public static void registerOverlays(AddGuiOverlayLayersEvent event) {
@@ -133,6 +135,7 @@ public class ForgeClientSetup {
                 TemporalBubbleRenderer.renderLevel(poseStack, event.getCamera(), tickDelta);
                 KineticPalmRenderer.renderLevel(poseStack, event.getCamera(), tickDelta);
                 RewindBlockRenderer.render(poseStack, event.getCamera(), tickDelta);
+                com.timestop.client.PredictionRenderer.render(poseStack, event.getCamera(), tickDelta);
             }
         }
 

@@ -60,6 +60,7 @@ dependencies {
 mixin {
     add sourceSets.main, 'timestop.refmap.json'
     config 'timestop-common.mixins.json'
+    config 'timestop-forge.mixins.json'
 }
 
 tasks.named('jar', Jar) {
@@ -73,7 +74,7 @@ tasks.named('jar', Jar) {
             'Implementation-Version': project.version,
             'Implementation-Vendor': 'timestop',
             'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-            'MixinConfigs': 'timestop-common.mixins.json'
+            'MixinConfigs': 'timestop-common.mixins.json,timestop-forge.mixins.json'
         ])
     }
 }

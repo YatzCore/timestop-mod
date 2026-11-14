@@ -1,0 +1,54 @@
+// Opt-in native parity checks and shared actual-client scenes. No QA code is released.
+gradle.beforeProject { p ->
+    if (!(p.name in ['forge', 'neoforge'])) return
+    def sources = {
+        p.sourceSets.create('parityQa') {
+            java.srcDirs = [p.rootProject.file('integration/parity/java'), p.rootProject.file('integration/parity/testjava'), p.rootProject.file("integration/parity/${p.name}/java")]
+            resources.srcDirs = [p.rootProject.file("integration/parity/${p.name}/resources")]
+            compileClasspath += p.sourceSets.main.compileClasspath + p.sourceSets.main.output
+            runtimeClasspath += p.sourceSets.main.runtimeClasspath + p.sourceSets.main.output
+        }
+    }
+    if (p.name == 'neoforge') p.plugins.withId('net.neoforged.moddev') {
+        sources()
+        p.neoForge.mods { timestop_parity_tests { sourceSet(p.sourceSets.parityQa) } }
+        p.neoForge.runs.create('parityTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/parity-test-run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'timestop'
+        }
+        p.neoForge.runs.create('parityClient') {
+            client()
+            gameDirectory = p.file('build/parity-client-run')
+            systemProperty 'timestop.predictionVisualQa', 'true'
+            programArguments.addAll('--width', '1600', '--height', '900')
+        }
+    }
+    if (p.name == 'forge') p.plugins.withId('net.minecraftforge.gradle') {
+        sources()
+        p.sourceSets.parityQa.output.resourcesDir = p.sourceSets.parityQa.java.destinationDirectory
+        p.minecraft.runs.create('parityTests') {
+            workingDirectory p.file('build/parity-test-run')
+            main = 'net.minecraftforge.bootstrap.ForgeBootstrap'
+            args '--launchTarget', 'forge_userdev_server_gametest', '--gameDir', '.', '--nogui'
+            property 'forge.enabledGameTestNamespaces', 'timestop'
+            mods { timestop { source p.sourceSets.main }; timestop_parity_tests { source p.sourceSets.parityQa } }
+        }
+        p.minecraft.runs.create('parityClient') {
+            workingDirectory p.file('build/parity-client-run')
+            main = 'net.minecraftforge.bootstrap.ForgeBootstrap'
+            client = true
+            args '--launchTarget', 'forge_userdev_client', '--version', 'MOD_DEV', '--assetIndex', '17', '--assetsDir', new File(p.gradle.gradleUserHomeDir, 'caches/forge_gradle/assets').absolutePath, '--gameDir', '.', '--width', '1600', '--height', '900'
+            property 'timestop.predictionVisualQa', 'true'
+            mods { timestop { source p.sourceSets.main }; timestop_parity_tests { source p.sourceSets.parityQa } }
+        }
+    }
+    p.tasks.matching { it.name in ['runParityTests', 'runParityClient'] }.configureEach {
+        maxHeapSize = '3G'
+        doFirst {
+            def dir = p.file(name == 'runParityTests' ? 'build/parity-test-run' : 'build/parity-client-run')
+            dir.mkdirs()
+            new File(dir, 'eula.txt').text = 'eula=true\n'
+        }
+    }
+}

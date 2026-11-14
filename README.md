@@ -1,6 +1,10 @@
 # Ultimate Time Stop
 
-**Version 1.6.1 for Minecraft 1.21.1:** includes all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md) on Fabric, Forge, and NeoForge.
+Pocket watches support optional [Curios / Trinkets accessory slots](ACCESSORIES.md) on both supported Minecraft versions, wherever the API is available.
+
+**New in 1.6.6 (Minecraft 1.21.1):** Deceleration Field slows projectiles, including TaCZ bullets and owner shots, within the selected bubble or across the server in global scope. Players, mobs, blocks and other non-projectiles continue at normal speed. `speeds.decelerationDrag` sets the projectile time rate (default **0.10**, or 10% speed).
+
+**Version 1.6.5 for Minecraft 1.21.1:** fixes Sable structures disappearing, shaking or spinning inside time bubbles. Includes the Creative Watch rune matrix, adjustable bubble radius, crosshair aiming fix, and rewind player exemption on Fabric, Forge, and NeoForge, all six [Ruined Observatory](OBSERVATORY.md) variants, the Acropolis, and animated [armillary pedestals](PEDESTALS.md).
 
 **New in 1.5.0:** five [Clockwork Pedestals](PEDESTALS.md) with distinct Minecraft models, floating watch displays, adjustable stationary fields, and continuous redstone activation.
 
@@ -15,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.6.1-blue?style=flat-square&logo=github" alt="Release" /></a>
+  <a href="https://github.com/YatzCore/timestop-mod/releases"><img src="https://img.shields.io/badge/Release-v1.6.6-blue?style=flat-square&logo=github" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?style=flat-square" alt="Minecraft 1.21.1" />
   <img src="https://img.shields.io/badge/Fabric-0.16.10%2B-lightgrey?style=flat-square" alt="Fabric" />
   <img src="https://img.shields.io/badge/Forge-52.1.16%2B-orange?style=flat-square" alt="Forge" />
@@ -28,7 +32,7 @@
 
 A temporal manipulation mod for **Minecraft 1.21.1** supporting **Forge** (52.1.16+), **Fabric** (0.16.10+), and **NeoForge** (21.1.75+), running on Java 21. Freeze entities, projectile trajectories, fluids, block updates, and daylight across localized spherical bubbles or server-wide fields. Features six temporal modes, continuous and burst temporal rewind, tiered pocket watches, tactical combat runes, in-game speed calibration, and modern 1.21.1 delta-tracking.
 
-> The 1.21.1 builds retain the existing port's vanilla projectile support. TACZ integration is not validated for this version; use the 1.20.1 release for the tested TACZ setup.
+> The 1.21.1 **candidate builds** include optional native TaCZ hooks for NeoForge, Fabric, and Forge. Each selected port passes 30 native scenarios, packaged firing/feedback checks, and a two-client reconnect check. Full gameplay acceptance is still pending. Use the exact dependencies and coverage limits in the [TaCZ verification matrix](integration/readiness/TACZ_PARITY.md).
 
 ---
 
@@ -42,8 +46,8 @@ A temporal manipulation mod for **Minecraft 1.21.1** supporting **Forge** (52.1.
 | **Rewind Engine & Auto Death Protection** | Yes (Burst & Continuous) | Yes (Burst & Continuous) |
 | **Speed Calibration GUI (H)** | Yes | Yes |
 | **Multiplayer Time Sync (/sync)** | Yes | Yes |
-| **TACZ Firearm Compatibility** | **Yes** *(Native soft-dependency support)* | **No** *(Vanilla ballistics only)* |
-| **Chrono Coins & +RICOSHOT** | **Yes** *(With TACZ)* | N/A |
+| **TACZ Firearm Compatibility** | **Yes** *(Native soft-dependency support)* | **Candidate** *(Native hooks; see verification matrix)* |
+| **Chrono Coins & +RICOSHOT** | **Yes** *(With TACZ)* | **Candidate** *(Native chain/charge tests pass on all loaders)* |
 
 ---
 
@@ -62,7 +66,7 @@ Modes can be activated using Pocket Watches or administrative commands (`/timest
 - **SUPERHOT**: Movement-driven time dilation. The world runs at 5% speed (1 TPS) when standing still; moving, sprinting, jumping, attacking, or using items advances time in real time.
   - **Free Camera Aiming**: Looking around with the crosshair does **not** progress time, allowing risk-free target acquisition.
   - **Entity Shaders**: Features a crystal-red entity outline shader with configurable filtering (`HOSTILE`, `PASSIVE`, or `ALL`).
-- **Deceleration Field**: Projects a localized temporal barrier (3.5m–6.0m radius) that applies an 80% velocity drag to incoming hostile projectiles.
+- **Deceleration Field**: Slows only projectiles in the selected bubble or global scope, including owner shots and TaCZ bullets. Uses the configured projectile time rate; the rest of the world stays at normal speed.
 - **Fast Forward**: Accelerates server-side simulation to 500% speed (100 TPS default; calibratable up to 50x). Speeds up mob movement, daylight cycles, crop growth, and block entities (furnaces, blast furnaces, smokers, brewing stands).
 
 ---
@@ -77,7 +81,11 @@ Craft and upgrade pocket watches through survival tiers. Higher tiers increase a
 | <img src="common/src/main/resources/assets/timestop/textures/item/chronos_watch.png" width="24" height="24" /> | **Golden Watch** | `timestop:chronos_watch` | 10s (200t) | 18s (360t) | 24m | 3.5m Bullet Dodge | 1 | + Deceleration Field, SUPERHOT |
 | <img src="common/src/main/resources/assets/timestop/textures/item/diamond_watch.png" width="24" height="24" /> | **Diamond Watch** | `timestop:diamond_watch` | 14s (280t) | 12s (240t) | 42m | 4.5m Bullet Dodge | 1 | + Matrix, Time Stop |
 | <img src="common/src/main/resources/assets/timestop/textures/item/netherite_watch.png" width="24" height="24" /> | **Netherite Watch** | `timestop:netherite_watch` | 20s (400t) | 6s (120t) | 72m | 5.5m Bullet Dodge | 1 | All Modes *(Fire-Resistant)* |
-| <img src="common/src/main/resources/assets/timestop/textures/item/creative_watch.png" width="24" height="24" /> | **Creative Watch** | `timestop:creative_watch` | Infinite | None | 128m / Global | 6.0m Bullet Dodge | 1 | All Modes *(Configurable Scope)* |
+| <img src="common/src/main/resources/assets/timestop/textures/item/creative_watch.png" width="24" height="24" /> | **Creative Watch** | `timestop:creative_watch` | Infinite | None | Adjustable 1–512m / Global | 6.0m Bullet Dodge | 15-rune matrix | All Modes *(Configurable Scope)* |
+
+**Creative Watch controls:** Shift + right-click the watch to open its menu. Click **Bubble radius [Edit]** to choose a local radius with the slider or numeric input; it applies on the next activation. Without a saved override, the watch uses the server's configured tier radius. Click rune chips independently, or use **Enable All / Disable All**, to activate multiple runes together without consuming rune items.
+
+On the Rewind mode card, **Self: ON** includes you in rewind; **Self: OFF** preserves your position, health, and inventory while the world rewinds. This works with local/global scope and burst/continuous rewind. Server admins can lock this option with `/timestop rewind allowexempt false`; `/timestop rewind exempt true` enables exemption on a held Creative Watch. Existing socketed Creative Watches keep their ability and return the physical rune when their matrix is first configured.
 
 > [!NOTE]
 > Pocket watches in survival generate localized spherical bubbles by default. Dedicated server tick rates remain at 20 TPS outside active spheres, allowing multiple players to independently control time without degrading server performance.
@@ -105,7 +113,7 @@ Socketable into Tier 2–4 pocket watches via the **Watch Management GUI** (**Sh
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_barrier.png" width="24" height="24" /> | **Rune of the Kinetic Barrier** | `timestop:rune_barrier` | Hold **Middle Click** (Neo's Palm) to freeze incoming projectiles in mid-air. Attack to return fire. | 1.20.1 & 1.21.1 |
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_vector.png" width="24" height="24" /> | **Rune of Vector Control** | `timestop:rune_vector` | Directs struck projectiles and kinetic barrier volleys straight along your crosshair aim vector. | 1.20.1 & 1.21.1 |
 | <img src="common/src/main/resources/assets/timestop/textures/item/rune_rewind.png" width="24" height="24" /> | **Rune of Rewind** | `timestop:rune_rewind` | Automatically intercepts fatal damage to rewind time, safely restoring health, position, and inventory. | 1.20.1 & 1.21.1 |
-| <img src="common/src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | `timestop:rune_coin` | Tap **C** to toss Chrono Coins into the air and shoot them to deflect critical headshots. | **1.20.1 Only** *(TACZ)* |
+| <img src="common/src/main/resources/assets/timestop/textures/item/rune_coin.png" width="24" height="24" /> | **Rune of the Marksman (+RICOSHOT)** | `timestop:rune_coin` | Tap **C** to toss Chrono Coins into the air and shoot them to deflect critical headshots. | 1.20.1; **1.21.1 candidate** *(TaCZ)* |
 
 ---
 
@@ -120,7 +128,7 @@ Socketable into Tier 2–4 pocket watches via the **Watch Management GUI** (**Sh
 | **R** | Release orbiting projectile shield | Equipped *Rune of Orbital Redirection* | 1.20.1 & 1.21.1 |
 | **G** | Trigger Spatial Transposition position swap | Equipped *Rune of Spatial Transposition* | 1.20.1 & 1.21.1 |
 | **Middle Click** *(Hold)* | Deploy Kinetic Barrier (Neo's Palm) | Equipped *Rune of the Kinetic Barrier* | 1.20.1 & 1.21.1 |
-| **C** | Flip Chrono Coin into mid-air | Equipped *Rune of the Marksman* & TACZ installed | **1.20.1 Only** |
+| **C** | Flip Chrono Coin into mid-air | Equipped *Rune of the Marksman* & TACZ installed | 1.20.1; **1.21.1 candidate** |
 | **K** | Toggle projectile flow state (suspended vs flowing stasis) | Any active stasis field | 1.20.1 & 1.21.1 |
 
 ---
@@ -172,10 +180,11 @@ Requires Operator permission (Level 2):
 - *(Optional)*: Install **Timeless and Classics Zero (TACZ)** for native firearm integration.
 
 ### Minecraft 1.21.1 (Java 21)
-- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.6.1.jar` in `.minecraft/mods`.
-- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.6.1.jar` in `.minecraft/mods`.
-- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.6.1.jar` in `.minecraft/mods`.
+- **Fabric**: Install Fabric Loader (0.16.10+) + Fabric API (0.116.17+). Place `timestop-fabric-1.21.1-1.6.6.jar` in `.minecraft/mods`.
+- **Forge**: Install Minecraft Forge (52.1.16+). Place `timestop-forge-1.21.1-1.6.6.jar` in `.minecraft/mods`.
+- **NeoForge**: Install NeoForge (21.1.75+). Place `timestop-neoforge-1.21.1-1.6.6.jar` in `.minecraft/mods`.
 - Install only the JAR matching your loader. Fabric also requires Fabric API for Minecraft 1.21.1.
+- *(Optional)*: For native firearm integration, use the [tested TaCZ port for your loader](integration/readiness/TACZ_PARITY.md#fixed-targets). The candidate targets are NeoForge **21.1.233** with MUKSC r7, Fabric Loader **0.17.2** with Refabricated 0.7.1 and Config API Port, and Forge **52.1.16** with MUKSC r1. TaCZ remains a separate download.
 
 ---
 

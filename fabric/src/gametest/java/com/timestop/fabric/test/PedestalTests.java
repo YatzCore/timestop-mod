@@ -97,7 +97,7 @@ public class PedestalTests implements FabricGameTest {
         arrow.setDeltaMovement(20,0,0);
         try {
             h.assertTrue(com.timestop.combat.TaczProjectileCompat.beforeTick(arrow),"Native bullet hook cancels full path before hit detection");
-            h.assertTrue(Math.abs(arrow.getX()-(center.x-2))<.0001,"High-speed bullet stops at entry, not several blocks inside");
+            h.assertTrue(Math.abs(arrow.getX()-(center.x-2))<.002,"High-speed bullet stops within network precision of entry, not several blocks inside");
             h.assertTrue(TimeStopManager.isProjectileSuspended(arrow) && arrow.getDeltaMovement().lengthSqr()==0,"Bullet is suspended with zero velocity");
             h.assertTrue(TimeStopManager.getSuspendedVelocity(arrow).equals(new Vec3(20,0,0)),"Full incoming velocity retained");
             TemporalBubbleManager.stopBubble(h.getLevel(),bubble);
@@ -114,7 +114,7 @@ public class PedestalTests implements FabricGameTest {
         var arrow=new Arrow(h.getLevel(),center.x-10,center.y-.25,center.z, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.ARROW), null); arrow.setDeltaMovement(20,0,0);
         try {
             h.assertTrue(com.timestop.combat.ProjectileStasisSweep.intercept(arrow),"Stops where dominant effect becomes freeze");
-            h.assertTrue(Math.abs(arrow.getX()-center.x)<.0001,"Crosses stronger field and stops at its exit within weaker freeze");
+            h.assertTrue(Math.abs(arrow.getX()-center.x)<.002,"Crosses stronger field and stops at its exit within weaker freeze");
         } finally { TemporalBubbleManager.stopBubble(h.getLevel(),freeze); TemporalBubbleManager.stopBubble(h.getLevel(),fast); arrow.discard(); }
         h.succeed();
     }
@@ -127,7 +127,7 @@ public class PedestalTests implements FabricGameTest {
         try {
             h.assertFalse(com.timestop.combat.ProjectileStasisSweep.beforeImpact(arrow,arrow.position().add(3,0,0)),"Impact before sphere remains native");
             h.assertTrue(com.timestop.combat.ProjectileStasisSweep.beforeImpact(arrow,arrow.position().add(12,0,0)),"Impact inside sphere is canceled before damage, including piercing rounds");
-            h.assertTrue(Math.abs(arrow.getX()-(center.x-2))<.0001,"Impact guard parks bullet at entry");
+            h.assertTrue(Math.abs(arrow.getX()-(center.x-2))<.002,"Impact guard parks bullet within network precision of entry");
         } finally { TemporalBubbleManager.stopBubble(h.getLevel(),freeze); arrow.discard(); }
         h.succeed();
     }
@@ -271,7 +271,7 @@ public class PedestalTests implements FabricGameTest {
         BlockPos pos = h.absolutePos(relative);
         h.getLevel().setBlockAndUpdate(pos, ModPedestals.CREATIVE.get().defaultBlockState());
         var p = (PedestalBlockEntity)h.getLevel().getBlockEntity(pos);
-        var owner = h.makeMockServerPlayerInLevel(); owner.setGameMode(GameType.SURVIVAL);
+        var owner = RewindRuneTests.survivalPlayer(h); owner.setGameMode(GameType.SURVIVAL);
         p.setOwner(owner); p.inventory.setItem(0, new ItemStack(watch)); p.configure(TimeMode.SLOW_MOTION, 2);
         owner.discard(); // The recorded owner may be offline; do not leak mock inventories into later batches.
         return p;

@@ -22,6 +22,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public abstract class AbstractWatchItem extends Item {
+    public static final int MIN_CREATIVE_RADIUS = 1;
+    public static final int MAX_CREATIVE_RADIUS = 512;
     protected final WatchTier tier;
 
     public AbstractWatchItem(Properties properties, WatchTier tier) {
@@ -39,6 +41,13 @@ public abstract class AbstractWatchItem extends Item {
         if (player.getOffhandItem().getItem() instanceof AbstractWatchItem) return player.getOffhandItem();
         ItemStack best = ItemStack.EMPTY;
         int bestTier = -1;
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier().getTierLevel() > bestTier) {
+                best = stack;
+                bestTier = watch.getTier().getTierLevel();
+            }
+        }
+        if (!best.isEmpty()) return best;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
             if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier().getTierLevel() > bestTier) {
@@ -76,7 +85,24 @@ public abstract class AbstractWatchItem extends Item {
     }
 
     public static void setMode(ItemStack stack, TimeMode mode) {
-        updateCustomTag(stack, tag -> tag.putString("TimeMode", mode.name()));
+        updateCustomTag(stack, tag -> {
+            tag.putString("TimeMode", mode.name());
+            if (mode.hasVariant()) tag.putString("Variant_" + mode.baseMode().name(), mode.name());
+        });
+    }
+
+    /** Last variant chosen for a Slow Motion / Fast Forward card (World variant if never chosen). */
+    public static TimeMode getPreferredVariant(ItemStack stack, TimeMode base) {
+        if (!base.hasVariant()) return base;
+        base = base.baseMode();
+        CompoundTag tag = getCustomTag(stack);
+        if (tag.contains("Variant_" + base.name())) {
+            try {
+                TimeMode mode = TimeMode.valueOf(tag.getString("Variant_" + base.name()));
+                if (mode.baseMode() == base) return mode;
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return base;
     }
 
     public static boolean isGlobalScope(ItemStack stack) {
@@ -96,6 +122,81 @@ public abstract class AbstractWatchItem extends Item {
 
     public static void setGlobalScope(ItemStack stack, boolean global) {
         updateCustomTag(stack, tag -> tag.putBoolean("GlobalScope", global));
+    }
+
+    public static double getBubbleRadius(ItemStack stack) {
+        if (!(stack.getItem() instanceof AbstractWatchItem watch)) return WatchTier.CREATIVE.getBubbleRadius();
+        CompoundTag tag = getCustomTag(stack);
+        if (watch.getTier() == WatchTier.CREATIVE && tag.contains("BubbleRadius", net.minecraft.nbt.Tag.TAG_ANY_NUMERIC)) {
+            return Math.max(MIN_CREATIVE_RADIUS, Math.min(MAX_CREATIVE_RADIUS, tag.getInt("BubbleRadius")));
+        }
+        return watch.getTier().getBubbleRadius();
+    }
+
+    public static void setBubbleRadius(ItemStack stack, int radius) {
+        if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE) {
+            updateCustomTag(stack, tag -> tag.putInt("BubbleRadius", Math.max(MIN_CREATIVE_RADIUS, Math.min(MAX_CREATIVE_RADIUS, radius))));
+        }
+    }
+
+    private static int getMatrixMask(ItemStack stack) {
+        if (!(stack.getItem() instanceof AbstractWatchItem watch) || watch.getTier() != WatchTier.CREATIVE) return 0;
+        CompoundTag tag = getCustomTag(stack);
+        if (tag.contains("RuneMatrix")) return tag.getInt("RuneMatrix");
+        // Older Creative Watches retain their socketed ability until their matrix is configured.
+        RuneType legacy = getSocketedRuneType(stack);
+        return legacy == null || legacy == RuneType.BLANK ? 0 : 1 << legacy.ordinal();
+    }
+
+    public static boolean isMatrixRuneActive(ItemStack stack, RuneType type) {
+        return type != null && type != RuneType.BLANK && (getMatrixMask(stack) & (1 << type.ordinal())) != 0;
+    }
+
+    public static void setMatrixRune(ItemStack stack, RuneType type, boolean active) {
+        if (!(stack.getItem() instanceof AbstractWatchItem watch) || watch.getTier() != WatchTier.CREATIVE || type == null || type == RuneType.BLANK) return;
+        int previous = getMatrixMask(stack);
+        int mask = active ? previous | (1 << type.ordinal()) : previous & ~(1 << type.ordinal());
+        updateCustomTag(stack, tag -> tag.putInt("RuneMatrix", mask));
+    }
+
+    public static void setAllMatrixRunes(ItemStack stack, boolean active) {
+        if (!(stack.getItem() instanceof AbstractWatchItem watch) || watch.getTier() != WatchTier.CREATIVE) return;
+        int mask = 0;
+        if (active) for (RuneType type : RuneType.values()) if (type != RuneType.BLANK) mask |= 1 << type.ordinal();
+        final int updated = mask;
+        updateCustomTag(stack, tag -> tag.putInt("RuneMatrix", updated));
+    }
+
+    public static int getActiveMatrixRuneCount(ItemStack stack) {
+        int count = 0;
+        for (RuneType type : RuneType.values()) if (isMatrixRuneActive(stack, type)) count++;
+        return count;
+    }
+
+    /** Return a legacy physical socketed rune when switching to the Creative Watch matrix. */
+    public static void initializeCreativeMatrix(Player player, ItemStack stack) {
+        if (!(stack.getItem() instanceof AbstractWatchItem watch) || watch.getTier() != WatchTier.CREATIVE) return;
+        int mask = getMatrixMask(stack);
+        ItemStack legacy = getSocketedRune(stack);
+        updateCustomTag(stack, tag -> tag.putInt("RuneMatrix", mask));
+        if (!legacy.isEmpty()) {
+            setSocketedRune(stack, ItemStack.EMPTY);
+            if (!player.getInventory().add(legacy)) player.drop(legacy, false);
+        }
+    }
+
+    public static boolean isRewindInitiatorExempt(ItemStack stack) {
+        return stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE && getCustomTag(stack).getBoolean("RewindExemptInitiator");
+    }
+
+    public static void setRewindInitiatorExempt(ItemStack stack, boolean exempt) {
+        if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == WatchTier.CREATIVE) {
+            updateCustomTag(stack, tag -> tag.putBoolean("RewindExemptInitiator", exempt));
+        }
+    }
+
+    public static boolean isPlayerRewindExempt(@Nullable Player player) {
+        return player != null && TimeStopManager.isRewindExemptAllowed() && isRewindInitiatorExempt(findActivationWatch(player));
     }
 
     public static ItemStack getSocketedRune(ItemStack stack) {
@@ -162,6 +263,13 @@ public abstract class AbstractWatchItem extends Item {
             return false;
         }
 
+        if (this.tier == WatchTier.CREATIVE && carriedStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
+            initializeCreativeMatrix(player, watchStack);
+            boolean active = isMatrixRuneActive(watchStack, runeItem.getType());
+            setMatrixRune(watchStack, runeItem.getType(), !active);
+            player.playSound(active ? net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_GENERIC.value() : net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1.0F, active ? 0.8F : 1.2F);
+            return true;
+        }
         ItemStack socketed = getSocketedRune(watchStack);
 
         if (carriedStack.isEmpty()) {
@@ -205,6 +313,13 @@ public abstract class AbstractWatchItem extends Item {
         }
 
         ItemStack slotStack = slot.getItem();
+        if (this.tier == WatchTier.CREATIVE && slotStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
+            initializeCreativeMatrix(player, watchStack);
+            boolean active = isMatrixRuneActive(watchStack, runeItem.getType());
+            setMatrixRune(watchStack, runeItem.getType(), !active);
+            player.playSound(active ? net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_GENERIC.value() : net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_NETHERITE.value(), 1.0F, active ? 0.8F : 1.2F);
+            return true;
+        }
         if (slotStack.getItem() instanceof TemporalRuneItem runeItem && runeItem.getType() != RuneType.BLANK) {
             ItemStack socketed = getSocketedRune(watchStack);
 
@@ -309,7 +424,7 @@ public abstract class AbstractWatchItem extends Item {
         String durationStr = tier.getDurationTicks() == 0 ? "Unlimited" : (tier.getDurationTicks() / 20) + "s";
         String cooldownStr = tier.getCooldownTicks() == 0 ? "None" : (tier.getCooldownTicks() / 20) + "s";
         tooltipComponents.add(Component.literal("- Domain Radius: ").withStyle(ChatFormatting.GRAY)
-                .append(Component.literal((int) tier.getBubbleRadius() + "m").withStyle(ChatFormatting.AQUA))
+                .append(Component.literal((int) getBubbleRadius(stack) + "m").withStyle(ChatFormatting.AQUA))
                 .append(Component.literal(" | Duration: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(durationStr).withStyle(ChatFormatting.GREEN))
                 .append(Component.literal(" | Cooldown: ").withStyle(ChatFormatting.GRAY))
@@ -325,14 +440,22 @@ public abstract class AbstractWatchItem extends Item {
 
         // Rune Socket Info
         if (tier.hasRuneSocket()) {
-            RuneType runeType = getSocketedRuneType(stack);
-            if (runeType != null) {
-                tooltipComponents.add(Component.literal("Socketed: ").withStyle(ChatFormatting.GOLD)
-                        .append(runeType.getFormattedComponent()));
-                tooltipComponents.add(Component.literal("  " + runeType.getDescription()).withStyle(ChatFormatting.DARK_AQUA));
+            if (this.tier == WatchTier.CREATIVE) {
+                tooltipComponents.add(Component.literal("Rune Matrix: ").withStyle(ChatFormatting.GOLD)
+                        .append(Component.literal(getActiveMatrixRuneCount(stack) + " / 15 Active").withStyle(ChatFormatting.AQUA)));
+                tooltipComponents.add(Component.literal("Rewind Self: ").withStyle(ChatFormatting.GRAY)
+                        .append(Component.literal(isRewindInitiatorExempt(stack) ? "Exempt (World only)" : "Included (Normal)").withStyle(ChatFormatting.GREEN)));
+                tooltipComponents.add(Component.literal("Shift + Right-Click to configure").withStyle(ChatFormatting.DARK_AQUA));
             } else {
-                tooltipComponents.add(Component.literal("Rune Socket: ").withStyle(ChatFormatting.GRAY)
-                        .append(Component.literal("Empty (Shift+Right-Click to socket)").withStyle(ChatFormatting.DARK_GRAY)));
+                RuneType runeType = getSocketedRuneType(stack);
+                if (runeType != null) {
+                    tooltipComponents.add(Component.literal("Socketed: ").withStyle(ChatFormatting.GOLD)
+                            .append(runeType.getFormattedComponent()));
+                    tooltipComponents.add(Component.literal("  " + runeType.getDescription()).withStyle(ChatFormatting.DARK_AQUA));
+                } else {
+                    tooltipComponents.add(Component.literal("Rune Socket: ").withStyle(ChatFormatting.GRAY)
+                            .append(Component.literal("Empty (Shift+Right-Click to socket)").withStyle(ChatFormatting.DARK_GRAY)));
+                }
             }
         } else {
             tooltipComponents.add(Component.literal("Rune Socket: ").withStyle(ChatFormatting.DARK_GRAY)

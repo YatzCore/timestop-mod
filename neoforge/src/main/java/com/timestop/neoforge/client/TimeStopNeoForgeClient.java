@@ -32,6 +32,7 @@ public class TimeStopNeoForgeClient {
     }
 
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        event.register(ModKeyBindings.OPEN_WATCH_KEY);
         event.register(ModKeyBindings.TIME_STOP_KEY);
         event.register(ModKeyBindings.RELEASE_PROJECTILES_KEY);
         event.register(ModKeyBindings.TRANSPOSITION_KEY);
@@ -40,6 +41,7 @@ public class TimeStopNeoForgeClient {
         }
         event.register(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         event.register(ModKeyBindings.KINETIC_BARRIER_KEY);
+        event.register(ModKeyBindings.TOGGLE_VARIANT_KEY);
     }
 
     private static void onRegisterScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
@@ -96,6 +98,7 @@ public class TimeStopNeoForgeClient {
                 TemporalBubbleRenderer.renderLevel(event.getPoseStack(), event.getCamera(), tickDelta);
                 KineticPalmRenderer.renderLevel(event.getPoseStack(), event.getCamera(), tickDelta);
                 RewindBlockRenderer.render(event.getPoseStack(), event.getCamera(), tickDelta);
+                com.timestop.client.PredictionRenderer.render(event.getPoseStack(), event.getCamera(), tickDelta);
             }
         }
 

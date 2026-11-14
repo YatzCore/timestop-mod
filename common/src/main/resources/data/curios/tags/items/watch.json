@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "timestop:copper_watch",
+    "timestop:chronos_watch",
+    "timestop:diamond_watch",
+    "timestop:netherite_watch",
+    "timestop:creative_watch"
+  ]
+}

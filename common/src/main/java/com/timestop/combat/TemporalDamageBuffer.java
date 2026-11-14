@@ -77,12 +77,12 @@ public class TemporalDamageBuffer {
 
         // Check Rune enhancements
         if (attacker instanceof Player player) {
-            RuneType rune = RuneManager.getSocketedRuneType(player);
-            if (rune == RuneType.KINETIC) {
+            if (RuneManager.hasRune(player, RuneType.KINETIC)) {
                 amount *= 1.5F; // +50% punch damage
                 knockback = knockback.scale(2.5D); // 2.5x launch force!
                 record.isSuperchargedKinetic = true;
-            } else if (rune == RuneType.VAMPIRISM) {
+            }
+            if (RuneManager.hasRune(player, RuneType.VAMPIRISM)) {
                 // Siphons duration with per-mob diminishing returns and double-duration cap
                 if (leechedMobsThisSession.add(victim.getUUID())) {
                     boolean isLethal = (victim.getHealth() - (record.totalDamage + amount)) <= 0;
@@ -207,9 +207,11 @@ public class TemporalDamageBuffer {
                     victim = living;
                 }
             }
-            if (victim != null && victim.level() == level && victim.distanceToSqr(center) <= rSq
-                    && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(victim)) {
-                toDischarge.add(uuid);
+            if (victim != null && victim.level() == level) {
+                Vec3 vWorld = com.timestop.compat.TemporalWorlds.toWorld(level, victim.position());
+                if (vWorld.distanceToSqr(center) <= rSq && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(victim)) {
+                    toDischarge.add(uuid);
+                }
             }
         }
 

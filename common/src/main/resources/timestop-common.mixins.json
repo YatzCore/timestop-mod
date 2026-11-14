@@ -5,6 +5,13 @@
   "compatibilityLevel": "JAVA_21",
   "refmap": "timestop.refmap.json",
   "mixins": [
+    "SablePhysicsSystemMixin",
+    "SableRapierPipelineMixin",
+    "SableRapier3DAccessor",
+    "SableConstraintHandleMixin",
+    "SableGenericConstraintHandleMixin",
+    "SableSubLevelLifecycleMixin",
+    "SableAssemblyHistoryMixin",
     "ServerLevelMixin",
     "LevelMixin",
     "LivingEntityMixin",
@@ -19,6 +26,7 @@
     "ProjectileDecelerationMixin",
     "ItemEntityMixin",
     "BlockEntityMixin",
+    "MobAccessor",
     "ServerPlayerGameModeMixin",
     "ServerEntityMixin",
     "TntBlockMixin",
@@ -28,13 +36,26 @@
     "PistonHeadBlockRewindMixin",
     "PistonBaseRewindMixin",
     "PistonMotionRewindMixin",
-    "LocalRewindTicksMixin"
+    "LocalRewindTicksMixin",
+    "RandomTickBlockStateMixin",
+    "RandomTickFluidStateMixin",
+    "HurtingProjectilePhysicsAccessor",
+    "PredictionLivingMotionMixin",
+    "PredictionMobAiMixin",
+    "PredictionEndermanMixin",
+    "EndermanTeleportAccessor",
+    "PredictionCreeperAccessor",
+    "PredictionFireballAccessor",
+    "RedStoneWireBlockMixin"
   ],
   "client": [
+    "SelfAccelerationClientMixin",
+    "MultiPlayerGameModeAccessor",
     "EntityOutlineMixin",
     "ClientLevelMixin",
     "EntityRenderDispatcherMixin",
     "LevelRendererMixin",
+    "LevelRendererCloudMixin",
     "ParticleEngineMixin",
     "SingleQuadParticleMixin",
     "LivingEntityRendererMixin",
@@ -42,7 +63,10 @@
     "TextureAtlasMixin",
     "PlayerModelMixin",
     "GameRendererAccessor",
-    "GameRendererMixin"
+    "GameRendererMixin",
+    "AgeableListModelAccessor",
+    "ModelPartAccessor",
+    "DeadEyeModelPartMixin"
   ],
   "injectors": {
     "defaultRequire": 1

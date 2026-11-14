@@ -1,6 +1,7 @@
 package com.timestop.core.rewind;
 
 import com.timestop.core.rewind.data.PlayerDelta;
+import com.timestop.core.rewind.data.SubLevelSnapshot;
 import com.timestop.core.rewind.data.TickFrame;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -14,7 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Immutable plan describing all block, entity, player, and weather states to restore.
+ * Immutable plan describing all block, entity, player, sublevel, and weather states to restore.
  */
 public record RewindPlan(
         int frameCount,
@@ -25,9 +26,49 @@ public record RewindPlan(
         Map<UUID, EntitySpawnInfo> entitiesToRespawn,
         Map<UUID, EntitySpawnInfo> entityTargetStates,
         Map<UUID, PlayerDelta> playerTargetStates,
+        Map<UUID, SubLevelSnapshot> subLevelTargetStates,
         @Nullable TickFrame oldestFrame,
-        java.util.List<TickFrame.ExplosionMoment> explosions
+        java.util.List<TickFrame.ExplosionMoment> explosions,
+        Map<UUID, Set<UUID>> historicalConnectedSubLevels,
+        Map<UUID, Set<BlockKey>> subLevelBlockDependencies
 ) {
+    public RewindPlan(int frameCount, Map<BlockKey, BlockState> blockTargetStates,
+            Map<BlockKey, CompoundTag> blockEntityTargetNbts, Map<BlockKey, CompoundTag> standaloneBeTargetNbts,
+            Set<UUID> entitiesToRemove, Map<UUID, EntitySpawnInfo> entitiesToRespawn,
+            Map<UUID, EntitySpawnInfo> entityTargetStates, Map<UUID, PlayerDelta> playerTargetStates,
+            Map<UUID, SubLevelSnapshot> subLevelTargetStates, @Nullable TickFrame oldestFrame,
+            java.util.List<TickFrame.ExplosionMoment> explosions, Map<UUID, Set<UUID>> historicalConnectedSubLevels) {
+        this(frameCount, blockTargetStates, blockEntityTargetNbts, standaloneBeTargetNbts, entitiesToRemove,
+                entitiesToRespawn, entityTargetStates, playerTargetStates, subLevelTargetStates, oldestFrame, explosions,
+                historicalConnectedSubLevels, Map.of());
+    }
+
+    public RewindPlan(
+            int frameCount,
+            Map<BlockKey, BlockState> blockTargetStates,
+            Map<BlockKey, CompoundTag> blockEntityTargetNbts,
+            Map<BlockKey, CompoundTag> standaloneBeTargetNbts,
+            Set<UUID> entitiesToRemove,
+            Map<UUID, EntitySpawnInfo> entitiesToRespawn,
+            Map<UUID, EntitySpawnInfo> entityTargetStates,
+            Map<UUID, PlayerDelta> playerTargetStates,
+            Map<UUID, SubLevelSnapshot> subLevelTargetStates,
+            @Nullable TickFrame oldestFrame,
+            java.util.List<TickFrame.ExplosionMoment> explosions
+    ) {
+        this(frameCount, blockTargetStates, blockEntityTargetNbts, standaloneBeTargetNbts, entitiesToRemove,
+                entitiesToRespawn, entityTargetStates, playerTargetStates, subLevelTargetStates, oldestFrame, explosions,
+                java.util.Collections.emptyMap());
+    }
+
+    public RewindPlan withoutPlayer(UUID id) {
+        var players = new java.util.HashMap<>(playerTargetStates);
+        players.remove(id);
+        return new RewindPlan(frameCount, blockTargetStates, blockEntityTargetNbts, standaloneBeTargetNbts,
+                entitiesToRemove, entitiesToRespawn, entityTargetStates, players, subLevelTargetStates, oldestFrame,
+                explosions, historicalConnectedSubLevels, subLevelBlockDependencies);
+    }
+
     public record BlockKey(ResourceKey<Level> dimension, long packedPos) {}
 
     public record EntitySpawnInfo(

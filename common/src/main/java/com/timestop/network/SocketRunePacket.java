@@ -8,18 +8,23 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.item.ItemStack;
 
 public class SocketRunePacket implements IServerboundPacket {
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TimeStopMod.MOD_ID, "socket_rune");
-    private final InteractionHand hand;
+    private final WatchTarget target;
 
     public SocketRunePacket(InteractionHand hand) {
-        this.hand = hand;
+        this(WatchTarget.inHand(hand));
+    }
+
+    public SocketRunePacket(WatchTarget target) {
+        this.target = target;
     }
 
     public SocketRunePacket(FriendlyByteBuf buf) {
-        this.hand = buf.readEnum(InteractionHand.class);
+        this.target = WatchTarget.read(buf);
     }
 
     @Override
@@ -29,13 +34,13 @@ public class SocketRunePacket implements IServerboundPacket {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeEnum(this.hand);
+        this.target.write(buf);
     }
 
     @Override
     public void handle(ServerPlayer player) {
         if (player != null) {
-            ItemStack watchStack = player.getItemInHand(this.hand);
+            ItemStack watchStack = this.target.resolve(player);
             int slot = -1;
             RuneType type = RuneType.BLANK;
 
@@ -51,7 +56,7 @@ public class SocketRunePacket implements IServerboundPacket {
             com.timestop.item.RuneSocketTransactions.apply(player, watchStack, slot, type);
             player.inventoryMenu.broadcastChanges();
             player.containerMenu.broadcastChanges();
-            ModMessages.sendToPlayer(new SyncRuneSocketPacket(this.hand, AbstractWatchItem.getSocketedRune(watchStack)), player);
+            ModMessages.sendToPlayer(new SyncRuneSocketPacket(this.target, AbstractWatchItem.getSocketedRune(watchStack)), player);
         }
     }
 }

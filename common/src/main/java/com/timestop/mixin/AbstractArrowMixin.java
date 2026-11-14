@@ -9,6 +9,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AbstractArrow.class)
 public abstract class AbstractArrowMixin {
+    @Inject(method = "onHitBlock", at = @At("TAIL"))
+    private void restoreVectorGravity(net.minecraft.world.phys.BlockHitResult hit, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        com.timestop.combat.ProjectileRedirection.setStraightFlight((AbstractArrow) (Object) this, false);
+    }
+
 
     /**
      * Prevents high-velocity / reflected arrows from bouncing and jittering repeatedly when lodged in the ground.

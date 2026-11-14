@@ -10,32 +10,37 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Pseudo
 @Mixin(targets = "com.tacz.guns.entity.EntityKineticBullet", remap = false)
-public abstract class TaczDeadEyeBulletMixin {
+public abstract class TaczDeadEyeBulletMixin implements com.timestop.combat.ProjectileDecelerationHook, com.timestop.prediction.NativePredictionPhysics {
     @Unique private boolean timestop$handledImpact;
     @Unique private Vec3 timestop$fullVelocity;
+    @Unique private double timestop$stepRate;
     @Shadow private float gravity;
     @Shadow private float friction;
 
-    @Inject(method = {"tick", "m_8119_"}, at = @At("HEAD"), cancellable = true, remap = false)
+    @Override public double timestop$predictionGravity() { return gravity; }
+    @Override public double timestop$predictionDrag() { return friction; }
+
+    @Inject(method = {"tick", "m_8119_", "method_5773"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void beforeNativeTick(CallbackInfo ci) {
         timestop$handledImpact = false;
-        Projectile bullet = (Projectile) (Object) this;
-        if (TaczProjectileCompat.beforeTick(bullet)) { ci.cancel(); return; }
         timestop$fullVelocity = null;
+        Projectile bullet = (Projectile) (Object) this;
         com.timestop.combat.TaczPrecision.guide(bullet);
-        if (com.timestop.combat.DecelerationFieldManager.isDecelerated(bullet)) {
+        if (TaczProjectileCompat.beforeTick(bullet)) { ci.cancel(); return; }
+        timestop$stepRate = com.timestop.combat.DecelerationFieldManager.getMovementScale(bullet);
+        if (timestop$stepRate < 1.0) {
             timestop$fullVelocity = bullet.getDeltaMovement();
-            bullet.setDeltaMovement(timestop$fullVelocity.scale(0.2));
+            bullet.setDeltaMovement(timestop$fullVelocity.scale(timestop$stepRate));
         }
     }
 
-    @Inject(method = {"tick", "m_8119_"}, at = @At("TAIL"), remap = false)
+    @Inject(method = {"tick", "m_8119_", "method_5773"}, at = @At("TAIL"), remap = false)
     private void restoreNativeVelocity(CallbackInfo ci) {
         Projectile bullet = (Projectile) (Object) this;
         if (timestop$fullVelocity == null || !bullet.isAlive() || timestop$handledImpact) return;
         double drag = bullet.isInWater() ? 0.4 : friction;
         double fall = bullet.isInWater() ? gravity * 0.6 : gravity;
-        bullet.setDeltaMovement(timestop$fullVelocity.scale(1 - drag * 0.2).add(0, -fall * 0.2, 0));
+        bullet.setDeltaMovement(timestop$fullVelocity.scale(1 - drag * timestop$stepRate).add(0, -fall * timestop$stepRate, 0));
         timestop$fullVelocity = null;
     }
 
@@ -46,23 +51,28 @@ public abstract class TaczDeadEyeBulletMixin {
 
     @Inject(method = "onHitEntity", at = @At("HEAD"), cancellable = true, remap = false)
     private void entityImpact(@Coerce EntityHitResult hit, Vec3 start, Vec3 end, CallbackInfo ci) {
-        timestop$handledImpact = ForgeEventFactory.onProjectileImpact((Projectile) (Object) this, hit);
+        timestop$handledImpact = TaczProjectileCompat.beforeImpact((Projectile) (Object) this, hit) || ForgeEventFactory.onProjectileImpact((Projectile) (Object) this, hit);
         if (timestop$handledImpact) ci.cancel();
+    }
+
+    @Inject(method = "onHitEntity", at = @At("TAIL"), remap = false)
+    private void afterNativeEntityImpact(@Coerce EntityHitResult hit, Vec3 start, Vec3 end, CallbackInfo ci) {
+        timestop$handledImpact = TaczProjectileCompat.afterEntityImpact((Projectile) (Object) this, hit);
     }
 
     @Inject(method = "onHitBlock", at = @At("HEAD"), cancellable = true, remap = false)
     private void blockImpact(BlockHitResult hit, Vec3 start, Vec3 end, CallbackInfo ci) {
         if (hit.getType() == HitResult.Type.MISS) return;
-        timestop$handledImpact = ForgeEventFactory.onProjectileImpact((Projectile) (Object) this, hit);
+        timestop$handledImpact = TaczProjectileCompat.beforeImpact((Projectile) (Object) this, hit) || ForgeEventFactory.onProjectileImpact((Projectile) (Object) this, hit);
         if (timestop$handledImpact) ci.cancel();
     }
 
-    @Inject(method = "onBulletTick", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/entity/EntityKineticBullet;onHitEntity(Lcom/tacz/guns/util/TacHitResult;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;)V", shift = At.Shift.AFTER), cancellable = true, remap = false)
+    @Inject(method = "onBulletTick", at = @At(value = "INVOKE", target = "Lcom/tacz/guns/entity/EntityKineticBullet;onHitEntity", shift = At.Shift.AFTER), cancellable = true, remap = false)
     private void preserveCancelledImpact(CallbackInfo ci) {
         if (timestop$handledImpact) ci.cancel();
     }
 
-    @Inject(method = {"tick", "m_8119_"}, at = @At(value = "INVOKE", target = "Lcom/tacz/guns/entity/EntityKineticBullet;onBulletTick()V", shift = At.Shift.AFTER), cancellable = true, remap = false)
+    @Inject(method = {"tick", "m_8119_", "method_5773"}, at = @At(value = "INVOKE", target = "Lcom/tacz/guns/entity/EntityKineticBullet;onBulletTick()V", shift = At.Shift.AFTER), cancellable = true, remap = false)
     private void stopHandledMovement(CallbackInfo ci) {
         if (timestop$handledImpact || !((Projectile) (Object) this).isAlive()) ci.cancel();
     }

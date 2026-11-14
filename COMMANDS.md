@@ -50,6 +50,9 @@ Forces server-wide time distortion in the specified mode across all loaded dimen
     - `superhot`: Movement-scaled time dilation. Runs at 2 TPS when idle and dynamically scales up to 20 TPS based on player velocity, sprinting, jumping, and attacking.
     - `fastforward`: Accelerated simulation at 10 ms per tick (100 TPS). Daylight progression is rate-limited to 20 TPS to prevent graphical flickering.
     - `deceleration`: Projects an omnidirectional 6-meter bullet-dodge field centered on the player.
+    - `prediction`: Keeps player controls normal while displaying movement, shot paths, silhouettes and impact cues.
+    - `combatslow`: Slows mobs and projectiles while every player and world processes remain normal.
+    - `selfacceleration`: Accelerates only the activating player's voluntary movement.
     - `rewind`: Rewinds the world timeline backwards for the specified duration (up to buffer capacity). Respects configured continuous or burst playback mode. When Rewind mode is disabled via `/timestop rewind include false`, starting rewind is blocked.
   - `[seconds]` *(Optional)*: Duration in seconds (1 to 3600 for standard modes; 1 to 60 for rewind). If omitted or set to 0, runs indefinitely (or for rewind, uses default configured buffer duration).
 - **Example**:
@@ -182,10 +185,12 @@ Inspects or calibrates temporal simulation multipliers and drag rates across all
 ```
 /timestop speed
 /timestop speed reset
-/timestop speed <fastforward|slowmotion|matrix|superhot|drag> [value]
+/timestop speed <fastforward|slowmotion|matrix|superhot|drag|rewind|prediction> [value]
 ```
 
 - **Subcommands**:
+  - `prediction [value]`: Independent prediction rate, 0.01–0.99.
+  - `rewind [value]`: Continuous playback rate, 0.1–20; also `/timestop rewind speed [value]`.
   - `/timestop speed`: Displays all current speed multipliers and their valid configurable ranges.
   - `reset`: Restores all mode speeds to their default calibrations.
   - `fastforward [value]`: Sets fast forward multiplier (valid: `1.1` – `50.0x`, default: `5.0x` / 100 TPS).

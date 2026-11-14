@@ -1,0 +1,8 @@
+{
+  "name": "Time Stop controlled burst",
+  "display": "tacz:ak47_display",
+  "data": "timestop_qa:controlled",
+  "type": "rifle",
+  "item_type": "modern_kinetic",
+  "sort": 9999
+}

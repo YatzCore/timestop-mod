@@ -40,6 +40,11 @@ neoForge {
 }
 
 dependencies {
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${project.curios_version}:api"
+    if (providers.gradleProperty('accessoryRuntime').orElse('true').get().toBoolean()) {
+        runtimeOnly "top.theillusivec4.curios:curios-neoforge:${project.curios_version}"
+    }
+
     compileOnly project(':common')
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 }

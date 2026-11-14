@@ -19,12 +19,12 @@ public final class PedestalBeamRenderer {
                               ClientBubbleManager.ClientBubble bubble, double ticks) {
         if (!bubble.stationary) return;
         var level = net.minecraft.client.Minecraft.getInstance().level;
-        var source = net.minecraft.core.BlockPos.containing(bubble.center);
-        if (level == null || !level.hasChunkAt(source)
-                || !(level.getBlockEntity(source) instanceof com.timestop.pedestal.PedestalBlockEntity pedestal)
-                || !pedestal.getFieldId().equals(bubble.bubbleId) || pedestal.getWatch().isEmpty() || !pedestal.isActive()) return;
+        if (level == null) return;
+        var pedestal = com.timestop.compat.TemporalWorlds.bridge().getBlockEntityAtWorld(level, bubble.center);
+        if (!(pedestal instanceof com.timestop.pedestal.PedestalBlockEntity p)
+                || !p.getFieldId().equals(bubble.bubbleId) || p.getWatch().isEmpty() || !p.isActive()) return;
         double top = bubble.radius;
-        double bottom = source.getY() + ArmillaryAnimation.watchY(pedestal) - bubble.center.y;
+        double bottom = ArmillaryAnimation.watchY(p) - 0.5;
         double length = top - bottom;
         if (length <= .02) return;
 

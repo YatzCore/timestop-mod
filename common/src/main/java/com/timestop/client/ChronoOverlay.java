@@ -82,6 +82,8 @@ public class ChronoOverlay {
             int filledWidth = (int) (barWidth * progress);
             int color;
             switch (mode) {
+                case TIME_PREDICTION:
+                case COMBAT_SLOW:
                 case SLOW_MOTION:
                     color = 0xFF00B4D8;
                     break;
@@ -91,6 +93,7 @@ public class ChronoOverlay {
                 case SUPERHOT:
                     color = 0xFFFF2A2A;
                     break;
+                case SELF_ACCELERATION:
                 case FAST_FORWARD:
                     color = 0xFFFF0054;
                     break;

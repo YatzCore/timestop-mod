@@ -36,7 +36,7 @@ public class TranspositionManager {
 
     public static boolean hasTranspositionRune(Player player) {
         if (player == null || !player.isAlive()) return false;
-        return RuneManager.getSocketedRuneType(player) == RuneType.TRANSPOSITION;
+        return RuneManager.hasRune(player, RuneType.TRANSPOSITION);
     }
 
     private static List<Entity> cachedClientCandidates = Collections.emptyList();
@@ -174,7 +174,8 @@ public class TranspositionManager {
     private static void performPlayerProjectileSwap(ServerPlayer player, ServerLevel level, Projectile proj) {
         Vec3 pPos = player.position();
         Vec3 projPos = proj.position();
-        Vec3 projVel = proj.getDeltaMovement();
+        Vec3 projVel = com.timestop.combat.TaczProjectileCompat.isBullet(proj)
+                ? ProjectileCombatHelper.incomingVelocity(proj) : proj.getDeltaMovement();
 
         // 1. Play percussive hand-clap audio
         playClapAudio(level, pPos);
@@ -193,6 +194,15 @@ public class TranspositionManager {
         proj.setPos(pPos.x, pPos.y + 1.2, pPos.z);
         Vec3 reversedVel = projVel.scale(-1.0);
         proj.setDeltaMovement(reversedVel);
+        if (com.timestop.combat.TaczProjectileCompat.isBullet(proj)) {
+            ProjectileRedirection.clearGuidance(proj);
+            ProjectileCombatHelper.markReleased(proj, player);
+            proj.setOwner(player);
+            if (TimeStopManager.isProjectileSuspended(proj)) {
+                TimeStopManager.removeSuspendedProjectile(proj);
+                TimeStopManager.registerSuspendedProjectile(proj, reversedVel);
+            }
+        }
         proj.setYRot((proj.getYRot() + 180.0F) % 360.0F);
         proj.setXRot(-proj.getXRot());
         proj.yRotO = proj.getYRot();

@@ -45,6 +45,7 @@ public class TimeStopFabricMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        TimeStopMod.init();
         Registry.register(BuiltInRegistries.STRUCTURE_TYPE, com.timestop.worldgen.ModObservatories.ID, com.timestop.worldgen.ModObservatories.TYPE);
         Registry.register(BuiltInRegistries.STRUCTURE_PIECE, com.timestop.worldgen.ModObservatories.ID, com.timestop.worldgen.ModObservatories.PIECE);
         com.timestop.pedestal.ModPedestals.bootstrap();
@@ -147,6 +148,7 @@ public class TimeStopFabricMod implements ModInitializer {
                     TimeStopManager.getExemptPlayers()), serverPlayer);
             com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
             com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(com.timestop.core.TimeStopManager.isRewindAllowed()), serverPlayer);
+            com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindExemptAllowedPacket(com.timestop.core.TimeStopManager.isRewindExemptAllowed()), serverPlayer);
             com.timestop.combat.CoinManager.onPlayerLoggedIn(serverPlayer);
             com.timestop.combat.OrbitalProjectileManager.onPlayerLoggedIn(serverPlayer);
         });

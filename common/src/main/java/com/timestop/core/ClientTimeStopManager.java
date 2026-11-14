@@ -52,6 +52,8 @@ public class ClientTimeStopManager {
         return clientTimeStopped;
     }
 
+    public static UUID getInitiatorUuid() { return clientInitiatorUuid; }
+
     public static boolean isShaderActive() {
         return shaderActive;
     }
@@ -98,6 +100,8 @@ public class ClientTimeStopManager {
         switch (mode) {
             case FAST_FORWARD:
                 return (float) Math.max(10.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get());
+            case TIME_PREDICTION:
+                return 50.0F; // Continuous movement keeps controls and interpolation responsive.
             case SLOW_MOTION:
                 return (float) Math.max(50.0, 50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get());
             case MATRIX:

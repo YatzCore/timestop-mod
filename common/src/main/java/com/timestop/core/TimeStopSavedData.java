@@ -13,6 +13,9 @@ public class TimeStopSavedData extends SavedData {
     private boolean redirectToLook;
     private boolean autoDeathRewind;
     private boolean rewindModeAllowed = true;
+    private boolean rewindExemptInitiatorAllowed = true;
+    public boolean isRewindExemptInitiatorAllowed() { return rewindExemptInitiatorAllowed; }
+    public void setRewindExemptInitiatorAllowed(boolean allowed) { rewindExemptInitiatorAllowed = allowed; setDirty(); }
     public boolean isRewindModeAllowed() { return rewindModeAllowed; }
     public void setRewindModeAllowed(boolean allowed) { this.rewindModeAllowed = allowed; setDirty(); }
     private boolean pedestalsAffectPlayers = true;
@@ -36,6 +39,7 @@ public class TimeStopSavedData extends SavedData {
         data.redirectToLook = tag.getBoolean("RedirectToLook");
         data.autoDeathRewind = tag.getBoolean("AutoDeathRewind");
         data.rewindModeAllowed = !tag.contains("RewindModeAllowed") || tag.getBoolean("RewindModeAllowed");
+        data.rewindExemptInitiatorAllowed = !tag.contains("RewindExemptInitiatorAllowed") || tag.getBoolean("RewindExemptInitiatorAllowed");
         if (tag.contains("ProjectileStasisMode")) {
             try { data.projectileStasisMode = TimeStopManager.ProjectileStasisMode.valueOf(tag.getString("ProjectileStasisMode")); }
             catch (IllegalArgumentException ignored) { data.projectileStasisMode = TimeStopManager.ProjectileStasisMode.FLOWING; }
@@ -51,6 +55,7 @@ public class TimeStopSavedData extends SavedData {
         tag.putBoolean("RedirectToLook", redirectToLook);
         tag.putBoolean("AutoDeathRewind", autoDeathRewind);
         tag.putBoolean("RewindModeAllowed", rewindModeAllowed);
+        tag.putBoolean("RewindExemptInitiatorAllowed", rewindExemptInitiatorAllowed);
         tag.putString("ProjectileStasisMode", projectileStasisMode.name());
         return tag;
     }

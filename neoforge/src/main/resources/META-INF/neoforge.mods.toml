@@ -32,3 +32,10 @@ config="timestop-neoforge.mixins.json"
     versionRange="[1.21.1,1.21.2)"
     ordering="NONE"
     side="BOTH"
+
+[[dependencies.timestop]]
+    modId="curios"
+    type="optional"
+    versionRange="[9.2.2,10)"
+    ordering="AFTER"
+    side="BOTH"

@@ -10,6 +10,12 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 public class NeoForgePlatformHelper implements IPlatformHelper {
     @Override
+    public java.util.Map<String, net.minecraft.world.item.ItemStack> getEquippedWatchSlots(net.minecraft.world.entity.player.Player player) {
+        if (player == null || !isModLoaded("curios")) return java.util.Map.of();
+        return CuriosWatchCompat.getEquippedWatchSlots(player);
+    }
+
+    @Override
     public String getPlatformName() {
         return "NeoForge";
     }

@@ -4,7 +4,9 @@ import com.timestop.core.rewind.data.EntityDelta;
 import com.timestop.core.rewind.data.PlayerDelta;
 import com.timestop.core.rewind.data.SharedEntitySnapshot;
 import com.timestop.core.rewind.data.SharedInventory;
+import com.timestop.core.rewind.data.SubLevelSnapshot;
 import com.timestop.core.rewind.data.TickFrame;
+import net.minecraft.nbt.CompoundTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +36,11 @@ public class TimelineBuffer {
     private int frameCount = 0;
     private long framesMemory = 0;
     private long sharedSnapshotsMemory = 0;
+    private long duplicatePlotMemory = 0;
 
     private final Map<SharedEntitySnapshot, Integer> activeEntitySnapshots = new IdentityHashMap<>();
     private final Map<SharedInventory, Integer> activeInventories = new IdentityHashMap<>();
+    private final Map<CompoundTag, Integer> activePlotTags = new IdentityHashMap<>();
 
     private boolean recording = true;
     private boolean rewinding = false;
@@ -76,6 +80,7 @@ public class TimelineBuffer {
         }
 
         enforceMemoryBudget();
+        if (this == TickRecorder.getInstance().getTimelineBuffer()) LocalRewind.enforceMemoryBudget();
     }
 
     private void trackFrameSharedAllocations(TickFrame frame) {
@@ -97,6 +102,16 @@ public class TimelineBuffer {
                     sharedSnapshotsMemory += inv.estimatedBytes();
                 }
                 activeInventories.put(inv, count + 1);
+            }
+        }
+        for (SubLevelSnapshot snapshot : frame.getSubLevelSnapshots().values()) {
+            if (snapshot.plotData() != null) {
+                int count = activePlotTags.getOrDefault(snapshot.plotData(), 0);
+                if (count > 0) {
+                    // Only the tag is shared; each frame owns its motion/constraint snapshot.
+                    duplicatePlotMemory += SubLevelSnapshot.estimateTagBytes(snapshot.plotData());
+                }
+                activePlotTags.put(snapshot.plotData(), count + 1);
             }
         }
     }
@@ -126,6 +141,19 @@ public class TimelineBuffer {
                         sharedSnapshotsMemory -= inv.estimatedBytes();
                     } else {
                         activeInventories.put(inv, count - 1);
+                    }
+                }
+            }
+        }
+        for (SubLevelSnapshot snapshot : frame.getSubLevelSnapshots().values()) {
+            if (snapshot.plotData() != null) {
+                Integer count = activePlotTags.get(snapshot.plotData());
+                if (count != null) {
+                    if (count <= 1) {
+                        activePlotTags.remove(snapshot.plotData());
+                    } else {
+                        activePlotTags.put(snapshot.plotData(), count - 1);
+                        duplicatePlotMemory -= SubLevelSnapshot.estimateTagBytes(snapshot.plotData());
                     }
                 }
             }
@@ -188,6 +216,7 @@ public class TimelineBuffer {
         }
         if (framesMemory < 0) framesMemory = 0;
         if (sharedSnapshotsMemory < 0) sharedSnapshotsMemory = 0;
+        if (duplicatePlotMemory < 0) duplicatePlotMemory = 0;
     }
 
     public synchronized void consumeFrames(List<TickFrame> selected, RewindPlan plan) {
@@ -225,6 +254,7 @@ public class TimelineBuffer {
         }
         if (framesMemory < 0) framesMemory = 0;
         if (sharedSnapshotsMemory < 0) sharedSnapshotsMemory = 0;
+        if (duplicatePlotMemory < 0) duplicatePlotMemory = 0;
     }
 
     /** Resize live, retaining newest intervals and scaling the memory budget from its 30-second baseline. */
@@ -239,8 +269,10 @@ public class TimelineBuffer {
         frameCount = 0;
         framesMemory = 0;
         sharedSnapshotsMemory = 0;
+        duplicatePlotMemory = 0;
         activeEntitySnapshots.clear();
         activeInventories.clear();
+        activePlotTags.clear();
         for (var frame : retained) {
             frames[writeHead] = frame;
             writeHead = (writeHead + 1) % capacity;
@@ -249,6 +281,7 @@ public class TimelineBuffer {
             trackFrameSharedAllocations(frame);
         }
         enforceMemoryBudget();
+        if (this == TickRecorder.getInstance().getTimelineBuffer()) LocalRewind.enforceMemoryBudget();
     }
 
     public synchronized void clear() {
@@ -259,8 +292,10 @@ public class TimelineBuffer {
         frameCount = 0;
         framesMemory = 0;
         sharedSnapshotsMemory = 0;
+        duplicatePlotMemory = 0;
         activeEntitySnapshots.clear();
         activeInventories.clear();
+        activePlotTags.clear();
         memoryEvictedFrames = 0;
     }
 
@@ -272,7 +307,37 @@ public class TimelineBuffer {
     public synchronized int getActiveInventoriesCount() { return activeInventories.size(); }
 
     public synchronized long getBufferRetainedBytes() {
-        return Math.max(0L, framesMemory + sharedSnapshotsMemory);
+        return Math.max(0L, framesMemory + sharedSnapshotsMemory - duplicatePlotMemory);
+    }
+
+    /** Extra ownership held by playback after timeline eviction/partial consumption.
+     * Frame identity matters: partially consumed copies are distinct retained objects. */
+    public synchronized long additionalRetainedBytes(Iterable<TickFrame> playbackFrames) {
+        var seenFrames = Collections.newSetFromMap(new IdentityHashMap<TickFrame, Boolean>());
+        var seenTags = Collections.newSetFromMap(new IdentityHashMap<CompoundTag, Boolean>());
+        var seenEntities = Collections.newSetFromMap(new IdentityHashMap<SharedEntitySnapshot, Boolean>());
+        var seenInventories = Collections.newSetFromMap(new IdentityHashMap<SharedInventory, Boolean>());
+        for (var frame : frames) if (frame != null) seenFrames.add(frame);
+        seenTags.addAll(activePlotTags.keySet());
+        seenEntities.addAll(activeEntitySnapshots.keySet());
+        seenInventories.addAll(activeInventories.keySet());
+        long bytes = 0;
+        for (var frame : playbackFrames) {
+            if (!seenFrames.add(frame)) continue;
+            bytes += frame.getEstimatedMemoryBytes();
+            for (var body : frame.getSubLevelSnapshots().values()) {
+                if (body.plotData() != null && !seenTags.add(body.plotData())) bytes -= SubLevelSnapshot.estimateTagBytes(body.plotData());
+            }
+            for (var delta : frame.getEntityDeltas()) {
+                var shared = delta.sharedSnapshot();
+                if (shared != null && seenEntities.add(shared)) bytes += shared.estimatedBytes();
+            }
+            for (var delta : frame.getPlayerDeltas().values()) {
+                var shared = delta.sharedInventory();
+                if (shared != null && seenInventories.add(shared)) bytes += shared.estimatedBytes();
+            }
+        }
+        return bytes;
     }
 
     public synchronized long getFramesMemoryBytes() { return Math.max(0L, framesMemory); }

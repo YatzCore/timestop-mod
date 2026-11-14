@@ -177,9 +177,9 @@ public class TemporalBubbleManager {
             cooldown = 0;
         }
 
-        double radius = tier.getBubbleRadius();
+        double radius = watch.isEmpty() ? tier.getBubbleRadius() : AbstractWatchItem.getBubbleRadius(watch);
         UUID bubbleId = UUID.randomUUID();
-        Vec3 center = player.position().add(0, player.getBbHeight() * 0.5, 0);
+        Vec3 center = com.timestop.compat.TemporalWorlds.toWorld(level, player.position().add(0, player.getBbHeight() * 0.5, 0));
 
         // Auto-whitelist teammates on vanilla scoreboard and Time Sync Resonators
         Set<UUID> exempt = new HashSet<>();

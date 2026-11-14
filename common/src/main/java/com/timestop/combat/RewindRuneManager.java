@@ -70,6 +70,10 @@ public class RewindRuneManager {
             return new RewindRuneLocation(true, mainhand, -1);
         }
 
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (isWatchWithRewindRune(stack)) return new RewindRuneLocation(true, stack, -3);
+        }
+
         // 3. Entire inventory check
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
@@ -95,7 +99,8 @@ public class RewindRuneManager {
 
     private static boolean isWatchWithRewindRune(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof AbstractWatchItem
-                && AbstractWatchItem.getSocketedRuneType(stack) == RuneType.REWIND
+                && (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE
+                    ? AbstractWatchItem.isMatrixRuneActive(stack, RuneType.REWIND) : AbstractWatchItem.getSocketedRuneType(stack) == RuneType.REWIND)
                 && !wasConsumed(AbstractWatchItem.getSocketedRune(stack));
     }
 
@@ -112,7 +117,7 @@ public class RewindRuneManager {
         if (!automatic && loc == null) return false;
 
         ItemStack scopeWatch = automatic ? AbstractWatchItem.findActivationWatch(player) : loc.hostStack();
-        if (!automatic) {
+        if (!automatic && !(loc.hostStack().getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE)) {
             // Identity belongs to the rune, not its slot/watch; older snapshots can contain it loose.
             identifyRunes(loc.hostStack());
             ItemStack rune = AbstractWatchItem.getSocketedRune(loc.hostStack());
@@ -328,6 +333,7 @@ public class RewindRuneManager {
 
     public static void applyRuneConsumption(ServerPlayer player) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) removeConsumedRune(player.getInventory().getItem(i));
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) removeConsumedRune(stack);
         removeConsumedRune(player.containerMenu.getCarried());
         player.getInventory().setChanged();
     }

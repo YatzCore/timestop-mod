@@ -1,0 +1,7 @@
+{
+  "name": "Ultimate Time Stop native QA",
+  "version": "1.0.0",
+  "description": "Controlled 1.21.1 test data; uses installed TaCZ display by reference.",
+  "license": "MIT",
+  "namespace": "timestop_qa"
+}

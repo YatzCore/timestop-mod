@@ -100,7 +100,7 @@ public class RewindPolishTests implements FabricGameTest {
  }
  @GameTest(template=EMPTY_STRUCTURE,batch="watch_preferences")
  public void watchPreferencesFollowIdentityWithoutPreservingRunes(GameTestHelper h){
-  var player=h.makeMockServerPlayerInLevel();
+  var player=RewindRuneTests.survivalPlayer(h);
   player.connection=new net.minecraft.server.network.ServerGamePacketListenerImpl(h.getLevel().getServer(),new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND),player, net.minecraft.server.network.CommonListenerCookie.createInitial(player.getGameProfile(), false)){
    @Override public void send(net.minecraft.network.protocol.Packet<?> packet){}
   };

@@ -47,7 +47,7 @@ public class RuneManager {
                 Entity direct = source.getDirectEntity();
                 Projectile proj = direct instanceof Projectile p ? p : null;
 
-                // 1. Kinetic Barrier Guard Check
+                // 1. Kinetic Barrier Guard Check (Manual Guard)
                 if (KineticPalmManager.isGuarding(player) && hasRune(player, RuneType.KINETIC_BARRIER)) {
                     if (proj != null) {
                         KineticPalmManager.captureOnImpact(player, proj);
@@ -55,9 +55,40 @@ public class RuneManager {
                     return true;
                 }
 
-                // 2. Phasing Rune Check
-                RuneType rune = getSocketedRuneType(player);
-                if (rune == RuneType.PHASING) {
+                // 2. Snatching (Priority when sneaking/crouching)
+                if ((player.isShiftKeyDown() || player.isCrouching()) && hasRune(player, RuneType.SNATCHING) && proj != null) {
+                    TemporalInteractionEvents.snatchProjectile(proj, player);
+                    player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
+                    return true;
+                }
+
+                // 3. Deflection (Parry & Redirection - parries fireballs, arrows, etc.)
+                if (hasRune(player, RuneType.DEFLECTION) && proj != null) {
+                    if (!com.timestop.platform.EntityDataHelper.getPersistentData(proj).getBoolean("AutoParried")) {
+                        com.timestop.platform.EntityDataHelper.getPersistentData(proj).putBoolean("AutoParried", true);
+                        TimeStopManager.deflectDynamicProjectile(proj, player);
+                        player.displayClientMessage(Component.literal("[Rune of Redirection] Parried!").withStyle(ChatFormatting.AQUA), true);
+                        return true;
+                    }
+                }
+
+                // 4. Orbital Rune Check
+                if (hasRune(player, RuneType.ORBITAL) && proj != null && player.level() instanceof ServerLevel sl) {
+                    if (OrbitalProjectileManager.canAutoCapture(player, proj)) {
+                        OrbitalProjectileManager.captureProjectile(player, proj, sl);
+                        return true;
+                    }
+                }
+
+                // 5. Snatching (Normal when not sneaking)
+                if (hasRune(player, RuneType.SNATCHING) && proj != null) {
+                    TemporalInteractionEvents.snatchProjectile(proj, player);
+                    player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
+                    return true;
+                }
+
+                // 6. Phasing Rune Check (Emergency Evasion - triggers when Deflection is off or couldn't parry)
+                if (hasRune(player, RuneType.PHASING)) {
                     long now = player.level().getGameTime();
                     long intangibleUntil = INTANGIBILITY_UNTIL.getOrDefault(player.getUUID(), 0L);
                     long nextReady = PHASE_COOLDOWNS.getOrDefault(player.getUUID(), 0L);
@@ -79,33 +110,6 @@ public class RuneManager {
                     // If on cooldown: damage is NOT canceled, normal damage applies!
                     return false;
                 }
-
-                // 3. Deflection (Redirection) Rune Check
-                if (rune == RuneType.DEFLECTION) {
-                    if (proj != null && !com.timestop.platform.EntityDataHelper.getPersistentData(proj).getBoolean("AutoParried")) {
-                        com.timestop.platform.EntityDataHelper.getPersistentData(proj).putBoolean("AutoParried", true);
-                        TimeStopManager.deflectDynamicProjectile(proj, player);
-                        player.displayClientMessage(Component.literal("[Rune of Redirection] Parried!").withStyle(ChatFormatting.AQUA), true);
-                        return true;
-                    }
-                }
-
-                // 4. Snatching Rune Check
-                if (rune == RuneType.SNATCHING) {
-                    if (proj != null) {
-                        TemporalInteractionEvents.snatchProjectile(proj, player);
-                        player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
-                        return true;
-                    }
-                }
-
-                // 5. Orbital Rune Check
-                if (rune == RuneType.ORBITAL) {
-                    if (proj != null && player.level() instanceof ServerLevel sl) {
-                        OrbitalProjectileManager.captureProjectile(player, proj, sl);
-                        return true;
-                    }
-                }
             }
         }
         return false;
@@ -113,7 +117,7 @@ public class RuneManager {
 
     /**
      * Resolves the active socketed RuneType protecting this player.
-     * Evaluates off-hand watch/rune first, then main-hand watch/rune, then inventory watches.
+     * Evaluates off-hand, main-hand, equipped accessory watches, then inventory watches.
      */
     @Nullable
     public static RuneType getSocketedRuneType(@Nullable Player player) {
@@ -121,7 +125,7 @@ public class RuneManager {
 
         // 1. Off-hand Watch or Rune check
         ItemStack offhand = player.getOffhandItem();
-        if (offhand.getItem() instanceof AbstractWatchItem) {
+        if (offhand.getItem() instanceof AbstractWatchItem watch && watch.getTier() != com.timestop.item.WatchTier.CREATIVE) {
             RuneType rune = AbstractWatchItem.getSocketedRuneType(offhand);
             if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                 return rune;
@@ -135,7 +139,7 @@ public class RuneManager {
 
         // 2. Main-hand Watch or Rune check
         ItemStack mainhand = player.getMainHandItem();
-        if (mainhand.getItem() instanceof AbstractWatchItem) {
+        if (mainhand.getItem() instanceof AbstractWatchItem watch && watch.getTier() != com.timestop.item.WatchTier.CREATIVE) {
             RuneType rune = AbstractWatchItem.getSocketedRuneType(mainhand);
             if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                 return rune;
@@ -147,10 +151,17 @@ public class RuneManager {
             }
         }
 
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() != com.timestop.item.WatchTier.CREATIVE) {
+                RuneType rune = AbstractWatchItem.getSocketedRuneType(stack);
+                if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) return rune;
+            }
+        }
+
         // 3. Check inventory for socketed watch
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() instanceof AbstractWatchItem) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() != com.timestop.item.WatchTier.CREATIVE) {
                 RuneType rune = AbstractWatchItem.getSocketedRuneType(stack);
                 if (rune != null && rune != RuneType.BLANK && rune != RuneType.VECTOR) {
                     return rune;
@@ -162,7 +173,30 @@ public class RuneManager {
     }
 
     public static boolean hasRune(@Nullable Player player, RuneType type) {
-        if (player == null || type == null) return false;
+        if (player == null || type == null || !player.isAlive()) return false;
+
+        // 1. Creative Watch Rune Matrix check (offhand, mainhand, inventory)
+        ItemStack offhand = player.getOffhandItem();
+        if (offhand.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE) {
+            if (AbstractWatchItem.isMatrixRuneActive(offhand, type)) return true;
+        }
+        ItemStack mainhand = player.getMainHandItem();
+        if (mainhand.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE) {
+            if (AbstractWatchItem.isMatrixRuneActive(mainhand, type)) return true;
+        }
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE) {
+                if (AbstractWatchItem.isMatrixRuneActive(stack, type)) return true;
+            }
+        }
+
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE
+                    && AbstractWatchItem.isMatrixRuneActive(stack, type)) return true;
+        }
+
+        // 2. Standard single socketed rune / held rune
         return getSocketedRuneType(player) == type;
     }
 
@@ -182,6 +216,13 @@ public class RuneManager {
             if (isActiveRune(rune)) return rune;
         }
         if (isActiveRune(mainhand)) return mainhand;
+
+        for (ItemStack stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            if (stack.getItem() instanceof AbstractWatchItem watch && watch.getTier() != com.timestop.item.WatchTier.CREATIVE) {
+                ItemStack rune = AbstractWatchItem.getSocketedRune(stack);
+                if (isActiveRune(rune)) return rune;
+            }
+        }
 
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
@@ -214,17 +255,20 @@ public class RuneManager {
         if (!ProjectileCombatHelper.isActiveInFlight(projectile)) return;
         if (projectile.getOwner() == player) return;
 
-        RuneType rune = getSocketedRuneType(player);
-        if (rune == null || rune == RuneType.BLANK) return;
-
         long now = player.level().getGameTime();
 
-        // If player is currently intangible after a phase shift, any projectile in range vanishes harmlessly!
-        if (rune == RuneType.PHASING && now < INTANGIBILITY_UNTIL.getOrDefault(player.getUUID(), 0L)) {
+        // 1. If player is currently intangible after a phase shift, any projectile in range vanishes harmlessly!
+        if (hasRune(player, RuneType.PHASING) && now < INTANGIBILITY_UNTIL.getOrDefault(player.getUUID(), 0L)) {
             if (projectile.level() instanceof ServerLevel serverLevel) {
                 serverLevel.sendParticles(ParticleTypes.PORTAL, projectile.getX(), projectile.getY(), projectile.getZ(), 8, 0.2, 0.2, 0.2, 0.1);
             }
             projectile.discard();
+            return;
+        }
+
+        // 1. Kinetic Palm Guard Check (Manual Guard)
+        if (player instanceof ServerPlayer serverPlayer && KineticPalmManager.isGuarding(player) && hasRune(player, RuneType.KINETIC_BARRIER)) {
+            KineticPalmManager.captureOnImpact(serverPlayer, projectile);
             return;
         }
 
@@ -235,30 +279,43 @@ public class RuneManager {
         double dz = projectile.getZ() - player.getZ();
         double distSqr = dx * dx + dy * dy + dz * dz;
 
-        switch (rune) {
-            case DEFLECTION -> {
-                // Auto-parry when within 3.5 blocks
-                if (distSqr <= 12.25) { // 3.5^2
-                    if (com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("AutoParried")) return;
-                    com.timestop.platform.EntityDataHelper.getPersistentData(projectile).putBoolean("AutoParried", true);
+        // 2. Snatching (Priority when sneaking/crouching within 3.5 blocks)
+        if ((player.isShiftKeyDown() || player.isCrouching()) && hasRune(player, RuneType.SNATCHING) && distSqr <= 12.25) {
+            TemporalInteractionEvents.snatchProjectile(projectile, player);
+            player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
+            return;
+        }
 
+        // 3. Deflection (Auto-parry fireballs, arrows, etc. within 3.5 blocks)
+        if (hasRune(player, RuneType.DEFLECTION) && distSqr <= 12.25) { // 3.5^2
+            if (!((player.isShiftKeyDown() || player.isCrouching()) && hasRune(player, RuneType.SNATCHING))) {
+                if (!com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("AutoParried")) {
+                    com.timestop.platform.EntityDataHelper.getPersistentData(projectile).putBoolean("AutoParried", true);
                     TimeStopManager.deflectDynamicProjectile(projectile, player);
                     player.displayClientMessage(Component.literal("[Rune of Redirection] Parried!").withStyle(ChatFormatting.AQUA), true);
+                    return;
                 }
             }
-            case SNATCHING -> {
-                // Auto-snatch when within 3.0 blocks
-                if (distSqr <= 9.0) { // 3.0^2
-                    TemporalInteractionEvents.snatchProjectile(projectile, player);
-                    player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
-                }
+        }
+
+        // 4. Orbital Rune Check (Capture into stasis orbit within 3.8 blocks)
+        if (hasRune(player, RuneType.ORBITAL) && distSqr <= 14.44 && projectile.level() instanceof ServerLevel sl) {
+            if (OrbitalProjectileManager.canAutoCapture(player, projectile)) {
+                OrbitalProjectileManager.captureProjectile(player, projectile, sl);
+                return;
             }
-            case PHASING -> {
-                // Auto-teleport when within 2.5 blocks (imminent strike)
-                if (distSqr <= 6.25) { // 2.5^2
-                    triggerPhasingEvasion(projectile, player);
-                }
-            }
+        }
+
+        // 5. Snatching (Normal when not sneaking, within 3.0 blocks)
+        if (hasRune(player, RuneType.SNATCHING) && distSqr <= 9.0) {
+            TemporalInteractionEvents.snatchProjectile(projectile, player);
+            player.displayClientMessage(Component.literal("[Rune of Snatching] Captured!").withStyle(ChatFormatting.GOLD), true);
+            return;
+        }
+
+        // 6. Phasing (Emergency Evasion within 2.5 blocks if not parried)
+        if (hasRune(player, RuneType.PHASING) && distSqr <= 6.25) { // 2.5^2
+            triggerPhasingEvasion(projectile, player);
         }
     }
 

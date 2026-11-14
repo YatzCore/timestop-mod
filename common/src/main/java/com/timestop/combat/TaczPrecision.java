@@ -8,6 +8,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 public final class TaczPrecision {
@@ -32,6 +33,20 @@ public final class TaczPrecision {
     }
     private static final ThreadLocal<ArrayDeque<Shot>> SHOTS = ThreadLocal.withInitial(ArrayDeque::new);
     private TaczPrecision() {}
+
+    /** Capture at scheduling time; every burst round gets its own exception-safe scope. */
+    public static BooleanSupplier wrapShot(BooleanSupplier round, Supplier<Float> pitch, ItemStack gun) {
+        return () -> {
+            begin(pitch);
+            boolean success = false;
+            try {
+                success = round.getAsBoolean();
+                return success;
+            } finally {
+                end(success, gun);
+            }
+        };
+    }
 
     public static void begin(Supplier<Float> pitch) {
         SHOTS.get().push(new Shot(pitch instanceof Aim aim ? aim : null));

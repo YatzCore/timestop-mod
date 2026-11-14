@@ -1,0 +1,29 @@
+// Opt-in review regressions. Adds tests without changing the packaged mod or normal suite.
+gradle.projectsEvaluated {
+    rootProject.sourceSets.sabletest.java.srcDir(rootProject.file('review/java'))
+    if (rootProject.hasProperty('allRegressions'))
+        {
+            rootProject.sourceSets.sabletest.java.srcDir(rootProject.file('../../fabric/src/gametest/java'))
+            rootProject.sourceSets.sabletest.java.srcDir(rootProject.file('../parity/java'))
+            rootProject.sourceSets.sabletest.java.srcDir(rootProject.file('../parity/testjava'))
+        }
+    rootProject.tasks.named('processSabletestResources') {
+        // Removing this init script changes inputs, so normal runs restore normal metadata.
+        inputs.property 'sableReviewRegressions', true
+        inputs.property 'allRegressions', rootProject.hasProperty('allRegressions')
+        outputs.upToDateWhen { false }
+        doLast {
+            def metadata = new File(destinationDir, 'fabric.mod.json')
+            def json = new groovy.json.JsonSlurper().parse(metadata)
+            json.entrypoints['fabric-gametest'].add('com.timestop.fabric.test.SableReviewTests')
+            json.entrypoints['fabric-gametest'].add('com.timestop.fabric.test.SableReadinessTests')
+            json.entrypoints['fabric-gametest'].add('com.timestop.fabric.test.SableScaleTests')
+            json.entrypoints['fabric-gametest'].add('com.timestop.fabric.test.SablePersonalClockTests')
+            if (rootProject.hasProperty('allRegressions')) {
+                def original = new groovy.json.JsonSlurper().parse(rootProject.file('../../fabric/src/gametest/resources/fabric.mod.json'))
+                json.entrypoints['fabric-gametest'].addAll(original.entrypoints['fabric-gametest'])
+            }
+            metadata.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+        }
+    }
+}

@@ -12,11 +12,15 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerLevel.class)
-public abstract class ServerLevelMixin {
+public abstract class ServerLevelMixin implements com.timestop.prediction.PredictionTickClock {
+    @Override
+    public float timestop$predictionPhase(Entity entity) { return timestop$tickProgress.getOrDefault(entity, 0.0F); }
     @Unique
     private final java.util.Map<Entity, Float> timestop$tickProgress = new java.util.WeakHashMap<>();
     @Unique
     private boolean timestop$extraTick;
+    @Unique private double timestop$predictionWorldTime;
+    @Unique private double timestop$predictionWeatherTime;
 
     @Inject(method = "addFreshEntity", at = @At("RETURN"))
     private void timestop$recordSpawn(Entity entity, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
@@ -56,10 +60,13 @@ public abstract class ServerLevelMixin {
                     TimeStopManager.registerSuspendedProjectile(p, vel);
                 }
             }
+            com.timestop.compat.TemporalWorlds.bridge().updateStasisEntityTransport(entity);
             entity.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
             entity.setOldPosAndRot();
             ci.cancel();
             return;
+        } else {
+            com.timestop.compat.TemporalWorlds.bridge().clearStasisEntityTransport(entity);
         }
 
         if (!timestop$extraTick) {
@@ -95,8 +102,16 @@ public abstract class ServerLevelMixin {
 
     @Unique
     private float timestop$localTickRate(Entity entity) {
+        if (entity instanceof net.minecraft.world.entity.projectile.Projectile projectile
+                && !com.timestop.combat.DecelerationFieldManager.hasMovementHook(projectile)) {
+            double rate = com.timestop.combat.DecelerationFieldManager.getTimeRate(projectile);
+            if (rate < 1.0) return (float) rate;
+        }
+        if (com.timestop.prediction.PredictionTime.rate(entity) < 1
+                && (entity instanceof net.minecraft.world.entity.LivingEntity
+                    || entity instanceof net.minecraft.world.entity.projectile.Projectile p && com.timestop.combat.DecelerationFieldManager.hasMovementHook(p))) return 1.0F;
         if (TimeStopManager.getServerTickMs() != 50L) return 1.0F;
-        if (TimeStopManager.isGlobalTimeStopActive()) return 1.0F;
+        if (TimeStopManager.isGlobalTimeStopActive()) return (float) com.timestop.prediction.PredictionTime.rate(entity);
         var bubble = com.timestop.core.TemporalBubbleManager.getDominantBubble(entity.level().dimension(),
                 entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
         if (bubble == null) return 1.0F;
@@ -111,6 +126,7 @@ public abstract class ServerLevelMixin {
 
     @Inject(method = "tickNonPassenger", at = @At("TAIL"))
     private void timestop$fastForwardEntity(Entity entity, CallbackInfo ci) {
+        com.timestop.prediction.PredictionServer.recordStep(entity);
         if (timestop$extraTick) return;
         int extraTicks = (int) timestop$localTickRate(entity) - 1;
         if (extraTicks <= 0) return;
@@ -130,9 +146,12 @@ public abstract class ServerLevelMixin {
         
         if (com.timestop.core.TemporalBubbleManager.isEntityInStasis(passenger)) {
             passenger.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+            com.timestop.compat.TemporalWorlds.bridge().updateStasisEntityTransport(passenger);
             passenger.setOldPosAndRot();
             ci.cancel();
             return;
+        } else {
+            com.timestop.compat.TemporalWorlds.bridge().clearStasisEntityTransport(passenger);
         }
 
         if (com.timestop.combat.TemporalDamageBuffer.hasRecord(passenger.getUUID())) {
@@ -154,6 +173,16 @@ public abstract class ServerLevelMixin {
     @Inject(method = "advanceWeatherCycle", at = @At("HEAD"), cancellable = true)
     private void onAdvanceWeatherCycle(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_PREDICTION) {
+            timestop$predictionWeatherTime += com.timestop.config.TimeStopConfig.COMMON.predictionRate.get();
+            if (timestop$predictionWeatherTime < 1 - 1e-8) ci.cancel();
+            else timestop$predictionWeatherTime -= 1;
+            return;
+        } else timestop$predictionWeatherTime = 0;
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         // Weather freezes globally only if global time stop is active
         if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {
             ci.cancel();
@@ -166,6 +195,16 @@ public abstract class ServerLevelMixin {
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
+        if (TimeStopManager.isGlobalTimeStopActive() && TimeStopManager.getCurrentMode() == TimeMode.TIME_PREDICTION) {
+            timestop$predictionWorldTime += com.timestop.config.TimeStopConfig.COMMON.predictionRate.get();
+            if (timestop$predictionWorldTime < 1 - 1e-8) ci.cancel();
+            else timestop$predictionWorldTime -= 1;
+            return;
+        } else timestop$predictionWorldTime = 0;
+        if (com.timestop.core.rewind.TickRecorder.getInstance().getTimelineBuffer().isRewinding()) {
+            ci.cancel();
+            return;
+        }
         // World time freezes globally only if global time stop is active
         if (TimeStopManager.isGlobalTimeStopActive()) {
             if (TimeStopManager.getCurrentMode() == TimeMode.TIME_STOP) {

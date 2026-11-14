@@ -1,6 +1,7 @@
 package com.timestop.core.rewind;
 
 import com.timestop.core.rewind.data.*;
+import com.timestop.mixin.MobAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -14,6 +15,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -25,7 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Compiles reverse deltas and applies world, entity, player, and environment restorations safely.
@@ -35,6 +40,7 @@ public class RewindExecutor {
     public static boolean isApplyingPlan() { return applicationDepth > 0; }
 
     private static final Logger LOGGER = LoggerFactory.getLogger("TimeStopRewind");
+    private static final Map<String, Optional<Method>> REFLECTION_METHOD_CACHE = new ConcurrentHashMap<>();
 
     public record RewindResult(
             boolean success,
@@ -68,9 +74,16 @@ public class RewindExecutor {
         Map<RewindPlan.BlockKey, CompoundTag> blockEntityTargetNbts = new LinkedHashMap<>();
         Map<RewindPlan.BlockKey, CompoundTag> standaloneBeTargetNbts = new LinkedHashMap<>();
         Map<UUID, PlayerDelta> playerTargetStates = new HashMap<>();
+        Map<UUID, com.timestop.core.rewind.data.SubLevelSnapshot> subLevelTargetStates = new HashMap<>();
+        Map<UUID, Set<UUID>> historicalConnectedSubLevels = new HashMap<>();
+        Map<UUID, Set<RewindPlan.BlockKey>> subLevelBlockDependencies = new HashMap<>();
 
         // Process frames newest to oldest: using put() ensures the OLDEST state wins
         for (TickFrame frame : frames) {
+            frame.getSubLevelBlockDependencies().forEach((id, blocks) ->
+                    subLevelBlockDependencies.computeIfAbsent(id, ignored -> new HashSet<>()).addAll(blocks));
+            frame.getSubLevelDependencies().forEach((id, links) ->
+                    historicalConnectedSubLevels.computeIfAbsent(id, ignored -> new HashSet<>()).addAll(links));
             List<EntityDelta> deltas = frame.getEntityDeltas();
             for (int i = deltas.size() - 1; i >= 0; i--) {
                 EntityDelta delta = deltas.get(i);
@@ -120,6 +133,14 @@ public class RewindExecutor {
             for (Map.Entry<UUID, PlayerDelta> entry : frame.getPlayerDeltas().entrySet()) {
                 playerTargetStates.put(entry.getKey(), entry.getValue());
             }
+
+            for (Map.Entry<UUID, SubLevelSnapshot> entry : frame.getSubLevelSnapshots().entrySet()) {
+                subLevelTargetStates.put(entry.getKey(), entry.getValue());
+                if (entry.getValue().connectedBodyIds() != null && !entry.getValue().connectedBodyIds().isEmpty()) {
+                    historicalConnectedSubLevels.computeIfAbsent(entry.getKey(), k -> new HashSet<>())
+                            .addAll(entry.getValue().connectedBodyIds());
+                }
+            }
         }
 
         TickFrame oldest = frames.isEmpty() ? null : frames.get(frames.size() - 1);
@@ -133,12 +154,29 @@ public class RewindExecutor {
                 entitiesToRespawn,
                 entityTargetStates,
                 playerTargetStates,
+                subLevelTargetStates,
                 oldest,
-                frames.stream().flatMap(frame -> frame.getExplosions().stream()).toList()
+                frames.stream().flatMap(frame -> frame.getExplosions().stream()).toList(),
+                historicalConnectedSubLevels,
+                subLevelBlockDependencies
         );
     }
 
+    /** A rejected preflight has not mutated the world, so callers may retain its history. */
+    public static final class RewindValidationException extends IllegalStateException {
+        private RewindValidationException(IllegalStateException cause) { super(cause.getMessage(), cause); }
+    }
+
+    public static void validatePlan(MinecraftServer server, RewindPlan plan) {
+        try {
+            com.timestop.compat.TemporalWorlds.bridge().validateRewind(server, plan);
+        } catch (IllegalStateException invalid) {
+            throw new RewindValidationException(invalid);
+        }
+    }
+
     public static RewindResult applyPlan(MinecraftServer server, RewindPlan plan, boolean rollbackInventory) {
+        validatePlan(server, plan);
         applicationDepth++;
         try {
             return applyPlanInternal(server, plan, rollbackInventory);
@@ -148,6 +186,7 @@ public class RewindExecutor {
     }
 
     private static RewindResult applyPlanInternal(MinecraftServer server, RewindPlan plan, boolean rollbackInventory) {
+        com.timestop.compat.TemporalWorlds.bridge().preRewind(server, plan);
         List<String> warnings = new ArrayList<>();
         int blocksRestored = 0;
         int blockEntitiesRestored = 0;
@@ -210,7 +249,7 @@ public class RewindExecutor {
         for (var key : plan.blockTargetStates().keySet()) {
             var world = server.getLevel(key.dimension());
             if (world != null) {
-                var pos = BlockPos.of(key.packedPos());
+                var pos = com.timestop.compat.TemporalWorlds.bridge().remapBlockPos(world, BlockPos.of(key.packedPos()));
                 world.clearBlockEvents(new net.minecraft.world.level.levelgen.structure.BoundingBox(pos));
             }
         }
@@ -220,7 +259,7 @@ public class RewindExecutor {
             ServerLevel level = server.getLevel(key.dimension());
             if (level == null) continue;
 
-            BlockPos pos = BlockPos.of(key.packedPos());
+            BlockPos pos = com.timestop.compat.TemporalWorlds.bridge().remapBlockPos(level, BlockPos.of(key.packedPos()));
             if (!ensureChunkLoaded(level, pos)) continue;
 
             if (level.getBlockState(pos).getBlock() != entry.getValue().getBlock()) {
@@ -235,7 +274,10 @@ public class RewindExecutor {
         }
         for (var entry : plan.blockEntityTargetNbts().entrySet()) {
             var level = server.getLevel(entry.getKey().dimension());
-            if (level != null && restoreBlockEntity(level, BlockPos.of(entry.getKey().packedPos()), entry.getValue())) blockEntitiesRestored++;
+            if (level != null) {
+                BlockPos bePos = com.timestop.compat.TemporalWorlds.bridge().remapBlockPos(level, BlockPos.of(entry.getKey().packedPos()));
+                if (restoreBlockEntity(level, bePos, entry.getValue())) blockEntitiesRestored++;
+            }
         }
 
         // 5. Restore standalone block entity NBTs
@@ -246,13 +288,16 @@ public class RewindExecutor {
             ServerLevel level = server.getLevel(key.dimension());
             if (level == null) continue;
 
-            BlockPos pos = BlockPos.of(key.packedPos());
+            BlockPos pos = com.timestop.compat.TemporalWorlds.bridge().remapBlockPos(level, BlockPos.of(key.packedPos()));
             if (!ensureChunkLoaded(level, pos)) continue;
 
             if (restoreBlockEntity(level, pos, entry.getValue())) blockEntitiesRestored++;
         }
 
-        // 6. Restore player health, inventory, hunger, and potion effects
+        // 6. Restore sublevel rigid bodies, exact velocities, mass, and impulses
+        com.timestop.compat.TemporalWorlds.bridge().applySubLevelRewind(server, plan);
+
+        // 7. Restore player health, inventory, hunger, and potion effects
         for (Map.Entry<UUID, PlayerDelta> entry : plan.playerTargetStates().entrySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (player != null && !player.isRemoved()) {
@@ -264,7 +309,7 @@ public class RewindExecutor {
             }
         }
 
-        // 7. Restore world time and weather
+        // 8. Restore world time and weather
         if (plan.oldestFrame() != null) {
             TickFrame oldest = plan.oldestFrame();
             for (ServerLevel level : server.getAllLevels()) {
@@ -298,6 +343,7 @@ public class RewindExecutor {
             ServerLevel level = server.getLevel(explosion.dimension());
             if (level != null) RewindExplosionEffects.enqueue(level, explosion);
         }
+        com.timestop.compat.TemporalWorlds.bridge().postRewind(server, plan);
         return new RewindResult(true, plan.frameCount(), blocksRestored, blockEntitiesRestored,
                 entitiesRestored, entitiesRemoved, playersRestored, warnings);
     }
@@ -316,7 +362,6 @@ public class RewindExecutor {
 
         if (scope != null && LocalRewind.overlaps(scope))
             return new RewindResult(false, 0, 0, 0, 0, 0, 0, List.of("A rewind already overlaps this bubble"));
-        if (scope == null) LocalRewind.clear();
         recorder.finishFrame(server);
         int ticksToRewind = seconds * 20;
         List<TickFrame> frames = buffer.getFramesForRewind(ticksToRewind);
@@ -329,6 +374,16 @@ public class RewindExecutor {
         RewindPlan plan = buildPlan(frames);
         UUID initiatorUuid = initiator != null ? initiator.getUUID() : null;
         if (scope != null) plan = scope.filter(server, plan, initiatorUuid);
+        if (initiator != null && com.timestop.item.AbstractWatchItem.isPlayerRewindExempt(initiator)) plan = plan.withoutPlayer(initiator.getUUID());
+
+        if (scope != null && LocalRewind.ownsAny(plan))
+            return new RewindResult(false, 0, 0, 0, 0, 0, 0, List.of("A rewind already owns a connected ship or assembly transfer location"));
+        try {
+            com.timestop.compat.TemporalWorlds.bridge().validateRewind(server, plan);
+        } catch (IllegalStateException invalid) {
+            return new RewindResult(false, 0, 0, 0, 0, 0, 0, List.of(invalid.getMessage()));
+        }
+        if (scope == null) LocalRewind.clear();
 
         buffer.setRewinding(true);
         buffer.setRecording(false);
@@ -340,7 +395,7 @@ public class RewindExecutor {
             return result;
         } catch (Exception e) {
             LOGGER.error("[TimeStop] Rewind execution failed", e);
-            buffer.clear();
+            if (!(e instanceof RewindValidationException)) buffer.clear();
             return new RewindResult(false, 0, 0, 0, 0, 0, 0, List.of("Exception: " + e.getMessage()));
         } finally {
             buffer.setRewinding(false);
@@ -365,6 +420,25 @@ public class RewindExecutor {
     }
 
     private static void restoreEntityState(Entity entity, CompoundTag tag) {
+        if (entity instanceof Mob mob) {
+            mob.getNavigation().stop();
+            mob.setTarget(null);
+            var goalSelector = ((MobAccessor) mob).timestop$getGoalSelector();
+            if (goalSelector != null) {
+                for (var goal : goalSelector.getAvailableGoals()) {
+                    if (goal.isRunning()) goal.stop();
+                }
+            }
+            var targetSelector = ((MobAccessor) mob).timestop$getTargetSelector();
+            if (targetSelector != null) {
+                for (var goal : targetSelector.getAvailableGoals()) {
+                    if (goal.isRunning()) goal.stop();
+                }
+            }
+            if (mob.getBrain() != null && entity.level() instanceof ServerLevel sl) {
+                stopBrain(mob, sl);
+            }
+        }
         if (entity instanceof LivingEntity living) living.removeAllEffects();
         entity.load(com.timestop.combat.RewindRuneManager.restorationNbt(tag));
         entity.setOldPosAndRot();
@@ -398,29 +472,114 @@ public class RewindExecutor {
         }
     }
 
-    private static boolean restoreBlockEntity(ServerLevel level, BlockPos pos, CompoundTag tag) {
-        BlockState state = level.getBlockState(pos);
-        if (!state.hasBlockEntity()) return false;
-        BlockEntity be = level.getBlockEntity(pos);
-        CompoundTag cleanTag = com.timestop.combat.RewindRuneManager.restorationNbt(tag);
-        if (be == null) {
-            be = BlockEntity.loadStatic(pos, state, cleanTag, level.registryAccess());
-            if (be == null) return false;
-            level.setBlockEntity(be);
-        } else {
-            be.loadWithComponents(cleanTag, level.registryAccess());
+    public static boolean restoreBlockEntity(ServerLevel level, BlockPos pos, CompoundTag tag) {
+        try {
+            BlockState state = level.getBlockState(pos);
+            if (!state.hasBlockEntity()) return false;
+            BlockEntity be = level.getBlockEntity(pos);
+            CompoundTag cleanTag = com.timestop.combat.RewindRuneManager.restorationNbt(tag);
+            if (be == null) {
+                be = BlockEntity.loadStatic(pos, state, cleanTag, level.registryAccess());
+                if (be == null) return false;
+                level.setBlockEntity(be);
+            } else {
+                be.loadWithComponents(cleanTag, level.registryAccess());
+            }
+            be.setChanged();
+
+            // Establish restored state as the new baseline for subsequent recording
+            TickRecorder.getInstance().observeBlockEntityExplicit(be, cleanTag);
+
+            // Vanilla updates: send full update flag and trigger block & neighbor notifications
+            level.sendBlockUpdated(pos, state, state, Block.UPDATE_ALL);
+            level.blockUpdated(pos, state.getBlock());
+            level.updateNeighborsAt(pos, state.getBlock());
+
+            // Notify modded / Create machine networks and synchronizers
+            notifyMachineUpdate(be, level, pos, state);
+
+            // Moving pistons do not provide a vanilla update packet.
+            var packet = be.getUpdatePacket();
+            for (ServerPlayer viewer : level.players()) {
+                if (packet != null) viewer.connection.send(packet);
+                if (be instanceof net.minecraft.world.level.block.piston.PistonMovingBlockEntity)
+                    com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.RewindPistonPacket(
+                            level.dimension().location(), pos, be.saveWithFullMetadata(level.registryAccess())), viewer);
+            }
+            return true;
+        } catch (Throwable t) {
+            LOGGER.warn("[TimeStop] Failed to restore block entity at {} in {}: {}", pos, level.dimension().location(), t.getMessage());
+            return false;
         }
-        be.setChanged();
-        level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
-        // Moving pistons do not provide a vanilla update packet.
-        var packet = be.getUpdatePacket();
-        for (ServerPlayer viewer : level.players()) {
-            if (packet != null) viewer.connection.send(packet);
-            if (be instanceof net.minecraft.world.level.block.piston.PistonMovingBlockEntity)
-                com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.RewindPistonPacket(
-                        level.dimension().location(), pos, be.saveWithFullMetadata(level.registryAccess())), viewer);
+    }
+
+    private static void notifyMachineUpdate(BlockEntity be, ServerLevel level, BlockPos pos, BlockState state) {
+        try {
+            // 1. Re-initialize behaviours if SmartBlockEntity (Create, etc.)
+            invokeNoArg(be, "initialize");
+
+            // 2. Recalculate generated rotation if generator / motor / speed controller
+            invokeNoArg(be, "updateGeneratedRotation");
+
+            // 3. Rebuild kinetic network if kinetic block entity
+            boolean detached = invokeNoArg(be, "detachKinetics");
+            if (detached) {
+                invokeNoArg(be, "attachKinetics");
+            }
+
+            // 4. Synchronize data to tracking clients (Create SyncedBlockEntity, etc.)
+            invokeNoArg(be, "sendData");
+            invokeNoArg(be, "notifyUpdate");
+        } catch (Throwable t) {
+            LOGGER.debug("Could not notify machine update on {}: {}", be.getClass().getName(), t.getMessage());
         }
-        return true;
+    }
+
+    private static boolean invokeNoArg(Object target, String methodName) {
+        if (target == null) return false;
+        Class<?> clazz = target.getClass();
+        String cacheKey = clazz.getName() + "#" + methodName;
+        try {
+            Optional<Method> opt = REFLECTION_METHOD_CACHE.get(cacheKey);
+            if (opt == null) {
+                Method found = findMethodSafely(clazz, methodName);
+                opt = Optional.ofNullable(found);
+                REFLECTION_METHOD_CACHE.put(cacheKey, opt);
+            }
+
+            if (opt.isPresent()) {
+                opt.get().invoke(target);
+                return true;
+            }
+        } catch (Throwable t) {
+            LOGGER.debug("Could not invoke {} on {}: {}", methodName, clazz.getName(), t.getMessage());
+        }
+        return false;
+    }
+
+    private static Method findMethodSafely(Class<?> clazz, String methodName) {
+        Class<?> cur = clazz;
+        while (cur != null && cur != Object.class) {
+            try {
+                Method m = cur.getDeclaredMethod(methodName);
+                m.setAccessible(true);
+                return m;
+            } catch (NoSuchMethodException ignored) {
+                cur = cur.getSuperclass();
+            } catch (Throwable t) {
+                // Catches NoClassDefFoundError, LinkageError, etc. from missing optional dependencies (e.g. ComputerCraft)
+                cur = cur.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void stopBrain(LivingEntity entity, ServerLevel sl) {
+        Brain brain = entity.getBrain();
+        if (brain != null) {
+            brain.stopAll(sl, entity);
+        }
     }
 
     private static boolean ensureChunkLoaded(ServerLevel level, BlockPos pos) {

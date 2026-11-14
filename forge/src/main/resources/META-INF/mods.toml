@@ -14,6 +14,9 @@ A true engine-level Mixin Time Stop mod. Freezes all entities, block entities, w
 [[mixins]]
 config="timestop-common.mixins.json"
 
+[[mixins]]
+config="timestop-forge.mixins.json"
+
 [[dependencies.timestop]]
     modId="forge"
     mandatory=true

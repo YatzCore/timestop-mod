@@ -40,10 +40,11 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
     private static final Map<ResourceLocation, Function<FriendlyByteBuf, IClientboundPacket>> CLIENT_DECODERS = new ConcurrentHashMap<>();
 
     public static void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("timestop").versioned("1.6.1");
+        PayloadRegistrar registrar = event.registrar("timestop").versioned("1.8.3-casual-acceleration");
 
         registerServer(SetPedestalRadiusPacket.ID, SetPedestalRadiusPacket::new);
         registerClient(SyncRewindAllowedPacket.ID, SyncRewindAllowedPacket::new);
+        registerClient(SyncRewindExemptAllowedPacket.ID, SyncRewindExemptAllowedPacket::new);
         // Serverbound packets
         registerServer(ToggleTimeStopPacket.ID, ToggleTimeStopPacket::new);
         registerServer(SuperhotSyncPacket.ID, SuperhotSyncPacket::new);
@@ -60,10 +61,15 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         registerServer(SingleFireProjectilePacket.ID, SingleFireProjectilePacket::new);
         registerServer(TranspositionSwapPacket.ID, TranspositionSwapPacket::new);
         registerServer(SetWatchScopePacket.ID, SetWatchScopePacket::new);
+        registerServer(SetWatchRadiusPacket.ID, SetWatchRadiusPacket::new);
+        registerServer(ToggleMatrixRunePacket.ID, ToggleMatrixRunePacket::new);
+        registerServer(SetRewindExemptPacket.ID, SetRewindExemptPacket::new);
         registerServer(KineticPalmActionPacket.ID, KineticPalmActionPacket::new);
         registerServer(FlipCoinPacket.ID, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.ID, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.ID, UpdateSpeedConfigPacket::new);
+        registerServer(UpdateSwimmingConfigPacket.ID, UpdateSwimmingConfigPacket::new);
+        registerServer(com.timestop.network.SetCasualAccelerationPacket.ID, com.timestop.network.SetCasualAccelerationPacket::new);
 
         // Clientbound packets
         registerClient(TimeStopSyncPacket.ID, TimeStopSyncPacket::new);
@@ -76,6 +82,8 @@ public class NeoForgeNetworkHelper implements INetworkHelper {
         registerClient(KineticCaptureSyncPacket.ID, KineticCaptureSyncPacket::new);
         registerClient(DeadEyeGunFeedbackPacket.ID, DeadEyeGunFeedbackPacket::new);
         registerClient(SyncSpeedConfigPacket.ID, SyncSpeedConfigPacket::new);
+        registerClient(PredictionSnapshotPacket.ID, PredictionSnapshotPacket::new);
+        registerClient(ProjectileOwnerSyncPacket.ID, ProjectileOwnerSyncPacket::new);
         registerClient(RewindBlocksPacket.ID, RewindBlocksPacket::new);
         registerClient(RewindMobPacket.ID, RewindMobPacket::new);
         registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);

@@ -8,17 +8,22 @@ import com.timestop.item.rune.TemporalRuneItem;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import com.timestop.item.WatchTarget;
 import net.minecraft.world.item.ItemStack;
 
 public class SyncRuneSocketPacket implements IClientboundPacket {
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TimeStopMod.MOD_ID, "sync_rune_socket");
-    private final InteractionHand hand;
+    private final WatchTarget target;
     private final boolean hasRune;
     private final RuneType runeType;
     private final ChainTargetFilter filter;
 
     public SyncRuneSocketPacket(InteractionHand hand, ItemStack socketedRune) {
-        this.hand = hand;
+        this(WatchTarget.inHand(hand), socketedRune);
+    }
+
+    public SyncRuneSocketPacket(WatchTarget target, ItemStack socketedRune) {
+        this.target = target;
         if (!socketedRune.isEmpty() && socketedRune.getItem() instanceof TemporalRuneItem runeItem) {
             this.hasRune = true;
             this.runeType = runeItem.getType();
@@ -31,7 +36,7 @@ public class SyncRuneSocketPacket implements IClientboundPacket {
     }
 
     public SyncRuneSocketPacket(FriendlyByteBuf buf) {
-        this.hand = buf.readEnum(InteractionHand.class);
+        this.target = WatchTarget.read(buf);
         this.hasRune = buf.readBoolean();
         if (this.hasRune) {
             this.runeType = buf.readEnum(RuneType.class);
@@ -53,7 +58,7 @@ public class SyncRuneSocketPacket implements IClientboundPacket {
 
     @Override
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeEnum(this.hand);
+        this.target.write(buf);
         buf.writeBoolean(this.hasRune);
         if (this.hasRune) {
             buf.writeEnum(this.runeType);
@@ -72,6 +77,6 @@ public class SyncRuneSocketPacket implements IClientboundPacket {
                 TemporalRuneItem.setTargetFilter(runeStack, filter);
             }
         }
-        com.timestop.client.ClientPacketHandlers.syncRune(hand, runeStack);
+        com.timestop.client.ClientPacketHandlers.syncRune(target, runeStack);
     }
 }

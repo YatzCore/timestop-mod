@@ -29,6 +29,7 @@ public final class WatchPreferences {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             add(result, player.getInventory().getItem(i));
         }
+        for (var stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) add(result, stack);
         add(result, player.containerMenu.getCarried());
         return result;
     }
@@ -52,9 +53,36 @@ public final class WatchPreferences {
                 if (latest != null && latest.is(result.getItem())) {
                     AbstractWatchItem.setMode(result, AbstractWatchItem.getMode(latest));
                     AbstractWatchItem.setGlobalScope(result, AbstractWatchItem.isGlobalScope(latest));
+                    if (result.getItem() instanceof AbstractWatchItem watch && watch.getTier() == com.timestop.item.WatchTier.CREATIVE) {
+                        AbstractWatchItem.setBubbleRadius(result, (int) AbstractWatchItem.getBubbleRadius(latest));
+                        AbstractWatchItem.setRewindInitiatorExempt(result, AbstractWatchItem.isRewindInitiatorExempt(latest));
+                        for (var type : com.timestop.item.rune.RuneType.values()) AbstractWatchItem.setMatrixRune(result, type, AbstractWatchItem.isMatrixRuneActive(latest, type));
+                    }
                 }
             }
         }
         return result;
+    }
+
+    public static UUID idOf(ItemStack stack) {
+        if (!(stack.getItem() instanceof AbstractWatchItem)) return null;
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        return data != null && data.copyTag().hasUUID(ID) ? data.copyTag().getUUID(ID) : null;
+    }
+
+    /** Worn watches stay in their native slots; older inventory copies must not be recreated. */
+    public static java.util.Set<UUID> equippedIds(ServerPlayer player) {
+        var ids = new java.util.HashSet<UUID>();
+        for (var stack : com.timestop.platform.Services.PLATFORM.getEquippedWatches(player)) {
+            snapshot(stack);
+            UUID id = idOf(stack);
+            if (id != null) ids.add(id);
+        }
+        return ids;
+    }
+
+    public static ItemStack restore(ItemStack historical, Map<UUID, ItemStack> current, java.util.Set<UUID> equippedIds) {
+        UUID id = idOf(historical);
+        return id != null && equippedIds.contains(id) ? ItemStack.EMPTY : restore(historical, current);
     }
 }

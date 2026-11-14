@@ -24,6 +24,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
         FabricNetworkHelper.registerClientReceivers();
 
         // 2. Keybindings
+        KeyBindingHelper.registerKeyBinding(ModKeyBindings.OPEN_WATCH_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.TIME_STOP_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.RELEASE_PROJECTILES_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.TRANSPOSITION_KEY);
@@ -32,6 +33,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
         }
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.PROJECTILE_FLOW_TOGGLE_KEY);
         KeyBindingHelper.registerKeyBinding(ModKeyBindings.KINETIC_BARRIER_KEY);
+        KeyBindingHelper.registerKeyBinding(ModKeyBindings.TOGGLE_VARIANT_KEY);
 
         // 3. Entity Renderers
         EntityRendererRegistry.register(ModEntities.CHRONO_COIN.get(), ChronoCoinRenderer::new);
@@ -76,6 +78,7 @@ public class TimeStopFabricClient implements ClientModInitializer {
             TemporalBubbleRenderer.renderLevel(context.matrixStack(), context.camera(), tickDelta);
             KineticPalmRenderer.renderLevel(context.matrixStack(), context.camera(), tickDelta);
             com.timestop.client.RewindBlockRenderer.render(context.matrixStack(), context.camera(), tickDelta);
+                com.timestop.client.PredictionRenderer.render(context.matrixStack(), context.camera(), tickDelta);
         });
     }
 }

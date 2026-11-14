@@ -21,6 +21,12 @@ public final class RuneSocketTransactions {
             if (slot < 0 || slot >= player.getInventory().getContainerSize() || type == RuneType.BLANK) return false;
             ItemStack source = player.getInventory().getItem(slot);
             if (source.isEmpty() || !(source.getItem() instanceof TemporalRuneItem rune) || rune.getType() != type) return false;
+            if (watch.getTier() == WatchTier.CREATIVE) {
+                AbstractWatchItem.initializeCreativeMatrix(player, watchStack);
+                AbstractWatchItem.setMatrixRune(watchStack, type, true);
+                player.getInventory().setChanged();
+                return true;
+            }
             ItemStack inserted = source.split(1);
             AbstractWatchItem.setSocketedRune(watchStack, inserted);
         }

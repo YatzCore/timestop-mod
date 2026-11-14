@@ -78,6 +78,7 @@ public class TimeStopForgeMod {
     );
 
     public TimeStopForgeMod(FMLJavaModLoadingContext context) {
+        TimeStopMod.init();
         IEventBus modEventBus = context.getModEventBus();
         com.timestop.pedestal.ModPedestals.bootstrap();
 
@@ -181,6 +182,7 @@ public class TimeStopForgeMod {
                         TimeStopManager.getExemptPlayers()), serverPlayer);
                 com.timestop.network.ModMessages.sendToPlayer(com.timestop.network.SyncSpeedConfigPacket.current(), serverPlayer);
                 com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindAllowedPacket(com.timestop.core.TimeStopManager.isRewindAllowed()), serverPlayer);
+                com.timestop.network.ModMessages.sendToPlayer(new com.timestop.network.SyncRewindExemptAllowedPacket(com.timestop.core.TimeStopManager.isRewindExemptAllowed()), serverPlayer);
                 com.timestop.combat.CoinManager.onPlayerLoggedIn(serverPlayer);
                 com.timestop.combat.OrbitalProjectileManager.onPlayerLoggedIn(serverPlayer);
             }
@@ -269,6 +271,8 @@ public class TimeStopForgeMod {
         @SubscribeEvent(priority = EventPriority.HIGHEST)
         public void onProjectileImpact(ProjectileImpactEvent event) {
             Projectile projectile = event.getProjectile();
+        // Native TaCZ callbacks dispatch our pre/post handlers themselves.
+        if (com.timestop.combat.TaczProjectileCompat.isBullet(projectile)) return;
             HitResult hitResult = event.getRayTraceResult();
 
             if (com.timestop.combat.OrbitalProjectileManager.onProjectileImpact(projectile, hitResult)) {

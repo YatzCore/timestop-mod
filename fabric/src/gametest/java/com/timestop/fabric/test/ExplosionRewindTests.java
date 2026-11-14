@@ -16,7 +16,7 @@ public class ExplosionRewindTests implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE, batch = "explosion_rewind")
     public void liveFuseIsSynchronizedAndRespawnUsesOldestFuse(GameTestHelper h) {
         var level = h.getLevel();
-        var player = h.makeMockServerPlayerInLevel();
+        var player = RewindRuneTests.survivalPlayer(h);
         var packets = new java.util.ArrayList<net.minecraft.network.protocol.Packet<?>>();
         player.connection = new net.minecraft.server.network.ServerGamePacketListenerImpl(level.getServer(),
                 new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), player, net.minecraft.server.network.CommonListenerCookie.createInitial(player.getGameProfile(), false)) {
@@ -124,7 +124,7 @@ public class ExplosionRewindTests implements FabricGameTest {
 
     @GameTest(template = EMPTY_STRUCTURE, batch = "explosion_rewind")
     public void chainExplosionEffectsStayBoundedAndExpire(GameTestHelper h) {
-        var player = h.makeMockServerPlayerInLevel();
+        var player = RewindRuneTests.survivalPlayer(h);
         RewindExplosionEffects.clear();
         for (int i = 0; i < 100; i++) RewindExplosionEffects.enqueue(h.getLevel(),
                 new TickFrame.ExplosionMoment(h.getLevel().dimension(), i * 10, 50, 0, 100));

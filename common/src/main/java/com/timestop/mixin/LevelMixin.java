@@ -11,15 +11,24 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Level.class)
 public abstract class LevelMixin {
     @org.spongepowered.asm.mixin.Unique
     private final java.util.Map<TickingBlockEntity, Double> timestop$pedestalProgress = new java.util.WeakHashMap<>();
+
     @Inject(method = "getBlockEntity", at = @At("RETURN"))
     private void timestop$observeBlockEntity(BlockPos pos, CallbackInfoReturnable<BlockEntity> cir) {
         com.timestop.core.rewind.TickRecorder.getInstance().observeBlockEntity(cir.getReturnValue());
+    }
+
+    @Inject(method = "setBlockEntity", at = @At("HEAD"))
+    private void timestop$onSetBlockEntity(BlockEntity be, CallbackInfo ci) {
+        if (be != null) {
+            com.timestop.core.rewind.TickRecorder.getInstance().observeBlockEntity(be);
+        }
     }
 
     @Inject(

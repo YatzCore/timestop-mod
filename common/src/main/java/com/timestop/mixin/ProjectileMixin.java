@@ -92,7 +92,8 @@ public abstract class ProjectileMixin {
         boolean timeActive = projectile.level().isClientSide ? com.timestop.core.ClientTimeStopManager.isTimeStopped() : TimeStopManager.isGlobalTimeStopped();
         if (timeActive) {
             TimeMode mode = projectile.level().isClientSide ? com.timestop.core.ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
-            if (mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD) {
+            if ((mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD)
+                    && (mode != TimeMode.DECELERATION_FIELD || com.timestop.combat.DecelerationFieldManager.isDecelerated(projectile))) {
                 cir.setReturnValue(true);
                 return;
             }

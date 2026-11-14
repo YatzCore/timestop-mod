@@ -1,0 +1,125 @@
+// Opt-in native tests. No TaCZ/test source/dependency is included in a release JAR.
+gradle.beforeProject { p ->
+    if (!(p.name in ['fabric', 'forge', 'neoforge'])) return
+    def selected = gradle.startParameter.projectProperties['taczLoader'] ?: 'neoforge'
+    if (p.name != selected) return
+    def absent = (gradle.startParameter.projectProperties['taczAbsent'] ?: 'false').toBoolean()
+    def dependency = gradle.startParameter.projectProperties['taczJar']
+    if (!absent && (!dependency || !new File(dependency).isFile())) throw new GradleException('Supply -PtaczLoader=<loader> -PtaczJar=<fixed-target jar>')
+    def configureSources = {
+        p.sourceSets.create('nativeTacz') {
+            java.srcDir p.file('src/tacztest/java')
+            java.srcDir p.rootProject.file('common/src/tacztest/java')
+            resources.srcDir p.file('src/tacztest/resources')
+            compileClasspath += p.sourceSets.main.compileClasspath + p.sourceSets.main.output
+            runtimeClasspath += p.sourceSets.main.runtimeClasspath + p.sourceSets.main.output
+        }
+        p.tasks.register('nativeTaczJar', Jar) {
+            from p.sourceSets.nativeTacz.output
+            archiveFileName = 'native-tacz-qa-' + p.name + '-named.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-tacz-artifacts')
+        }
+    }
+    def prepare = { runDir ->
+        runDir.mkdirs()
+        new File(runDir, 'eula.txt').text = 'eula=true\n'
+        p.copy { from p.rootProject.file('integration/readiness/tacz-pack'); into new File(runDir, 'tacz/uts_native_qa') }
+        if (!absent && p.name != 'fabric') p.copy { from dependency; into new File(runDir, 'mods') }
+    }
+    if (p.name == 'neoforge') p.plugins.withId('net.neoforged.moddev') {
+        configureSources()
+        p.neoForge.mods { timestop_tacz_tests { sourceSet(p.sourceSets.nativeTacz) } }
+        p.neoForge.runs.create('nativeTaczClient') {
+            client()
+            gameDirectory = p.file('build/native-tacz-client-' + (absent ? 'absent' : 'installed'))
+            systemProperty 'timestop.nativeTaczClientQa', 'true'
+            systemProperty 'timestop.nativeTaczAbsent', absent.toString()
+            programArguments.addAll('--width', '1280', '--height', '720')
+        }
+        p.neoForge.runs.create('nativeTaczTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/native-tacz-run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'timestop'
+        }
+    }
+    if (p.name == 'forge') p.plugins.withId('net.minecraftforge.gradle') {
+        configureSources()
+        p.sourceSets.nativeTacz.output.resourcesDir = p.sourceSets.nativeTacz.java.destinationDirectory
+        p.minecraft.runs.create('nativeTaczClient') {
+            workingDirectory p.file('build/native-tacz-client-' + (absent ? 'absent' : 'installed'))
+            main = 'net.minecraftforge.bootstrap.ForgeBootstrap'
+            client = true
+            args '--launchTarget', 'forge_userdev_client', '--version', 'MOD_DEV', '--assetIndex', '17', '--assetsDir', new File(p.gradle.gradleUserHomeDir, 'caches/forge_gradle/assets').absolutePath, '--gameDir', '.', '--width', '1280', '--height', '720'
+            property 'timestop.nativeTaczClientQa', 'true'
+            property 'timestop.nativeTaczAbsent', absent.toString()
+            mods { timestop { source p.sourceSets.main }; timestop_tacz_tests { source p.sourceSets.nativeTacz } }
+        }
+        p.minecraft.runs.create('nativeTaczTests') {
+            workingDirectory p.file('build/native-tacz-run')
+            main = 'net.minecraftforge.bootstrap.ForgeBootstrap'
+            args '--launchTarget', 'forge_userdev_server_gametest', '--gameDir', '.'
+            property 'forge.enabledGameTestNamespaces', 'timestop'
+            mods { timestop { source p.sourceSets.main }; timestop_tacz_tests { source p.sourceSets.nativeTacz } }
+            args '--nogui'
+        }
+    }
+    if (p.name == 'fabric') p.plugins.withId('fabric-loom') {
+        configureSources()
+        def remapType = p.loom.class.classLoader.loadClass('net.fabricmc.loom.task.RemapJarTask')
+        p.tasks.register('remapNativeTaczJar', remapType) {
+            dependsOn p.tasks.named('nativeTaczJar')
+            inputFile.set(p.tasks.named('nativeTaczJar').flatMap { it.archiveFile })
+            archiveFileName = 'native-tacz-qa-fabric.jar'
+            destinationDirectory = p.layout.buildDirectory.dir('native-tacz-artifacts')
+            addNestedDependencies = false
+        }
+        p.afterEvaluate {
+            p.tasks.named('remapNativeTaczJar') { actions.removeIf { it.displayName.contains('copy') } }
+        }
+        if (!absent) {
+        def configJar = gradle.startParameter.projectProperties['taczConfigJar']
+        if (!configJar || !new File(configJar).isFile()) throw new GradleException('Fabric also needs -PtaczConfigJar=<Forge Config API Port jar>')
+        p.dependencies.add('modLocalRuntime', p.files(dependency))
+        p.dependencies.add('modLocalRuntime', p.files(configJar))
+        // Loom does not expand nested mods for local file runtime dependencies.
+        def expandNested
+        expandNested = { File jar ->
+            def zip = new java.util.zip.ZipFile(jar)
+            try {
+                zip.entries().findAll { !it.directory && it.name.startsWith('META-INF/jars/') && it.name.endsWith('.jar') }.each { entry ->
+                    def nested = p.file('build/native-tacz-dependencies/' + new File(entry.name).name)
+                    nested.parentFile.mkdirs()
+                    nested.bytes = zip.getInputStream(entry).withCloseable { it.bytes }
+                    p.dependencies.add('modLocalRuntime', p.files(nested))
+                    expandNested(nested)
+                }
+            } finally { zip.close() }
+        }
+        [dependency, configJar].each { path -> expandNested(new File(path)) }
+        }
+        p.loom.mods { timestop_tacz_tests { sourceSet p.sourceSets.nativeTacz } }
+        p.loom.runs.create('nativeTaczClient') {
+            client()
+            source p.sourceSets.nativeTacz
+            vmArg '-Dtimestop.nativeTaczClientQa=true'
+            vmArg '-Dtimestop.nativeTaczAbsent=' + absent
+            programArgs '--width', '1280', '--height', '720'
+            runDir 'build/native-tacz-client-' + (absent ? 'absent' : 'installed')
+        }
+        p.loom.runs.create('nativeTaczTests') {
+            server()
+            source p.sourceSets.nativeTacz
+            vmArg '-Dfabric-api.gametest'
+            vmArg '-Dfabric-api.gametest.test-mod-id=timestop_tacz_tests'
+            runDir 'build/native-tacz-run'
+        }
+    }
+    p.tasks.matching { it.name == 'runNativeTaczClient' }.configureEach {
+        maxHeapSize='3G'
+        doFirst { prepare(p.file('build/native-tacz-client-' + (absent ? 'absent' : 'installed'))) }
+    }
+    p.tasks.matching { it.name == 'runNativeTaczTests' }.configureEach {
+        maxHeapSize = '3G'
+        doFirst { prepare(p.file('build/native-tacz-run')) }
+    }
+}

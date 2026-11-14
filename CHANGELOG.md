@@ -1,3 +1,71 @@
+# Minecraft 1.21.1 — 1.8.4
+
+- Rune of the Tachyon: the documented 3x mining speed in Slow Motion / Matrix now actually applies (it was missing on all 1.21.1 loaders).
+- Fast Forward above 5x: inside your own watch field the server now runs your personal clock at the same capped rate as your client (5x), instead of the raw configured rate. Eating, hunger, effects and cooldowns no longer run ahead of what you see.
+- Joining a server no longer changes your own settings: a server's speed calibration and swimming setting are used only while you are connected, are never written to your config file, and your own values return when you leave.
+- The cloud freeze now lives in its own optional mixin, so a renderer that replaces cloud rendering cannot stop the game from starting (this crashed with Sodium 0.5.x on 1.20.1).
+- Fast Forward movement speed no longer blocks other mods that also adjust player speed while no Fast Forward field is active.
+- Forge protocol (6) and NeoForge payload version (1.8.3-casual-acceleration) unchanged: 1.8.3 and 1.8.4 can play together.
+
+# Minecraft 1.21.1 — 1.8.3
+
+- Self Acceleration now also speeds up harmful processes on your personal clock: drowning (and recovering air), burning, freezing, harmful effects, starvation and the hit-immunity window, plus falling (jump height unchanged; fall speed capped below the server movement check).
+- Fast Forward: inside your own watch field the server now runs your personal clock too (eating, attack recharge, cooldowns, effects, healing, hunger, breath, burning, freezing, mining), matching your already-fast client.
+- New **Casual acceleration** setting (H → Visuals & FX): harmful processes keep normal speed while you are accelerated; helpful ones still speed up. Per-player, saved in your client config.
+- Mode descriptions corrected: Slow Motion slows you too (only attack recharge, item use and cooldowns keep real-time speed); Matrix shows its real calibration (default 25%, previously said 20%) and 4x movement/attack; all speed-based modes show current calibration values.
+- The **B** variant hotkey now changes the watch that **V** activates (previously it could edit a worn watch while V used the held one).
+- Fast Forward in your own watch field no longer adds extra attack/cooldown/item-use ticks on the client, whose clock already runs fast (those ran twice there).
+- Forge protocol 6 and NeoForge payload version 1.8.3-casual-acceleration (new serverbound Casual setting packet); use 1.8.3 on both client and server.
+
+# Minecraft 1.21.1 — 1.8.2
+
+- Self Acceleration now speeds up your whole personal clock at the Fast Forward rate, not just movement: mining and the delay between broken blocks, placing/using delay, eating, drinking and item use (bows, crossbows, shields), attack recharge, item cooldowns, status-effect timers, hunger and natural healing. Gravity, breath, fire and the world keep normal time.
+- Easier variant switching: Slow Motion and Fast Forward cards show **World · Combat** / **World · Self**. Click a word to pick it; scroll, right-click or press the card's number again to switch while keeping the watch open. The watch remembers your last variant per card. New **B** hotkey (Switch Time Variant) flips the variant without opening the watch.
+- Mode descriptions now match actual behavior and show the current Speed Calibration values (previously hard-coded 25% / 500%).
+
+# Minecraft 1.21.1 — 1.8.1
+
+- Fixed a startup crash with Lithium (`alloc.chunk_random`, reported on NeoForge 21.1.265): both mods redirected the same random-tick calls in `ServerLevel.tickChunk`. Time Stop now hooks `BlockState.randomTick` / `FluidState.randomTick` instead, so it composes with any mod that rewrites chunk ticking.
+- Random-tick behavior is unchanged: frozen, slowed, accelerated and rewinding areas apply the same rates as before. Forge protocol and NeoForge payload version unchanged; 1.8.0 and 1.8.1 can play together.
+
+# Minecraft 1.21.1 — 1.8.0
+
+- Brought the 1.20.1 Prediction release across Fabric, Forge and NeoForge: animated white paths, mob/projectile silhouettes, held and enemy shots, distant arcs, swept interceptions, potion/cloud and imminent explosion cues, plus selected Enderman teleport tells.
+- Added safe Prediction arrow catching/redirection, preserved pickup components and synchronized ownership.
+- Added Combat Slow Motion, Self Acceleration and the synchronized stopped-time swimming setting using the existing watch cards/settings.
+- Restored configurable local/global rewind playback speed, model-based Dead Eye head bounds, rewind mob transforms and the redstone rollback callback guard. Fast global playback stops at its requested history depth.
+- Retained newer Sable, native TaCZ and accessory integrations; adapted components, physics capture, rendering and clocks to native 1.21.1 APIs.
+- Release uses Forge protocol 5 and NeoForge payload version 1.8.0-prediction-variants. See [the comparison report](PARITY_1_20_1_TO_1_21_1.md) for scope and limits.
+
+# Minecraft 1.21.1 — 1.6.6
+
+- Reworked Deceleration Field to slow only projectiles within the selected watch/pedestal bubble, or everywhere in global mode. Owner-fired projectiles are included.
+- Use the configured `speeds.decelerationDrag` as the projectile time rate (default 0.10). Players, mobs, TNT, blocks, and the server clock stay at normal speed, including players with lower-tier watches.
+- Apply native movement, gravity, drag, acceleration and collision over the slowed step. Preserve momentum on exit, and sweep fast arrows and TaCZ bullets through field boundaries.
+- Added a native tick budget for other projectile physics models and dedicated gameplay checks with actual TaCZ 1.1.8 bullets, vanilla projectile families, impacts, boundary crossing and unaffected entities.
+
+# Minecraft 1.21.1 — 1.6.5
+
+- Fixed Sable structures rapidly shaking/spinning in Slow Motion: stasis constraints now use the inverse rotation required for their world endpoint and anchor at the merged center of mass.
+- Keep the native physics pose and published pose synchronized during skipped substeps, preventing terrain corrections from leaking into the next resumed step.
+- Rewind uses the same corrected stasis constraint when rebuilding a held body.
+- Expanded NeoForge regression coverage to rotated falling structures, native pose agreement, angular speed, settled motion and a body tilted on all three axes.
+
+# Minecraft 1.21.1 — 1.6.4
+
+- Fixed Sable structures disappearing after landing inside a time bubble: static terrain support is no longer buffered and replayed as incoming collision momentum.
+- Stasis release now restores saved velocity exactly before applying buffered impacts, preventing solver residue from accumulating across slow-motion substeps.
+- Added isolated NeoForge gameplay coverage for command-equivalent assembly/teleport, bubble entry, rotated ground contact, and resume in all six non-rewind modes plus a normal-time baseline.
+
+# Minecraft 1.21.1 — 1.6.3
+
+- Ported the Creative Watch rune matrix from 1.20.1: independently toggle all 15 runes, or enable/disable them together. Compatible abilities apply together, including Kinetic and Volatile Stasis.
+- Added a Creative Watch bubble radius editor with slider and numeric input from 1 to 512 blocks. The saved radius applies to the next local activation, including local rewind.
+- Fixed command and Vector rune aiming: redirected arrows converge on the block or entity under the crosshair instead of flying parallel to the player's view. Precision shots fly straight until impact.
+- Added the Rewind `Self` toggle. `Self: OFF` preserves the initiating player's position, health, and inventory while the world rewinds, in local/global and burst/continuous rewind.
+- Added `/timestop rewind exempt <true|false>` and server policy `/timestop rewind allowexempt <true|false>`, with policy synchronization on all loaders.
+- Preserved old Creative Watch socket abilities during migration, returning the physical rune once the matrix is configured. Watch preferences survive inventory rewind.
+
 # Minecraft 1.21.1 — 1.6.1
 
 - Restored per-entity tick budgeting for pedestal Slow Motion, including client projectile prediction.
@@ -23,7 +91,68 @@
 
 # Changelog
 
+## TaCZ 1.21.1 compatibility candidates
+
+- Added optional native Fabric bullet/shot hooks and restored Forge shot-task registration; tested NeoForge against 21.1.233 and MUKSC r7.
+- Scope every scheduled native round safely, preserve piercing and momentum, apply ricochet after native damage, consume volatile impacts once, and retain ammunition/ownership through native combat interactions.
+- Use native animation/sound APIs for firearm Dead Eye without another firing request or ammunition consumption.
+- Correct field-boundary position synchronization for remote clients and reconnects. Preserve current aim before native collision sweeps.
+- See the [verification matrix and reproducible commands](integration/readiness/TACZ_PARITY.md) for selected dependencies, automated results, and the remaining gameplay acceptance checklist. These are candidate builds; full parity is not yet claimed.
+
 All notable changes to the **Ultimate Time Stop** mod are documented in this file.
+
+## [Unreleased] - Sable 2.0.5 & Companion 1.6.0 Compatibility
+
+### Readiness fixes in progress
+- Reject invalid global rewind activation before collapsing existing bubbles, and retain history when a required ship unloads before a playback frame can be applied.
+- Discard pre-mount deck anchors so dismounting on a moving or rotating ship cannot snap riders back to their old position.
+- Enforce the retained-history budget immediately when history length shrinks during local rewind.
+- Record native assembly/disassembly world counterparts and rewind their blocks and container contents with the ship, including locations outside the sphere. Preserve those locations throughout continuous playback and reject conflicting jobs.
+- Refresh inventory history after native block movement so intermediate container edits rewind to the moved contents instead of an empty construction-time baseline.
+- Restore chest contents and scheduled block/fluid ticks when ship plots are reallocated; remove spent rewind runes from full structural checkpoints.
+- Reconcile existing ship structures against recorded checkpoints, including native assembly changes that bypass vanilla block-change recording.
+- Retain split dependencies after Sable clears its notification; local rewind restores the parent and split child together across the sphere boundary. Keep selected plot ticks suppressed outside the sphere during playback.
+- Added 1/16/64-body cycle tests and combined original/Sable regression runs; short maximum-rate performance limits are documented in SABLE_BENCHMARK.md.
+- Integrate native contact forces over each physics substep, retain original collision effects, and release buffered impacts once. Preserve explicit impulses through pure global stasis.
+- Suppress physics and incoming impulses on ships controlled by rewind. Account for playback-owned history after timeline eviction.
+- Restore world-anchor joints and runtime motor, limit, frame, axis-lock and contact settings; exclude temporary stasis holds from history.
+- Support the configured 50x rate at eight native substeps without a hidden 200-step ceiling, while publishing actual time-scaled displacement velocities.
+- Reject missing/unloaded ship dependencies before rewind mutation and reserve unloaded plots when allocating restored ships (validation in progress).
+- Added actual native-contact, playback, joint-state and full-rate regressions plus isolated dedicated-server startup checks. Full feature acceptance remains in progress.
+
+### Fixed
+- Corrected collision lever arms for both endpoints by converting native offsets to plot coordinates before subtracting COM; impulses remain in local axes for Sable's release API.
+- Preserved separate identities for every body-to-body joint. Rewind now reconciles all saved joints after restoring bodies, preserves endpoint order, copies saved configurations and remaps anchors when plots change.
+- Corrected shared plot memory accounting to subtract only duplicate NBT costs, preserving each snapshot's unique charge. Frame/snapshot totals now use 64-bit counters.
+- Changed plot deduplication to weak references with queue pruning and removal cleanup, so the lookup cannot retain evicted checkpoints.
+- All 32 GameTests and five Common unit tests pass; Fabric/Forge/NeoForge compilation passes.
+
+### Added
+- **Optional Sable Compatibility (in progress)**: Integration targeting Sable 2.0.5 / Companion 1.6.0 on Fabric and NeoForge, with standalone Forge support. Gameplay acceptance is still in progress (experimental).
+- **Per-Body Temporal Physics (`SableBodyTimeManager` & `SablePhysicsSystemMixin`)**:
+  - Rigid bodies evaluate their motion rate from their world Center of Mass, supporting both global time stop and localized temporal bubbles.
+  - Native per-substep scheduling via `onSubstepBegin` connected to Rapier physics iterations.
+  - Dynamic substep loop expansion (`totalLoopSubsteps`) supporting accelerated rates (up to 5x Fast Forward) while holding unaccelerated bodies during surplus substeps.
+  - Strict spherical field boundary evaluation: bodies exiting a field vertically or horizontally return immediately to 1x rate without column retention.
+  - SUPERHOT motion responsiveness scaling with owner movement and activity.
+  - Bodies in local stasis use temporary fixed world constraints in Rapier and retain pre-stasis velocities.
+  - Gating of actors, lift providers, reaction wheels, and queued force applications during stasis.
+  - External impulse hooks and constraint tracking hooked in `SableRapierPipelineMixin`.
+  - Native contact normal indices and local torque coordinate conversion corrected. Native contact magnitude/sign, substep aggregation and generation/release acceptance remain to be validated end to end.
+- **Spatial World Bridging & Deck Transport (`SableWorldBridge`)**:
+  - Two-way coordinate projection between parent worlds and isolated plot grids.
+  - Frozen unmounted and mounted entity deck transport with corrected rider positioning (`vehicle.positionRider(entity)`) and stale deck anchor cleanup on entity removal.
+  - Cross-sublevel block entity resolution (`getBlockEntityAtWorld`) allowing interaction, visual beam roots, and queries across parent and plot boundaries.
+  - Dimension-isolated plot bounds checking and dimension-aware remapping keys (`PlotKey(dimension, center)`).
+- **Mobile Pedestals on Moving Ships**:
+  - Active pedestals mounted on moving vessels synchronize their `TemporalBubble` centers in real time without recreating fields or resetting buffered damage.
+  - Spatialized audio (activate, deactivate, insert, ambient sounds) and beam LOD rendering projected into world space.
+- **SubLevel Rewind Compatibility (`RewindExecutor`, `TickRecorder`, `RewindScope`, `LocalRewind`)**:
+  - Structural plot NBT and constraint data added to snapshots. Recursive NBT accounting includes the tested large inventory payload; shared tags retain separate snapshot costs and the dedup cache does not own tag lifetime. Full playback-memory/performance acceptance remains pending.
+  - Plot NBT loading restores unchanged blocks in the tested plot-reuse case via `ServerLevelPlot.load(CompoundTag)`.
+  - Removed-body last-live Center of Mass recorded on removal and evaluated in `RewindScope.filter`.
+  - Historical joint selection and reconstruction include separate identities for multiple body-to-body joints, post-target removal, ordered endpoints and plot-anchor remapping. Runtime motor/limit state and world-anchor coverage remain pending.
+  - Continuous fixed playback membership in `LocalRewind.Job`, preventing assembly drifting across frames and rejecting conflicting concurrent rewinds across connected bodies.
 
 ## [1.6.1] - 2026-09-25
 

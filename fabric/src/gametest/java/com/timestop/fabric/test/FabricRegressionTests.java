@@ -65,9 +65,9 @@ public class FabricRegressionTests implements FabricGameTest {
 
     @GameTest(template = EMPTY_STRUCTURE)
     public void superhotMultiplayerBubbleScoping(GameTestHelper h) {
-        var playerInside = h.makeMockServerPlayerInLevel();
+        var playerInside = RewindRuneTests.survivalPlayer(h);
         playerInside.setPos(h.absoluteVec(new Vec3(3, 2, 3)));
-        var playerOutside = h.makeMockServerPlayerInLevel();
+        var playerOutside = RewindRuneTests.survivalPlayer(h);
         playerOutside.setPos(h.absoluteVec(new Vec3(50, 2, 50)));
 
         var bubble = new TemporalBubble(
@@ -132,7 +132,7 @@ public class FabricRegressionTests implements FabricGameTest {
 
     @GameTest(template = EMPTY_STRUCTURE)
     public void barrierCapturesAndDrops(GameTestHelper h) {
-        var player = h.makeMockServerPlayerInLevel();
+        var player = RewindRuneTests.survivalPlayer(h);
         player.setPos(h.absoluteVec(new Vec3(3, 2, 2)));
         player.setYRot(0);
         player.setXRot(0);

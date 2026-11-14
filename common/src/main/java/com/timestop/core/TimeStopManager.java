@@ -54,6 +54,7 @@ public class TimeStopManager {
         public int hitCount = 0;
         public double totalDamageBonus = 0.0;
         public boolean originalNoGravity;
+        public boolean straightFlight;
         @Nullable
         public UUID originalShooterUuid = null;
         @Nullable
@@ -72,8 +73,9 @@ public class TimeStopManager {
         }
 
         public void addPunch(Projectile projectile, Player player) {
-            if (com.timestop.combat.ProjectileRedirection.usesLook(player)) {
-                this.direction = player.getLookAngle().normalize();
+            this.straightFlight = com.timestop.combat.ProjectileRedirection.usesLook(player);
+            if (this.straightFlight) {
+                this.direction = com.timestop.combat.ProjectileRedirection.lookDirection(projectile, player);
             } else if (this.hitCount == 0) {
                 // 1st time hit: lock return trajectory towards original shooter!
                 Level level = projectile.level();
@@ -116,6 +118,7 @@ public class TimeStopManager {
     private static final Map<UUID, java.lang.ref.WeakReference<Projectile>> projectileEntities = new ConcurrentHashMap<>();
 
     // Dynamic tick duration for SUPERHOT mode (500ms = 2 TPS idle extreme slow-mo, 50ms = 20 TPS moving)
+    private static double rewindFrameAccumulator;
     private static volatile long superhotTickMs = 500L;
 
     // Attribute modifiers for Matrix mode: ZERO potion effects, pure engine attribute boost!
@@ -154,8 +157,12 @@ public class TimeStopManager {
         return currentMode;
     }
 
+    public static ServerLevel getActiveServerLevel() { return activeServerLevel.get(); }
+
     public static void setSuperhotTickMs(long ms) {
         superhotTickMs = Math.max(50L, Math.min(1200L, ms));
+        var server=com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if(server instanceof IMinecraftServerTimeStop bridge) bridge.timestop$wakeServerTick();
     }
 
     /**
@@ -168,6 +175,8 @@ public class TimeStopManager {
             switch (currentMode) {
                 case FAST_FORWARD:
                     return (long) Math.max(10L, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.fastForwardRate.get()));
+                case TIME_PREDICTION:
+                    return 50L; // Prediction never throttles the world/network clock.
                 case SLOW_MOTION:
                     return (long) Math.max(50, Math.round(50.0 / com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get()));
                 case MATRIX:
@@ -222,6 +231,27 @@ public class TimeStopManager {
     }
 
     private static boolean clientRewindAllowed = true;
+    private static boolean clientRewindExemptAllowed = true;
+
+    public static boolean isRewindExemptAllowed() {
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server != null) {
+            return TimeStopSavedData.get().isRewindExemptInitiatorAllowed();
+        }
+        return clientRewindExemptAllowed;
+    }
+
+    public static void setClientRewindExemptAllowed(boolean allowed) {
+        clientRewindExemptAllowed = allowed;
+    }
+
+    public static void setRewindExemptAllowed(boolean allowed) {
+        net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
+        if (server != null) {
+            TimeStopSavedData.get().setRewindExemptInitiatorAllowed(allowed);
+            ModMessages.sendToClients(new com.timestop.network.SyncRewindExemptAllowedPacket(allowed));
+        }
+    }
 
     public static boolean isRewindAllowed() {
         net.minecraft.server.MinecraftServer server = com.timestop.platform.Services.PLATFORM.getCurrentServer();
@@ -524,6 +554,7 @@ public class TimeStopManager {
                     level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
                             SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 2.5F, 0.6F);
                     break;
+                case TIME_PREDICTION:
                 case SLOW_MOTION:
                     level.playSound(null, initiator.getX(), initiator.getY(), initiator.getZ(),
                             SoundEvents.CONDUIT_DEACTIVATE, SoundSource.PLAYERS, 2.0F, 0.5F);
@@ -619,6 +650,16 @@ public class TimeStopManager {
             com.timestop.core.rewind.LocalRewind.start(player, scope, durationTicks, () -> {});
             return;
         }
+        // Validate the first frame before collapsing existing bubbles or changing global time.
+        // Later frames are validated again at application because ships may unload during playback.
+        try {
+            var firstPlan = com.timestop.core.rewind.RewindExecutor.buildPlan(recorder.getTimelineBuffer().getFramesForRewind(1));
+            com.timestop.core.rewind.RewindExecutor.validatePlan(level.getServer(), firstPlan);
+        } catch (com.timestop.core.rewind.RewindExecutor.RewindValidationException invalid) {
+            if (initiator != null) initiator.displayClientMessage(Component.literal("Rewind could not start: " + invalid.getMessage()), true);
+            org.slf4j.LoggerFactory.getLogger("TimeStopRewind").warn("Global rewind rejected: {}", invalid.getMessage());
+            return;
+        }
         if (timeStopped) {
             resumeTime(level);
         }
@@ -654,6 +695,7 @@ public class TimeStopManager {
 
         // Start continuous recording playback
         com.timestop.core.rewind.RewindPlaybackFeedback.started(initiator, durationTicks, available, "global");
+        rewindFrameAccumulator=0;
         recorder.getTimelineBuffer().setRewinding(true);
         recorder.getTimelineBuffer().setRecording(false);
         recorder.clearTrackingData();
@@ -698,6 +740,7 @@ public class TimeStopManager {
             recorder.getTimelineBuffer().setRecording(true);
             com.timestop.combat.RewindRuneManager.onRewindFinished(level.getServer());
         }
+        rewindFrameAccumulator=0;
         timeStopped = false;
         activeServerLevel = new java.lang.ref.WeakReference<>(null);
         remainingTicks = 0;
@@ -793,21 +836,28 @@ public class TimeStopManager {
                     return;
                 }
                 boolean rollbackInv = com.timestop.config.TimeStopConfig.COMMON.rollbackPlayerInventory.get();
-                var frames = buffer.getFramesForRewind(1);
+                rewindFrameAccumulator += com.timestop.config.TimeStopConfig.COMMON.rewindSpeed.get();
+                int count=(int)rewindFrameAccumulator;
+                if(count<=0) return;
+                rewindFrameAccumulator -= count;
+                var frames = buffer.getFramesForRewind(remainingTicks > 0 ? Math.min(count, remainingTicks) : count);
                 if (!frames.isEmpty()) {
                     var plan = com.timestop.core.rewind.RewindExecutor.buildPlan(frames);
+                    ServerPlayer rewindOwner = initiatorUuid == null ? null : level.getServer().getPlayerList().getPlayer(initiatorUuid);
+                    if (rewindOwner != null && com.timestop.item.AbstractWatchItem.isPlayerRewindExempt(rewindOwner)) plan = plan.withoutPlayer(initiatorUuid);
                     buffer.setRewinding(true);
                     buffer.setRecording(false);
                     try {
                         com.timestop.core.rewind.RewindExecutor.applyPlan(level.getServer(), plan, rollbackInv);
-                        buffer.removeRecentFrames(1);
+                        buffer.removeRecentFrames(frames.size());
+                        remainingTicks = Math.max(0, remainingTicks - frames.size());
                     } catch (Exception error) {
                         org.slf4j.LoggerFactory.getLogger("TimeStopRewind").error("Continuous rewind failed", error);
-                        buffer.clear();
+                        if (!(error instanceof com.timestop.core.rewind.RewindExecutor.RewindValidationException)) buffer.clear();
                         resumeTime(level);
                         return;
                     }
-                    if (buffer.getFrameCount() == 0) {
+                    if (buffer.getFrameCount() == 0 || remainingTicks == 0) {
                         if (initiatorUuid != null) {
                             ServerPlayer initiator = level.getServer().getPlayerList().getPlayer(initiatorUuid);
                             if (initiator != null) {
@@ -828,6 +878,8 @@ public class TimeStopManager {
                     return;
                 }
             }
+            // Rewind duration is measured in consumed history frames, independent of playback speed.
+            return;
         }
 
         if (remainingTicks > 0) {
@@ -846,7 +898,8 @@ public class TimeStopManager {
                 if (anyLevel != null) {
                     resumeTime(anyLevel);
                 } else {
-                    timeStopped = false;
+                    rewindFrameAccumulator=0;
+        timeStopped = false;
                     initiatorUuid = null;
                     ModMessages.sendToClients(new TimeStopSyncPacket(false, 0, null, TimeMode.TIME_STOP, Collections.emptySet()));
                 }
@@ -858,6 +911,7 @@ public class TimeStopManager {
         com.timestop.core.rewind.LocalRewind.clear();
         com.timestop.combat.RewindRuneManager.clearAllConsumptions();
         com.timestop.core.rewind.TickRecorder.getInstance().reset();
+        rewindFrameAccumulator=0;
         timeStopped = false;
         remainingTicks = 0;
         totalDuration = 0;
@@ -914,11 +968,11 @@ public class TimeStopManager {
         com.timestop.combat.ProjectileRedirection.clearGuidance(projectile);
         projectileEntities.put(projectile.getUUID(), new java.lang.ref.WeakReference<>(projectile));
 
-        com.timestop.item.rune.RuneType rune = com.timestop.combat.RuneManager.getSocketedRuneType(player);
-        if (rune == com.timestop.item.rune.RuneType.KINETIC) {
+        if (com.timestop.combat.RuneManager.hasRune(player, com.timestop.item.rune.RuneType.KINETIC)) {
             data.totalDamageBonus += 8.0;
             data.originalVelocity = data.originalVelocity.scale(1.5);
-        } else if (rune == com.timestop.item.rune.RuneType.VOLATILE) {
+        }
+        if (com.timestop.combat.RuneManager.hasRune(player, com.timestop.item.rune.RuneType.VOLATILE)) {
             com.timestop.platform.EntityDataHelper.getPersistentData(projectile).putBoolean("VolatileStasis", true);
             if (projectile.level() instanceof ServerLevel sl) {
                 sl.sendParticles(ParticleTypes.FLAME, projectile.getX(), projectile.getY(), projectile.getZ(), 8, 0.15, 0.15, 0.15, 0.05);
@@ -928,6 +982,8 @@ public class TimeStopManager {
         projectile.setDeltaMovement(Vec3.ZERO);
         projectile.setNoGravity(true);
         projectile.setOwner(player);
+
+        ModMessages.sendToTracking(new com.timestop.network.ProjectileOwnerSyncPacket(projectile), projectile);
 
         Vec3 dir = data.direction;
         double horiz = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
@@ -995,8 +1051,11 @@ public class TimeStopManager {
         com.timestop.combat.ProjectileRedirection.clearGuidance(projectile);
 
         double speed = Math.max(1.8, projectile.getDeltaMovement().length() * 1.35);
+        com.timestop.combat.ProjectileRedirection.setStraightFlight(projectile, com.timestop.combat.ProjectileRedirection.usesLook(player));
         projectile.setDeltaMovement(returnDir.scale(speed));
         projectile.setOwner(player);
+
+        ModMessages.sendToTracking(new com.timestop.network.ProjectileOwnerSyncPacket(projectile), projectile);
 
         if (projectile instanceof AbstractHurtingProjectile hurting) {
             hurting.setDeltaMovement(returnDir.scale(0.1D));
@@ -1108,6 +1167,7 @@ public class TimeStopManager {
             Vec3 velocity = data.getDischargeVelocity();
 
             projectile.setNoGravity(data.originalNoGravity);
+            if (data.hitCount > 0) com.timestop.combat.ProjectileRedirection.setStraightFlight(projectile, data.straightFlight);
             projectile.setDeltaMovement(velocity);
 
             double horiz = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
@@ -1200,9 +1260,11 @@ public class TimeStopManager {
                 Entity found = level.getEntity(uuid);
                 if (found instanceof Projectile proj) p = proj;
             }
-            if (p != null && p.level() == level && p.position().add(0, p.getBbHeight() * .5, 0).distanceToSqr(center) <= rSq
-                    && !TemporalBubbleManager.isEntityInStasis(p)) {
-                toResume.add(uuid);
+            if (p != null && p.level() == level) {
+                Vec3 pWorld = com.timestop.compat.TemporalWorlds.toWorld(level, p.position().add(0, p.getBbHeight() * .5, 0));
+                if (pWorld.distanceToSqr(center) <= rSq && !TemporalBubbleManager.isEntityInStasis(p)) {
+                    toResume.add(uuid);
+                }
             }
         }
         for (UUID uuid : toResume) {

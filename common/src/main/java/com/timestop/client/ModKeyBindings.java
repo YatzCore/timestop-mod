@@ -5,6 +5,9 @@ import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
 public class ModKeyBindings {
+    public static final KeyMapping OPEN_WATCH_KEY = new KeyMapping(
+            "key.timestop.open_watch", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, "key.categories.timestop"
+    );
     public static final KeyMapping TIME_STOP_KEY = new KeyMapping(
             "key.timestop.toggle",
             InputConstants.Type.KEYSYM,
@@ -37,6 +40,14 @@ public class ModKeyBindings {
             "key.timestop.toggle_projectile_flow",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_K,
+            "key.categories.timestop"
+    );
+
+    /** Switches Slow Motion World/Combat or Fast Forward World/Self without opening the watch. */
+    public static final KeyMapping TOGGLE_VARIANT_KEY = new KeyMapping(
+            "key.timestop.toggle_variant",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_B,
             "key.categories.timestop"
     );
 

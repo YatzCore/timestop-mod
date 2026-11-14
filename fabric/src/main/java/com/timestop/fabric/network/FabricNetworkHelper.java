@@ -66,10 +66,15 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerServer(SingleFireProjectilePacket.ID, SingleFireProjectilePacket::new);
         registerServer(TranspositionSwapPacket.ID, TranspositionSwapPacket::new);
         registerServer(SetWatchScopePacket.ID, SetWatchScopePacket::new);
+        registerServer(SetWatchRadiusPacket.ID, SetWatchRadiusPacket::new);
+        registerServer(ToggleMatrixRunePacket.ID, ToggleMatrixRunePacket::new);
+        registerServer(SetRewindExemptPacket.ID, SetRewindExemptPacket::new);
         registerServer(KineticPalmActionPacket.ID, KineticPalmActionPacket::new);
         registerServer(FlipCoinPacket.ID, FlipCoinPacket::new);
         registerServer(ToggleProjectileFlowPacket.ID, ToggleProjectileFlowPacket::new);
         registerServer(UpdateSpeedConfigPacket.ID, UpdateSpeedConfigPacket::new);
+        registerServer(UpdateSwimmingConfigPacket.ID, UpdateSwimmingConfigPacket::new);
+        registerServer(com.timestop.network.SetCasualAccelerationPacket.ID, com.timestop.network.SetCasualAccelerationPacket::new);
 
         ServerPlayNetworking.registerGlobalReceiver(RawModPayload.TYPE, (payload, context) -> {
             Function<FriendlyByteBuf, IServerboundPacket> decoder = SERVER_DECODERS.get(payload.packetId());
@@ -92,11 +97,14 @@ public class FabricNetworkHelper implements INetworkHelper {
         registerClient(KineticCaptureSyncPacket.ID, KineticCaptureSyncPacket::new);
         registerClient(DeadEyeGunFeedbackPacket.ID, DeadEyeGunFeedbackPacket::new);
         registerClient(SyncSpeedConfigPacket.ID, SyncSpeedConfigPacket::new);
+        registerClient(PredictionSnapshotPacket.ID, PredictionSnapshotPacket::new);
+        registerClient(ProjectileOwnerSyncPacket.ID, ProjectileOwnerSyncPacket::new);
         registerClient(RewindBlocksPacket.ID, RewindBlocksPacket::new);
         registerClient(RewindMobPacket.ID, RewindMobPacket::new);
         registerClient(RewindPistonPacket.ID, RewindPistonPacket::new);
         registerClient(RewindFadePacket.ID, RewindFadePacket::new);
         registerClient(SyncRewindAllowedPacket.ID, SyncRewindAllowedPacket::new);
+        registerClient(SyncRewindExemptAllowedPacket.ID, SyncRewindExemptAllowedPacket::new);
 
         ClientPlayNetworking.registerGlobalReceiver(RawModPayload.TYPE, (payload, context) -> {
             Function<FriendlyByteBuf, IClientboundPacket> decoder = CLIENT_DECODERS.get(payload.packetId());

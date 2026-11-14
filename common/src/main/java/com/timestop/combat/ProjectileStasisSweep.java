@@ -2,7 +2,6 @@ package com.timestop.combat;
 
 import com.timestop.core.*;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
-import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
@@ -53,7 +52,10 @@ public final class ProjectileStasisSweep {
             // Check intervals, including where a stronger overlapping field ends.
             var winner = TemporalBubbleManager.getDominantBubble(level.dimension(), origin.add(travel.scale((entry + exit) * .5)));
             if (winner == null || winner.getMode() != TimeMode.TIME_STOP || winner.canEntityAct(projectile)) continue;
-            double t = entry + Math.min(1e-5 / Math.sqrt(lengthSquared), (exit - entry) * .25);
+            // Relative entity updates quantize positions to 1/4096 block. Keep
+            // the stopped position inside after rounding, so a remote client
+            // cannot advance a native bullet before recognizing the field.
+            double t = entry + Math.min((1.0 / 1024.0) / Math.sqrt(lengthSquared), (exit - entry) * .25);
             Vec3 point = projectile.position().add(travel.scale(t));
             // Let native collision handling resolve walls/entities before the sphere.
             if (checkEarlierCollisions) {
@@ -68,7 +70,9 @@ public final class ProjectileStasisSweep {
             TimeStopManager.registerSuspendedProjectile(projectile, velocity);
             projectile.setOldPosAndRot();
             projectile.hasImpulse = true;
-            level.getChunkSource().broadcast(projectile, new ClientboundTeleportEntityPacket(projectile));
+            // hasImpulse makes the normal tracker publish this position now.
+            // An extra teleport here would reset the client's relative-position
+            // base without resetting the tracker's base, doubling the next move.
             level.getChunkSource().broadcast(projectile, new ClientboundSetEntityMotionPacket(projectile));
             return true;
         }

@@ -1,0 +1,36 @@
+// Isolated dedicated-server startup. Commands are processed only after initialization.
+gradle.projectsEvaluated {
+    rootProject.subprojects { p ->
+        def profile = rootProject.findProperty('readinessProfile') ?: 'standalone'
+        def runPath = "build/readiness-${profile}-server"
+        def loom = p.extensions.findByName('loom')
+        if (loom != null && loom.runs.findByName('server') != null) loom.runs.server.runDir(runPath)
+        def neo = p.extensions.findByName('neoForge')
+        if (neo != null) neo.runs.server.gameDirectory = p.file(runPath)
+        def forge = p.extensions.findByName('minecraft')
+        if (forge != null && p.name == 'forge') forge.runs.server.workingDirectory(p.file(runPath))
+        p.tasks.configureEach { task ->
+            if (task.name == 'runServer') {
+                def runDir = p.file(runPath)
+                workingDir = runDir
+                standardInput = new ByteArrayInputStream('list\nstop\n'.getBytes('UTF-8'))
+                maxHeapSize = '2G'
+                doFirst {
+                    runDir.mkdirs()
+                    new File(runDir, 'eula.txt').text = 'eula=true\n'
+                    new File(runDir, 'server.properties').text = '''server-ip=127.0.0.1
+server-port=25585
+online-mode=false
+level-name=readiness-world
+level-type=minecraft:flat
+generate-structures=false
+view-distance=2
+simulation-distance=2
+spawn-protection=0
+max-tick-time=120000
+'''
+                }
+            }
+        }
+    }
+}

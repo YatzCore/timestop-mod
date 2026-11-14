@@ -31,7 +31,8 @@ public class PedestalBlockEntity extends BlockEntity implements MenuProvider {
                 changed();
                 if (getWatch().isEmpty()) {
                     if (previousWatch != null && level != null && !level.isClientSide) {
-                        level.playSound(null, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5,
+                        net.minecraft.world.phys.Vec3 soundPos = com.timestop.compat.TemporalWorlds.toWorld(level, net.minecraft.world.phys.Vec3.atCenterOf(worldPosition));
+                        level.playSound(null, soundPos.x, soundPos.y, soundPos.z,
                                 com.timestop.sound.ModSounds.PEDESTAL_INSERT.get(), net.minecraft.sounds.SoundSource.BLOCKS, 0.8F, 0.85F);
                     }
                     PedestalManager.stop(PedestalBlockEntity.this);

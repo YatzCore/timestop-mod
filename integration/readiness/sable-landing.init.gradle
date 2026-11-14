@@ -1,0 +1,38 @@
+// Isolated NeoForge/Sable/Create gameplay regressions; QA classes stay out of release jars.
+gradle.beforeProject { p ->
+    if (p.name != 'neoforge') return
+    p.plugins.withId('net.neoforged.moddev') {
+        p.sourceSets {
+            sableLandingTest {
+                java.srcDir p.file('src/sabletest/java')
+                resources.srcDir p.file('src/sabletest/resources')
+                compileClasspath += main.compileClasspath + main.output
+                runtimeClasspath += main.runtimeClasspath + main.output
+            }
+        }
+        p.neoForge.mods { timestop { sourceSet(p.sourceSets.sableLandingTest) } }
+        p.neoForge.runs.create('sableLandingTests') {
+            type = 'gameTestServer'
+            gameDirectory = p.file('build/sable-landing-test-run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'timestop'
+        }
+        p.tasks.matching { it.name == 'runSableLandingTests' }.configureEach {
+            maxHeapSize = '3G'
+            doFirst {
+                def runDir = p.file('build/sable-landing-test-run')
+                runDir.mkdirs()
+                new File(runDir, 'eula.txt').text = 'eula=true\n'
+                def modsDir = new File(runDir, 'mods')
+                modsDir.mkdirs()
+                def sourceMods = p.file(p.findProperty('sableLandingMods') ?: 'build/readiness-sable-server/mods')
+                if (p.fileTree(sourceMods).matching { include 'sable*.jar' }.isEmpty())
+                    throw new GradleException('Supply Sable/Create jars with -PsableLandingMods=<mods directory>')
+                p.copy {
+                    from sourceMods
+                    into modsDir
+                    include 'sable*.jar', 'create*.jar'
+                }
+            }
+        }
+    }
+}

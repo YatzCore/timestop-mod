@@ -16,6 +16,27 @@ public final class TaczProjectileCompat {
         return p.getClass().getName().equals("com.tacz.guns.entity.EntityKineticBullet");
     }
 
+    /** Native bullets bypass Projectile.onHit; loader event handlers skip these bullets. */
+    public static boolean beforeImpact(Projectile bullet, HitResult hit) {
+        if (bullet.level().isClientSide || hit.getType() == HitResult.Type.MISS) return false;
+        if (ProjectileStasisSweep.beforeImpact(bullet, hit.getLocation())) return true;
+        if (OrbitalProjectileManager.onProjectileImpact(bullet, hit)) return true;
+        VolatileStasisHandler.onProjectileImpact(bullet);
+        return KineticPalmManager.onDroppedProjectileImpact(bullet);
+    }
+
+    /** Called only after the native hit body completes, before native piercing/discard. */
+    public static boolean afterEntityImpact(Projectile bullet, EntityHitResult hit) {
+        return VoltaicRicochetHandler.onProjectileImpact(bullet, hit);
+    }
+
+    public static boolean skipRicochetTarget(Projectile bullet, net.minecraft.world.entity.Entity target) {
+        if (!isBullet(bullet)) return false;
+        var data = com.timestop.platform.EntityDataHelper.getPersistentData(bullet);
+        var hits = data.getList("RicochetHitList", net.minecraft.nbt.Tag.TAG_INT);
+        return !hits.isEmpty() && hits.getInt(hits.size() - 1) == target.getId();
+    }
+
     public static boolean beforeTick(Projectile bullet) {
         var data = com.timestop.platform.EntityDataHelper.getPersistentData(bullet);
         if (!bullet.isAlive() || data.getBoolean("KineticPalmCaptured") || data.getBoolean("InStasisOrbit")) return true;
@@ -26,7 +47,7 @@ public final class TaczProjectileCompat {
         if (data.getBoolean("KineticPalmCaptured") || data.getBoolean("InStasisOrbit")) return true;
         if (TimeStopManager.isProjectileSuspended(bullet)) return true;
         Vec3 start = bullet.position();
-        Vec3 end = start.add(bullet.getDeltaMovement());
+        Vec3 end = start.add(bullet.getDeltaMovement().scale(DecelerationFieldManager.getMovementScale(bullet)));
         var wall = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, bullet));
         if (wall.getType() != HitResult.Type.MISS) end = wall.getLocation();
         // Sweep defenses along the whole native step: bullets can cross a field in one tick.
@@ -35,13 +56,10 @@ public final class TaczProjectileCompat {
         double closest = Double.MAX_VALUE;
         for (var player : level.players()) {
             if (player == bullet.getOwner() || !player.isAlive() || player.isSpectator()) continue;
-            RuneType rune = RuneManager.getSocketedRuneType(player);
-            double radius = switch (rune == null ? RuneType.BLANK : rune) {
-                case DEFLECTION -> 3.4;
-                case SNATCHING -> 2.9;
-                case PHASING -> 2.4;
-                default -> 0;
-            };
+            // Creative Watch matrix runes also participate in the native sweep.
+            double radius = RuneManager.hasRune(player, RuneType.DEFLECTION) ? 3.4
+                    : RuneManager.hasRune(player, RuneType.SNATCHING) ? 2.9
+                    : RuneManager.hasRune(player, RuneType.PHASING) ? 2.4 : 0;
             radius = Math.min(radius, DecelerationFieldManager.getDecelerationRadius(player));
             if (radius <= 0) continue;
             Vec3 center = player.position().add(0, player.getEyeHeight() * 0.5, 0);
@@ -62,24 +80,6 @@ public final class TaczProjectileCompat {
             RuneManager.evaluateRuneDefense(bullet, defender);
             if (!bullet.isAlive() || bullet.getOwner() == defender || data.getBoolean("InStasisOrbit")) return true;
             bullet.setPos(start);
-        }
-        // Stop at entry for one tick when a fast round would otherwise cross an entire field.
-        for (var player : level.players()) {
-            if (player == bullet.getOwner() || !player.isAlive() || player.isSpectator()) continue;
-            double radius = DecelerationFieldManager.getDecelerationRadius(player);
-            if (radius <= 0) continue;
-            Vec3 center = player.position().add(0, player.getEyeHeight() * 0.5, 0);
-            if (start.distanceToSqr(center) <= radius * radius) continue;
-            Vec3 travel = end.subtract(start);
-            double length = travel.length();
-            if (length < 1e-8) continue;
-            double t = Math.max(0, Math.min(1, center.subtract(start).dot(travel) / travel.lengthSqr()));
-            Vec3 near = start.add(travel.scale(t));
-            if (near.distanceToSqr(center) >= radius * radius) continue;
-            double entryT = Math.max(0, t - Math.sqrt(radius * radius - near.distanceToSqr(center)) / length);
-            bullet.setPos(start.add(travel.scale(Math.min(1, entryT + 0.00001))));
-            bullet.hasImpulse = true;
-            return true;
         }
         // Coins use a swept hit box so native high-speed bullets cannot tunnel through them.
         ChronoCoinEntity coinHit = null;
@@ -108,7 +108,7 @@ public final class TaczProjectileCompat {
             type.getMethod("setId", net.minecraft.resources.ResourceLocation.class).invoke(builder, id);
             type.getMethod("setCount", int.class).invoke(builder, 1);
             return (ItemStack) type.getMethod("build").invoke(builder);
-        } catch (ReflectiveOperationException e) {
+        } catch (ReflectiveOperationException | LinkageError e) {
             return ItemStack.EMPTY;
         }
     }

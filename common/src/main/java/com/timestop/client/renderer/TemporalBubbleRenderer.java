@@ -125,6 +125,7 @@ public class TemporalBubbleRenderer {
         float opacityScale = (float) (userOpacity / 0.35);
 
         for (ClientBubbleManager.ClientBubble bubble : ClientBubbleManager.getActiveBubbles()) {
+            if (bubble.mode == com.timestop.core.TimeMode.TIME_PREDICTION) continue;
             if (!bubble.dimensionId.equals(level.dimension().location().toString())) continue;
             Vec3 center = bubble.getCenter(partialTick);
             float radius = (float) bubble.radius;

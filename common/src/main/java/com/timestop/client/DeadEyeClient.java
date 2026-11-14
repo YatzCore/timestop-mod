@@ -201,6 +201,8 @@ public final class DeadEyeClient {
     }
 
     public static Vec3 headPosition(LivingEntity target, float partialTick) {
+        AABB rendered=DeadEyeHeadGeometry.getRenderedBounds(target);
+        if(rendered!=null) return rendered.getCenter().add(target.getPosition(partialTick).subtract(target.position()));
         if (target instanceof net.minecraft.world.entity.animal.Pig pig) {
             double bodyYaw = Math.toRadians(net.minecraft.util.Mth.rotLerp(partialTick, pig.yBodyRotO, pig.yBodyRot));
             double headYaw = Math.toRadians(net.minecraft.util.Mth.rotLerp(partialTick, pig.yHeadRotO, pig.yHeadRot));
@@ -217,6 +219,8 @@ public final class DeadEyeClient {
     }
 
     public static AABB headBounds(LivingEntity target) {
+        AABB rendered=DeadEyeHeadGeometry.getRenderedBounds(target);
+        if(rendered!=null) return rendered.inflate(.04);
         Vec3 centre = headPosition(target, 1.0F);
         if (target instanceof net.minecraft.world.entity.animal.Pig) {
             double radius = 0.29 * target.getScale();

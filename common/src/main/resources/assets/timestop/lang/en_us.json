@@ -1,4 +1,6 @@
 {
+  "curios.identifier.watch": "Pocket Watch",
+  "trinkets.slot.charm.watch": "Pocket Watch",
   "item.timestop.copper_watch": "Copper Watch",
   "item.timestop.chronos_watch": "Golden Watch",
   "item.timestop.diamond_watch": "Diamond Watch",
@@ -22,6 +24,8 @@
   "entity.timestop.chrono_coin": "Chrono Coin",
   "itemGroup.timestop": "Ultimate Time Stop",
   "itemGroup.timestop_tab": "Ultimate Time Stop",
+  "key.timestop.open_watch": "Open Watch Interface",
+  "key.timestop.toggle_variant": "Switch Time Variant (World / Combat / Self)",
   "key.timestop.toggle": "Toggle Time Stop",
   "key.timestop.release_projectiles": "Release Orbiting Projectiles",
   "key.timestop.transposition": "Spatial Transposition (Boogie Woogie)",

@@ -28,8 +28,15 @@ public class WeatherFreezeManager {
         } else {
             TimeMode mode = ClientTimeStopManager.getCurrentMode();
             switch (mode) {
+                case COMBAT_SLOW:
+                case SELF_ACCELERATION:
+                    accumulatedRainTime += dtSeconds * 20.0;
+                    break;
                 case TIME_STOP:
                     // 100% frozen in space - zero advance
+                    break;
+                case TIME_PREDICTION:
+                    accumulatedRainTime += dtSeconds * 20.0 * com.timestop.config.TimeStopConfig.COMMON.predictionRate.get();
                     break;
                 case SLOW_MOTION:
                 case MATRIX:

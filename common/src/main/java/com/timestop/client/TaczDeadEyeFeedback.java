@@ -4,15 +4,13 @@ import com.timestop.TimeStopMod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Optional;
 
-/** Calls the installed TACZ local effects callback, without its shoot/ammo/network stage. */
+/** Native local animation and sound APIs only; no client firing request or ammunition stage. */
 public final class TaczDeadEyeFeedback {
     private static boolean unavailable;
-    private static Method callback;
-    private static Constructor<?> controllerConstructor;
+    private static Method silenceLookup;
     private TaczDeadEyeFeedback() {}
 
     public static void play(ItemStack firedGun, boolean firstRound) {
@@ -36,16 +34,11 @@ public final class TaczDeadEyeFeedback {
             Class<?> operatorApi = Class.forName("com.tacz.guns.api.client.gameplay.IClientPlayerGunOperator");
             Object operator = operatorApi.getMethod("fromLocalPlayer", LocalPlayer.class).invoke(null, player);
             Object data = operatorApi.getMethod("getDataHolder").invoke(operator);
-            if (callback == null) {
-                Class<?> controller = Class.forName("com.tacz.guns.client.gameplay.LocalPlayerShoot");
-                Class<?> holder = Class.forName("com.tacz.guns.client.gameplay.LocalPlayerDataHolder");
-                controllerConstructor = controller.getConstructor(holder, LocalPlayer.class);
-                // This callback posts GunFireEvent, triggers the gun's Lua animation and selects its
-                // native suppressed/unsuppressed sound. It neither consumes ammo nor sends a shot.
-                callback = controller.getDeclaredMethod("lambda$doShoot$1", ItemStack.class,
-                        Class.forName("com.tacz.guns.client.resource.GunDisplayInstance"),
-                        Class.forName("com.tacz.guns.resource.pojo.data.gun.GunData"));
-                callback.setAccessible(true);
+            Class<?> controller = Class.forName("com.tacz.guns.client.gameplay.LocalPlayerShoot");
+            Class<?> holder = Class.forName("com.tacz.guns.client.gameplay.LocalPlayerDataHolder");
+            if (silenceLookup == null) {
+                silenceLookup = controller.getDeclaredMethod("useSilenceSound");
+                silenceLookup.setAccessible(true);
             }
             // TACZ records cooldown once per trigger, not again for each delayed burst round.
             if (firstRound) {
@@ -53,10 +46,54 @@ public final class TaczDeadEyeFeedback {
                 data.getClass().getField("clientLastShootTimestamp").setLong(data, timestamp.getLong(data));
                 timestamp.setLong(data, System.currentTimeMillis());
             }
-            callback.invoke(controllerConstructor.newInstance(data, player), firedGun, display, gunData);
+            if (!postFireEvent(player, firedGun)) return;
+            Object animation = display.getClass().getMethod("getAnimationStateMachine").invoke(display);
+            if (animation != null) {
+                String input = (String) Class.forName("com.tacz.guns.client.animation.statemachine.GunAnimationConstant")
+                        .getField("INPUT_SHOOT").get(null);
+                Class.forName("com.tacz.guns.api.client.animation.statemachine.AnimationStateMachine")
+                        .getMethod("trigger", String.class).invoke(animation, input);
+            }
+            Class<?> displayType = Class.forName("com.tacz.guns.client.resource.GunDisplayInstance");
+            Class<?> gunDataType = Class.forName("com.tacz.guns.resource.pojo.data.gun.GunData");
+            Class<?> sounds = Class.forName("com.tacz.guns.client.sound.SoundPlayManager");
+            String inspect = (String) Class.forName("com.tacz.guns.sound.SoundManager").getField("INSPECT_SOUND").get(null);
+            sounds.getMethod("stopPlayGunSound", displayType, String.class).invoke(null, display, inspect);
+            Object shootController = controller.getConstructor(holder, LocalPlayer.class).newInstance(data, player);
+            boolean silent = (Boolean) silenceLookup.invoke(shootController);
+            sounds.getMethod(silent ? "playSilenceSound" : "playShootSound",
+                    net.minecraft.world.entity.LivingEntity.class, displayType, gunDataType)
+                    .invoke(null, player, display, gunData);
         } catch (ReflectiveOperationException | LinkageError exception) {
             unavailable = true;
             TimeStopMod.LOGGER.error("Cannot play TACZ's native Dead Eye shot feedback", exception);
         }
+    }
+
+    private static boolean postFireEvent(LocalPlayer player, ItemStack gun) throws ReflectiveOperationException {
+        String platform = com.timestop.platform.Services.PLATFORM.getPlatformName();
+        String sideName = switch (platform) {
+            case "Fabric" -> "cn.sh1rocu.tacz.api.LogicalSide";
+            case "NeoForge" -> "net.neoforged.fml.LogicalSide";
+            default -> "net.minecraftforge.fml.LogicalSide";
+        };
+        Class<?> sideType = Class.forName(sideName);
+        Class<?> fireType = Class.forName("com.tacz.guns.api.event.common.GunFireEvent");
+        Object event = fireType.getConstructor(net.minecraft.world.entity.LivingEntity.class, ItemStack.class, sideType)
+                .newInstance(player, gun, sideType.getField("CLIENT").get(null));
+        if (platform.equals("Fabric")) {
+            Object callbackEvent = fireType.getField("CALLBACK").get(null);
+            Object invoker = Class.forName("net.fabricmc.fabric.api.event.Event").getMethod("invoker").invoke(callbackEvent);
+            Class.forName("com.tacz.guns.api.event.common.GunFireEvent$Callback")
+                    .getMethod("post", fireType).invoke(invoker, event);
+        } else {
+            boolean neo = platform.equals("NeoForge");
+            Object bus = Class.forName(neo ? "net.neoforged.neoforge.common.NeoForge" : "net.minecraftforge.common.MinecraftForge")
+                    .getField("EVENT_BUS").get(null);
+            Class<?> busType = Class.forName(neo ? "net.neoforged.bus.api.IEventBus" : "net.minecraftforge.eventbus.api.IEventBus");
+            Class<?> eventType = Class.forName(neo ? "net.neoforged.bus.api.Event" : "net.minecraftforge.eventbus.api.Event");
+            busType.getMethod("post", eventType).invoke(bus, event);
+        }
+        return !(Boolean) fireType.getMethod("isCanceled").invoke(event);
     }
 }

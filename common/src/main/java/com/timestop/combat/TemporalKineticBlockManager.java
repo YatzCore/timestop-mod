@@ -60,9 +60,8 @@ public class TemporalKineticBlockManager {
         KineticRecord record = records.computeIfAbsent(entity.getUUID(), k -> new KineticRecord(entity));
         record.puncherUuid = player.getUUID();
 
-        RuneType rune = RuneManager.getSocketedRuneType(player);
-        boolean supercharged = (rune == RuneType.KINETIC);
-        boolean volatileBlast = (rune == RuneType.VOLATILE);
+        boolean supercharged = RuneManager.hasRune(player, RuneType.KINETIC);
+        boolean volatileBlast = RuneManager.hasRune(player, RuneType.VOLATILE);
 
         if (supercharged) {
             impulse = impulse.scale(2.5);
@@ -140,9 +139,11 @@ public class TemporalKineticBlockManager {
             if (entity == null || !entity.isAlive()) {
                 entity = level.getEntity(uuid);
             }
-            if (entity != null && entity.level() == level && entity.distanceToSqr(center) <= rSq
-                    && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(entity)) {
-                toDischarge.add(uuid);
+            if (entity != null && entity.level() == level) {
+                Vec3 eWorld = com.timestop.compat.TemporalWorlds.toWorld(level, entity.position());
+                if (eWorld.distanceToSqr(center) <= rSq && !com.timestop.core.TemporalBubbleManager.isEntityInStasis(entity)) {
+                    toDischarge.add(uuid);
+                }
             }
         }
         for (UUID uuid : toDischarge) {

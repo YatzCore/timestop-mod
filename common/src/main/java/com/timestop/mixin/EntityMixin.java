@@ -15,6 +15,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Entity.class)
 public abstract class EntityMixin {
 
+    @org.spongepowered.asm.mixin.injection.ModifyVariable(method="move", at=@At("HEAD"), argsOnly=true)
+    private net.minecraft.world.phys.Vec3 timestop$continuousPredictionMovement(net.minecraft.world.phys.Vec3 movement) {
+        Entity entity = (Entity)(Object)this;
+        return entity instanceof net.minecraft.world.entity.LivingEntity
+                && com.timestop.prediction.PredictionTime.controlsLivingMotion(entity)
+                ? movement.scale(com.timestop.prediction.PredictionTime.rate(entity)) : movement;
+    }
+
+    @org.spongepowered.asm.mixin.injection.ModifyVariable(method="moveRelative", at=@At("HEAD"), argsOnly=true)
+    private float timestop$selfMovement(float amount) {
+        Entity entity=(Entity)(Object)this;
+        return entity instanceof net.minecraft.world.entity.player.Player player
+                ? (float)(amount * com.timestop.core.SelfAcceleration.rate(player)) : amount;
+    }
+
     @Inject(method = "remove", at = @At("HEAD"))
     private void timestop$onEntityRemoval(Entity.RemovalReason reason, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         Entity entity = (Entity) (Object) this;
@@ -27,7 +42,8 @@ public abstract class EntityMixin {
         boolean timeActive = entity.level().isClientSide ? ClientTimeStopManager.isTimeStopped() : TimeStopManager.isGlobalTimeStopped();
         if (timeActive) {
             TimeMode mode = entity.level().isClientSide ? ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
-            if (mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD) {
+            if ((mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD || (mode == TimeMode.TIME_PREDICTION || mode == TimeMode.COMBAT_SLOW))
+                    && (mode != TimeMode.DECELERATION_FIELD || entity instanceof Projectile p && com.timestop.combat.DecelerationFieldManager.isDecelerated(p))) {
                 if (entity instanceof Projectile || entity instanceof FallingBlockEntity || entity instanceof PrimedTnt) {
                     if (entity.onGround()) {
                         return;
@@ -49,7 +65,8 @@ public abstract class EntityMixin {
         boolean timeActive = entity.level().isClientSide ? ClientTimeStopManager.isTimeStopped() : TimeStopManager.isGlobalTimeStopped();
         if (timeActive) {
             TimeMode mode = entity.level().isClientSide ? ClientTimeStopManager.getCurrentMode() : TimeStopManager.getCurrentMode();
-            if (mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD) {
+            if ((mode == TimeMode.TIME_STOP || mode == TimeMode.SLOW_MOTION || mode == TimeMode.MATRIX || mode == TimeMode.SUPERHOT || mode == TimeMode.DECELERATION_FIELD || (mode == TimeMode.TIME_PREDICTION || mode == TimeMode.COMBAT_SLOW))
+                    && (mode != TimeMode.DECELERATION_FIELD || entity instanceof Projectile p && com.timestop.combat.DecelerationFieldManager.isDecelerated(p))) {
                 if (entity instanceof Projectile) {
                     if (entity.onGround()) {
                         return;

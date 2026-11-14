@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MinecraftServer.class)
-public abstract class MinecraftServerMixin {
+public abstract class MinecraftServerMixin implements com.timestop.core.IMinecraftServerTimeStop {
 
     @Inject(method = "tickServer", at = @At("HEAD"))
     private void timestop$recordServerTick(java.util.function.BooleanSupplier hasTimeLeft, CallbackInfo ci) {
@@ -18,6 +18,27 @@ public abstract class MinecraftServerMixin {
 
     @Shadow private long nextTickTimeNanos;
     @Shadow private long delayedTasksMaxNextTickTimeNanos;
+    @Inject(method = "tickServer", at = @At("TAIL"))
+    private void timestop$predictionTick(java.util.function.BooleanSupplier hasTimeLeft, CallbackInfo ci) {
+        com.timestop.prediction.PredictionTeleports.tick((MinecraftServer) (Object) this);
+        com.timestop.prediction.PredictionServer.tick((MinecraftServer) (Object) this);
+    }
+
+
+    @Inject(method = "stopServer", at = @At("HEAD"))
+    private void timestop$clearPrediction(CallbackInfo ci) {
+        com.timestop.prediction.PredictionServer.clear();
+    }
+
+    @Override
+    public void timestop$wakeServerTick() {
+        long cur = net.minecraft.Util.getNanos();
+        long targetTickMs = TimeStopManager.getServerTickMs() * 1_000_000L;
+        if (this.nextTickTimeNanos > cur + targetTickMs) {
+            this.nextTickTimeNanos = cur + targetTickMs;
+            this.delayedTasksMaxNextTickTimeNanos = this.nextTickTimeNanos;
+        }
+    }
 
     @Inject(
         method = "runServer",

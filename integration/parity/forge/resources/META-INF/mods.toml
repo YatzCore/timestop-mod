@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[52,)"
+license="MIT"
+[[mods]]
+modId="timestop_parity_tests"
+version="1"
+displayName="Time Stop Isolated Parity Tests"

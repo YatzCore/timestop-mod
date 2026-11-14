@@ -157,6 +157,7 @@ public class TickRecorder {
                 }
             }
         }
+        com.timestop.compat.TemporalWorlds.bridge().captureSubLevelsBegin(server, currentFrame);
     }
 
     public void finishFrame(MinecraftServer server) {
@@ -206,6 +207,7 @@ public class TickRecorder {
                 entityBaselines.remove(id);
             }
         }
+        com.timestop.compat.TemporalWorlds.bridge().captureSubLevelsFinish(server, currentFrame);
         timelineBuffer.pushFrame(currentFrame);
         currentFrame = null;
     }
@@ -215,6 +217,30 @@ public class TickRecorder {
             currentFrame = new TickFrame(level.getServer().overworld().getGameTime());
             currentFrame.captureEnvironment(level.getServer().overworld());
         }
+    }
+
+    public void recordSubLevelDependency(Level level, UUID first, UUID second) {
+        if (level.isClientSide || !isRecording()) return;
+        ensureFrame(level);
+        if (currentFrame != null) currentFrame.addSubLevelDependency(first, second);
+    }
+
+    public void recordSubLevelBlockDependency(Level level, UUID body, BlockPos pos) {
+        if (level.isClientSide || !isRecording()) return;
+        ensureFrame(level);
+        if (currentFrame != null) currentFrame.addSubLevelBlockDependency(body, new RewindPlan.BlockKey(level.dimension(), pos.asLong()));
+    }
+
+    public void recordNativeBlockMove(Level level, BlockPos pos, BlockState resultingState) {
+        if (level.isClientSide || !isRecording() || LocalRewind.contains(level.dimension(), pos)) return;
+        ensureFrame(level);
+        if (currentFrame == null) return;
+        BlockEntity be = level.getBlockEntity(pos);
+        com.timestop.combat.RewindRuneManager.identifyInventory(be);
+        CompoundTag nbt = be == null ? null : be.saveWithFullMetadata(level.registryAccess());
+        // Equal block types can still replace an inventory during a native move.
+        currentFrame.addBlockDelta(BlockDelta.create(level.dimension(), pos, level.getBlockState(pos), resultingState, nbt, null));
+        if (be != null) blockEntityBaselines.remove(be);
     }
 
     public void recordBlockChange(Level level, BlockPos pos, BlockState oldState, BlockState newState,
@@ -235,6 +261,12 @@ public class TickRecorder {
             com.timestop.combat.RewindRuneManager.identifyInventory(be);
             blockEntityBaselines.put(be, be.saveWithFullMetadata(be.getLevel().registryAccess()));
         }
+    }
+
+    /** Explicitly establishes a known baseline for a block entity (e.g. after rewind restoration). */
+    public void observeBlockEntityExplicit(BlockEntity be, CompoundTag baseline) {
+        if (be == null || be.getLevel() == null || be.getLevel().isClientSide || baseline == null) return;
+        blockEntityBaselines.put(be, baseline.copy());
     }
 
     public void blockEntityChanged(BlockEntity be) {
@@ -275,13 +307,18 @@ public class TickRecorder {
         previousKinematics.clear();
         removedEntities.clear();
         spawnedEntities.clear();
-        blockEntityBaselines.clear();
+        // blockEntityBaselines is intentionally preserved across rewinds so existing block entities
+        // retain their baselines for future delta tracking.
         entityBaselines.clear();
         lastPlayerInventories.clear();
     }
     public void reset() {
         RewindExplosionEffects.clear();
         clearTrackingData();
+        if (com.timestop.compat.TemporalWorlds.bridge() instanceof com.timestop.compat.sable.SableWorldBridge bridge) {
+            bridge.clearTrackingData();
+        }
+        blockEntityBaselines.clear();
         timelineBuffer.clear();
         timelineBuffer.setRecording(true);
         timelineBuffer.setRewinding(false);

@@ -149,18 +149,15 @@ public class TemporalBubble {
     }
 
     public boolean contains(ResourceKey<Level> dim, Vec3 pos) {
-        if (!this.dimension.equals(dim)) return false;
-        double dx = pos.x - this.center.x;
-        double dy = pos.y - this.center.y;
-        double dz = pos.z - this.center.z;
-        return (dx * dx + dy * dy + dz * dz) <= this.radiusSq;
+        return contains(dim, pos.x, pos.y, pos.z);
     }
 
     public boolean contains(ResourceKey<Level> dim, double px, double py, double pz) {
         if (!this.dimension.equals(dim)) return false;
-        double dx = px - this.center.x;
-        double dy = py - this.center.y;
-        double dz = pz - this.center.z;
+        Vec3 world = com.timestop.compat.TemporalWorlds.serverToWorld(dim, new Vec3(px, py, pz));
+        double dx = world.x - this.center.x;
+        double dy = world.y - this.center.y;
+        double dz = world.z - this.center.z;
         return (dx * dx + dy * dy + dz * dz) <= this.radiusSq;
     }
 
@@ -268,6 +265,12 @@ public class TemporalBubble {
      * Calculates the time dilation speed factor for an entity inside this bubble.
      */
     public float getTimeDilationFactor(Entity entity) {
+        // Projectile movement/tick hooks handle this mode; the rest of the world stays normal.
+        if (mode == TimeMode.DECELERATION_FIELD) return 1.0F;
+            if (mode == TimeMode.SELF_ACCELERATION) return 1.0F;
+            if (mode == TimeMode.COMBAT_SLOW) return entity instanceof net.minecraft.world.entity.Mob
+                    || entity instanceof net.minecraft.world.entity.projectile.Projectile
+                    ? com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue() : 1.0F;
         // Player movement and actions are accelerated explicitly, never by recursive player ticks.
         if (mode == TimeMode.FAST_FORWARD && entity instanceof Player) return 1.0F;
         if (canEntityAct(entity)) return 1.0F;
@@ -284,6 +287,8 @@ public class TemporalBubble {
         switch (mode) {
             case TIME_STOP:
                 return 0.0F;
+            case TIME_PREDICTION:
+                    return com.timestop.config.TimeStopConfig.COMMON.predictionRate.get().floatValue();
             case SLOW_MOTION:
                 return com.timestop.config.TimeStopConfig.COMMON.slowMotionRate.get().floatValue();
             case MATRIX:
@@ -325,7 +330,7 @@ public class TemporalBubble {
         // Mobile center updates directly to caster position if caster is online and in this level
         ServerPlayer owner = level.getServer().getPlayerList().getPlayer(this.ownerUuid);
         if (owner != null && owner.level() == level && owner.isAlive()) {
-            this.center = owner.position().add(0, owner.getBbHeight() * 0.5, 0);
+            this.center = com.timestop.compat.TemporalWorlds.toWorld(level, owner.position().add(0, owner.getBbHeight() * 0.5, 0));
         }
 
         if (remainingTicks > 0) {

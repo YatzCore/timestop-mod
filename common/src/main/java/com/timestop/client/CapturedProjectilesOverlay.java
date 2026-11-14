@@ -29,7 +29,7 @@ public class CapturedProjectilesOverlay {
         Player player = mc.player;
         if (player == null || mc.options.hideGui) return;
 
-        boolean hasRune = RuneManager.getSocketedRuneType(player) == RuneType.ORBITAL;
+        boolean hasRune = RuneManager.hasRune(player, RuneType.ORBITAL);
         if (!hasRune && orbitCount <= 0) return;
 
         Font font = mc.font;

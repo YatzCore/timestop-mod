@@ -41,7 +41,7 @@ public class VoltaicRicochetHandler {
         if (!(shooter instanceof Player player)) return false;
 
         // Must have Voltaic Ricochet rune equipped (works at any time, just like Dead Eye!)
-        if (RuneManager.getSocketedRuneType(player) != RuneType.RICOCHET) return false;
+        if (!RuneManager.hasRune(player, RuneType.RICOCHET)) return false;
 
         if (!(hit instanceof EntityHitResult entityHit)) return false;
 

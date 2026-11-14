@@ -13,6 +13,7 @@ public class VolatileStasisHandler {
         if (projectile == null || projectile.level().isClientSide) return false;
 
         if (com.timestop.platform.EntityDataHelper.getPersistentData(projectile).getBoolean("VolatileStasis")) {
+            com.timestop.platform.EntityDataHelper.getPersistentData(projectile).remove("VolatileStasis");
             Level level = projectile.level();
             if (level instanceof ServerLevel serverLevel) {
                 // Trigger safe non-destructive kinetic concussion blast
